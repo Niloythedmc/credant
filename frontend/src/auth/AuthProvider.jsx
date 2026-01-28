@@ -74,10 +74,24 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading ? children : <div style={{
-                height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'var(--bg-dark)', color: 'var(--text-main)'
-            }}>Loading Credant...</div>}
+            {loading ? (
+                <div style={{
+                    height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--bg-dark)', color: 'var(--text-main)'
+                }}>Loading Credant...</div>
+            ) : user ? (
+                children
+            ) : (
+                <div style={{
+                    height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--bg-dark)', color: 'var(--text-main)', padding: '20px', textAlign: 'center'
+                }}>
+                    <h2>Access Denied</h2>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '10px' }}>
+                        Please open this application from Telegram.
+                    </p>
+                </div>
+            )}
         </AuthContext.Provider>
     );
 };
