@@ -74,22 +74,24 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {loading ? (
-                <div style={{
-                    height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'var(--bg-dark)', color: 'var(--text-main)'
-                }}>Loading Credant...</div>
-            ) : user ? (
+            {(!loading && user) ? (
                 children
             ) : (
                 <div style={{
-                    height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    background: 'var(--bg-dark)', color: 'var(--text-main)', padding: '20px', textAlign: 'center'
+                    height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--bg-dark)', color: 'var(--text-main)'
                 }}>
-                    <h2>Access Denied</h2>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '10px' }}>
-                        Please open this application from Telegram.
-                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                        <div className="spinner" style={{
+                            width: '40px', height: '40px',
+                            border: '3px solid rgba(255,255,255,0.1)',
+                            borderTop: '3px solid #3b82f6',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                        }} />
+                        <span style={{ fontSize: '14px', fontWeight: '500', opacity: 0.8 }}>Loading Credant...</span>
+                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                    </div>
                 </div>
             )}
         </AuthContext.Provider>
