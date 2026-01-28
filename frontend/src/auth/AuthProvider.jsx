@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }) => {
                 const tgData = window.Telegram?.WebApp?.initData || WebApp.initData;
 
                 if (tgData) {
+                    console.log("Telegram InitData found:", tgData);
                     try {
                         // Call Backend Bridge
                         const response = await fetch(`${BACKEND_URL}/auth/telegram`, {
