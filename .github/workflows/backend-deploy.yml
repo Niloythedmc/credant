@@ -1,0 +1,35 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Note: You must set up Workload Identity Federation or use a JSON Key
+      # For simplicity in this generated file, we assume a JSON Key Secret named GCP_SA_KEY
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: credant-backend
+          region: us-central1
+          source: ./backend
+          # Ensure appropriate flags are set
+          flags: '--allow-unauthenticated'
