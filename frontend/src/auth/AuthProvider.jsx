@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { signInWithCustomToken, signOut } from 'firebase/auth';
+import WebApp from '@twa-dev/sdk';
 
 const AuthContext = createContext();
 
@@ -28,14 +29,16 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 // 2. Not signed in? Check Telegram WebApp Data
-                const tg = window.Telegram?.WebApp;
-                if (tg && tg.initData) {
+                // Try window object first, then SDK fallback
+                const tgData = window.Telegram?.WebApp?.initData || WebApp.initData;
+
+                if (tgData) {
                     try {
                         // Call Backend Bridge
                         const response = await fetch(`${BACKEND_URL}/auth/telegram`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ initData: tg.initData })
+                            body: JSON.stringify({ initData: tgData })
                         });
 
                         if (!response.ok) throw new Error("Auth Failed");
