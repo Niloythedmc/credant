@@ -10,17 +10,6 @@ import Insights from './pages/Insights';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import NotificationContainer from './components/Notification/NotificationContainer';
 
-const NotificationTester = () => {
-  const { addNotification } = useNotification();
-  return (
-    <div style={{ position: 'fixed', bottom: 150, left: 20, zIndex: 9999, display: 'flex', gap: 8, flexWrap: 'wrap', maxWidth: '300px' }}>
-      <button className="btn" onClick={() => addNotification('info', 'Information message')}>Info</button>
-      <button className="btn" onClick={() => addNotification('success', 'Operation successful')}>Success</button>
-      <button className="btn" onClick={() => addNotification('warning', 'Warning alert')}>Warning</button>
-      <button className="btn" onClick={() => addNotification('error', 'Critical failure')}>Error</button>
-    </div>
-  );
-};
 
 function App() {
   const [activePage, setActivePage] = useState('feed');
@@ -65,9 +54,6 @@ function App() {
 
         {/* Navigation Layer */}
         <Navigation activePage={activePage} onNavigate={setActivePage} />
-
-        {/* Debug Tester */}
-        <NotificationTester />
 
         {/* Back button for secondary pages */}
         {!navPages.includes(activePage) && (
