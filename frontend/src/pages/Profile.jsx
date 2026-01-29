@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import PageContainer from '../components/PageContainer';
 import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../auth/useApi';
+import { useNotification } from '../context/NotificationContext';
 import styles from './Profile.module.css';
 
 const Profile = ({ activePage }) => {
     const index = 4;
     const { user, tgUser, userProfile } = useAuth();
     const { post, get } = useApi();
+    const { addNotification } = useNotification();
 
     const [wallet, setWallet] = useState(null);
     const [balance, setBalance] = useState("0.00");
@@ -33,13 +35,13 @@ const Profile = ({ activePage }) => {
         try {
             const res = await post('/wallet/create', {});
             setWallet(res.address);
-            alert("Wallet Created: " + res.address);
+            addNotification('success', 'Wallet created successfully!');
             // Fetch balance immediately (likely 0)
             const balRes = await get(`/wallet/balance/${res.address}`);
             setBalance(balRes.ton);
         } catch (e) {
             console.error(e);
-            alert("Error creating wallet: " + e.message);
+            addNotification('error', 'Error creating wallet: ' + e.message);
         } finally {
             setLoadingWallet(false);
         }
@@ -119,17 +121,17 @@ const Profile = ({ activePage }) => {
                                         textArea.select();
                                         try {
                                             document.execCommand('copy');
-                                            alert('Address copied!');
+                                            addNotification('chain', 'Address copied');
                                         } catch (err) {
                                             console.error('Fallback copy failed', err);
-                                            alert('Failed to copy address');
+                                            addNotification('error', 'Failed to copy address');
                                         }
                                         document.body.removeChild(textArea);
                                     };
 
                                     if (navigator.clipboard && window.isSecureContext) {
                                         navigator.clipboard.writeText(text)
-                                            .then(() => alert('Address copied!'))
+                                            .then(() => addNotification('chain', 'Address copied'))
                                             .catch((err) => {
                                                 console.error('Clipboard API failed', err);
                                                 fallbackCopy();
