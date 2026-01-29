@@ -138,7 +138,9 @@ const Profile = ({ activePage }) => {
                                 <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8' }}>
                                     {wallet.slice(0, 4) + '...' + wallet.slice(-4)}
                                 </span>
-                                <button onClick={() => {
+                                <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     const text = wallet;
                                     // Fallback for older browsers or insecure contexts
                                     if (navigator.clipboard && window.isSecureContext) {
