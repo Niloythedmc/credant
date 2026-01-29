@@ -18,7 +18,7 @@ const NotificationContainer = () => {
             display: 'flex',
             justifyContent: 'center'
         }}>
-            <div style={{ position: 'relative', width: '100%', maxWidth: '400px', pointerEvents: 'auto' }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '400px', pointerEvents: 'none' }}>
                 <AnimatePresence initial={false}>
                     {notifications.map((notif, index) => (
                         <NotificationItem
