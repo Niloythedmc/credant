@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageContainer from '../components/PageContainer';
 import { useApi } from '../auth/useApi';
+import styles from './Ads.module.css';
 
 const Ads = ({ activePage }) => {
     const index = 1;
@@ -41,25 +42,14 @@ const Ads = ({ activePage }) => {
 
     return (
         <PageContainer id="ads" activePage={activePage} index={index}>
-            <div style={{
-                padding: '24px',
-                paddingTop: 'env(safe-area-inset-top, 24px)',
-                minHeight: '100%',
-                background: 'var(--bg-dark)'
-            }}>
+            <div className={styles.page}>
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div className={styles.header}>
                     <div>
-                        <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Campaigns</h1>
-                        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Manage your promotions</p>
+                        <h1 className={styles.title}>Campaigns</h1>
+                        <p className={styles.subtitle}>Manage your promotions</p>
                     </div>
-                    <button style={{
-                        width: '40px', height: '40px', borderRadius: '12px',
-                        background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-                        border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
-                        cursor: 'pointer'
-                    }}>
+                    <button className={styles.plusButton}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -68,65 +58,48 @@ const Ads = ({ activePage }) => {
                 </div>
 
                 {/* Stats Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '32px' }}>
+                <div className={styles.statsGrid}>
                     {stats.map((stat, i) => (
-                        <div key={i} className="glass" style={{
-                            padding: '12px', borderRadius: '16px',
-                            background: stat.bg,
-                            border: '1px solid var(--glass-border)',
-                            display: 'flex', flexDirection: 'column', gap: '4px'
-                        }}>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>{stat.label}</span>
-                            <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>{stat.value}</span>
-                            <span style={{ fontSize: '10px', color: stat.change.startsWith('+') ? '#10b981' : '#f43f5e', fontWeight: '700' }}>{stat.change}</span>
+                        <div key={i} className={`glass ${styles.statsCard}`} style={{ background: stat.bg }}>
+                            <span className={styles.statsLabel}>{stat.label}</span>
+                            <span className={styles.statsValue}>{stat.value}</span>
+                            <span className={styles.statsChange} style={{ color: stat.change.startsWith('+') ? '#10b981' : '#f43f5e' }}>{stat.change}</span>
                         </div>
                     ))}
                 </div>
 
                 {/* Active Campaigns */}
-                <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '16px' }}>Recent Activity</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '80px' }}>
-                    {loading && <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>Loading Campaigns...</div>}
+                <h2 className={styles.activityTitle}>Recent Activity</h2>
+                <div className={styles.campaignList}>
+                    {loading && <div className={styles.loading}>Loading Campaigns...</div>}
 
-                    {!loading && campaigns.length === 0 && <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>No campaigns found.</div>}
+                    {!loading && campaigns.length === 0 && <div className={styles.emptyState}>No campaigns found.</div>}
 
                     {campaigns.map(camp => (
-                        <div key={camp.id} className="glass" style={{
-                            padding: '16px', borderRadius: '20px',
-                            background: 'var(--bg-card)',
-                            border: '1px solid var(--glass-border)',
-                            boxShadow: 'var(--card-shadow)',
-                            display: 'flex', gap: '16px', alignItems: 'center'
-                        }}>
-                            <div style={{ position: 'relative' }}>
+                        <div key={camp.id} className={`glass ${styles.campaignCard}`}>
+                            <div className={styles.imageWrapper}>
                                 {/* Using placeholder image if mock data doesn't have it, or reusing image field logic if real data supports it */}
-                                <img src={camp.image || "https://picsum.photos/100"} alt="Ad" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover' }} />
-                                <div style={{
-                                    position: 'absolute', bottom: -4, right: -4,
-                                    background: 'var(--bg-card)', padding: '2px', borderRadius: '50%'
-                                }}>
-                                    <div style={{
-                                        width: '10px', height: '10px', borderRadius: '50%',
+                                <img src={camp.image || "https://picsum.photos/100"} alt="Ad" className={styles.image} />
+                                <div className={styles.statusDotWrapper}>
+                                    <div className={styles.statusDot} style={{
                                         background: getStatusColor(camp.status),
                                         boxShadow: `0 0 6px ${getStatusColor(camp.status)}`
                                     }} />
                                 </div>
                             </div>
 
-                            <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                    <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)' }}>Deal #{camp.id}</h3>
-                                    <span style={{
-                                        fontSize: '11px', fontWeight: '600',
+                            <div className={styles.content}>
+                                <div className={styles.campHeader}>
+                                    <h3 className={styles.campId}>Deal #{camp.id}</h3>
+                                    <span className={styles.statusBadge} style={{
                                         color: getStatusColor(camp.status),
                                         background: `${getStatusColor(camp.status)}20`,
-                                        padding: '2px 8px', borderRadius: '6px'
                                     }}>
                                         {camp.status}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Amount: {camp.amount} TON</p>
+                                    <p className={styles.amount}>Amount: {camp.amount} TON</p>
                                 </div>
                             </div>
                         </div>

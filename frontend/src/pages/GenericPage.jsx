@@ -1,5 +1,6 @@
 import React from 'react';
 import PageContainer from '../components/PageContainer';
+import styles from './GenericPage.module.css';
 
 const GenericPage = ({ id, activePage, title }) => {
     // Determine if this is a nav page to assign index
@@ -8,30 +9,21 @@ const GenericPage = ({ id, activePage, title }) => {
 
     return (
         <PageContainer id={id} activePage={activePage} index={index !== -1 ? index : undefined}>
-            <div style={{ padding: '20px', paddingTop: '40px' }}>
-                <h1 className="text-2xl font-bold mb-4" style={{
-                    color: 'var(--text-main)',
-                    fontSize: '2rem',
-                    fontWeight: 700
-                }}>
+            <div className={styles.page}>
+                <h1 className={styles.title}>
                     {title || id}
                 </h1>
 
-                <div className="glass" style={{ padding: '24px', borderRadius: '16px', marginBottom: '16px' }}>
+                <div className={`glass ${styles.introCard}`}>
                     <p>This is the {title} page.</p>
-                    <p style={{ marginTop: '10px', opacity: 0.7 }}>
+                    <p className={styles.subtitle}>
                         Demonstrating the sliding transition effect.
                     </p>
                 </div>
 
                 {/* Dummy content to show scrolling */}
                 {Array.from({ length: 15 }).map((_, i) => (
-                    <div key={i} className="glass" style={{
-                        padding: '16px',
-                        borderRadius: '12px',
-                        marginBottom: '10px',
-                        opacity: 0.5
-                    }}>
+                    <div key={i} className={`glass ${styles.dummyItem}`}>
                         Item {i + 1}
                     </div>
                 ))}

@@ -64,13 +64,14 @@ router.get('/balance/:address', async (req, res) => {
     try {
         const { address } = req.params;
 
-        // toncenter /getAddressBalance
-        const response = await axios.get(`${tonApiUrl}`, {
-            headers: { 'X-API-Key': tonApiKey },
-            params: {
-                method: 'getAddressBalance',
-                params: JSON.stringify({ address })
-            }
+        // toncenter /jsonRPC - Use POST for stability
+        const response = await axios.post(`${tonApiUrl}`, {
+            method: 'getAddressBalance',
+            params: { address },
+            id: '1',
+            jsonrpc: '2.0'
+        }, {
+            headers: { 'X-API-Key': tonApiKey }
         });
 
         if (response.data.ok) {

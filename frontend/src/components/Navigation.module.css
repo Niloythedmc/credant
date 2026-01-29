@@ -1,0 +1,42 @@
+.nav {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--nav-height);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: var(--safe-area-bottom);
+    z-index: 100;
+}
+
+.navButton {
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 8px;
+    width: 60px;
+    transition: transform 0.1s ease;
+}
+
+.navButton:active {
+    transform: scale(0.95);
+}
+
+.label {
+    font-size: 10px;
+    text-transform: capitalize;
+    color: #9ca3af;
+    font-weight: 400;
+    transition: color 0.2s ease;
+}
+
+.label.active {
+    color: #8b5cf6;
+    font-weight: 600;
+}

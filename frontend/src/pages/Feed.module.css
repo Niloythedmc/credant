@@ -1,0 +1,180 @@
+.page {
+    padding: 16px;
+    padding-top: env(safe-area-inset-top, 20px);
+    min-height: 100%;
+    background: var(--bg-dark);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.headerTitle {
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.profileCard {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 0 4px;
+}
+
+.userInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-card);
+}
+
+.userName {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.userStatus {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.inviteButton {
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.feedList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 80px;
+}
+
+.loading,
+.emptyState {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+}
+
+.emptyState {
+    padding: 40px;
+}
+
+.postCard {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--glass-border);
+}
+
+.postHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.postUser {
+    display: flex;
+    gap: 10px;
+}
+
+.postAvatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.postUserInfo {
+    display: flex;
+    align-items: center;
+}
+
+.postName {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-right: 4px;
+}
+
+.genreBadge {
+    background: var(--badge-blue-bg);
+    color: var(--badge-blue-text);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.postContent {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-main);
+    margin-bottom: 16px;
+}
+
+.postActions {
+    display: flex;
+    gap: 12px;
+}
+
+.likeButton {
+    background: none;
+    border: none;
+    color: var(--badge-yellow-text);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.verifiedIcon {
+    margin-left: 4px;
+    width: 14px;
+    height: 14px;
+    fill: var(--icon-verified);
+}
+
+.coinIcon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+}
+
+.coinInner {
+    width: 8px;
+    height: 8px;
+    border: 2px solid white;
+    border-radius: 50%;
+}

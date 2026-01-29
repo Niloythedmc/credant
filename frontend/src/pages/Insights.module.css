@@ -1,0 +1,310 @@
+.page {
+    padding: 24px;
+    padding-top: env(safe-area-inset-top, 24px);
+    min-height: 100%;
+    background: var(--bg-dark);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.timeFilter {
+    background: var(--bg-card);
+    padding: 4px;
+    border-radius: 12px;
+    display: flex;
+    border: 1px solid var(--glass-border);
+}
+
+.rangeButton {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.rangeButtonActive {
+    background: var(--bg-dark);
+    color: var(--primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.growthCard {
+    padding: 20px;
+    border-radius: 24px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.05));
+    border: 1px solid var(--glass-border);
+}
+
+.growthHeader {
+    margin-bottom: 20px;
+}
+
+.totalSubsLabel {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.totalSubsValue {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.growthBadge {
+    color: #10b981;
+    font-size: 14px;
+    font-weight: 700;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.chartContainer {
+    width: 100%;
+    height: 150px;
+    position: relative;
+}
+
+.gridContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.demographicsCard {
+    padding: 16px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+}
+
+.cardTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 12px;
+}
+
+.demoBar {
+    margin-bottom: 12px;
+}
+
+.demoLabelRow {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.demoLabel {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.demoValue {
+    font-size: 12px;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.demoTrack {
+    width: 100%;
+    height: 6px;
+    background: var(--glass-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.demoFill {
+    height: 100%;
+    border-radius: 3px;
+}
+
+.engagementCard {
+    padding: 16px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.engagementStat {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.engagementValue {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.engagementLabel {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.barChart {
+    display: flex;
+    gap: 4px;
+    height: 40px;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.chartBar {
+    width: 4px;
+    background: var(--text-muted);
+    border-radius: 2px;
+    opacity: 0.5;
+}
+
+.locationsCard {
+    padding: 16px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    margin-bottom: 80px;
+}
+
+.locationRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.locationsCard .locationRow:last-child {
+    margin-bottom: 0px;
+}
+
+.flag {
+    font-size: 18px;
+}
+
+.countryName {
+    font-size: 14px;
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+.pct {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.trustCard {
+    padding: 24px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, var(--bg-card), rgba(16, 185, 129, 0.05));
+    border: 1px solid var(--glass-border);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.trustTitle {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.trustDesc {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.trustCircleWrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trustCircleBg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid var(--glass-border);
+}
+
+.trustCircleFg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid #10b981;
+    border-left-color: transparent;
+    transform: rotate(45deg);
+}
+
+.trustScore {
+    font-size: 16px;
+    font-weight: 800;
+    color: #10b981;
+}
+
+.newsSection {
+    margin-bottom: 80px;
+}
+
+.newsTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 16px;
+    padding-left: 4px;
+}
+
+.newsList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.newsCard {
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.newsHeadline {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.newsTime {
+    font-size: 11px;
+    color: var(--text-muted);
+}

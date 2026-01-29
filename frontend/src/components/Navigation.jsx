@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from './Navigation.module.css';
 
 const NavIcon = ({ name, active }) => {
     const color = active ? '#8b5cf6' : '#9ca3af';
@@ -48,41 +49,15 @@ const Navigation = ({ activePage, onNavigate }) => {
     const navItems = ['feed', 'ads', 'insights', 'channels', 'profile'];
 
     return (
-        <nav className="glass-nav" style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            width: '100%',
-            height: 'var(--nav-height)',
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center',
-            paddingBottom: 'var(--safe-area-bottom)',
-            zIndex: 100,
-        }}>
+        <nav className={`${styles.nav} glass-nav`}>
             {navItems.map((item) => (
                 <button
                     key={item}
                     onClick={() => onNavigate(item)}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '4px',
-                        cursor: 'pointer',
-                        padding: '8px',
-                        width: '60px',
-                    }}
+                    className={styles.navButton}
                 >
                     <NavIcon name={item} active={activePage === item} />
-                    <span style={{
-                        fontSize: '10px',
-                        textTransform: 'capitalize',
-                        color: activePage === item ? '#8b5cf6' : '#9ca3af',
-                        fontWeight: activePage === item ? 600 : 400
-                    }}>
+                    <span className={`${styles.label} ${activePage === item ? styles.active : ''}`}>
                         {item}
                     </span>
                 </button>

@@ -1,0 +1,158 @@
+.page {
+    padding: 24px;
+    padding-top: env(safe-area-inset-top, 24px);
+    min-height: 100%;
+    background: var(--bg-dark);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.plusButton {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    cursor: pointer;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+}
+
+.statsCard {
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.statsLabel {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.statsValue {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.statsChange {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.activityTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 16px;
+}
+
+.campaignList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 80px;
+}
+
+.loading,
+.emptyState {
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.campaignCard {
+    padding: 16px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.imageWrapper {
+    position: relative;
+}
+
+.image {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    object-fit: cover;
+}
+
+.statusDotWrapper {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: var(--bg-card);
+    padding: 2px;
+    border-radius: 50%;
+}
+
+.statusDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.content {
+    flex: 1;
+}
+
+.campHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.campId {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.statusBadge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.amount {
+    font-size: 12px;
+    color: var(--text-muted);
+}
