@@ -7,6 +7,21 @@ import Channels from './pages/Channels';
 import Ads from './pages/Ads';
 import Insights from './pages/Insights';
 
+import { NotificationProvider, useNotification } from './context/NotificationContext';
+import NotificationContainer from './components/Notification/NotificationContainer';
+
+const NotificationTester = () => {
+  const { addNotification } = useNotification();
+  return (
+    <div style={{ position: 'fixed', bottom: 150, left: 20, zIndex: 9999, display: 'flex', gap: 8, flexWrap: 'wrap', maxWidth: '300px' }}>
+      <button className="btn" onClick={() => addNotification('info', 'Information message')}>Info</button>
+      <button className="btn" onClick={() => addNotification('success', 'Operation successful')}>Success</button>
+      <button className="btn" onClick={() => addNotification('warning', 'Warning alert')}>Warning</button>
+      <button className="btn" onClick={() => addNotification('error', 'Critical failure')}>Error</button>
+    </div>
+  );
+};
+
 function App() {
   const [activePage, setActivePage] = useState('feed');
   const [theme, setTheme] = useState('dark');
@@ -41,28 +56,31 @@ function App() {
   };
 
   return (
-    <div className="app-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Render all pages */}
-      {allPages.map(pageId => renderPage(pageId))}
+    <NotificationProvider>
+      <div className="app-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <NotificationContainer />
 
-      {/* Navigation Layer */}
-      <Navigation activePage={activePage} onNavigate={setActivePage} />
+        {/* Render all pages */}
+        {allPages.map(pageId => renderPage(pageId))}
 
-      {/* Temporary Debug Controls for Secondary Pages */}
-      {/* Only show if we are on a nav page to allow entering secondary pages */}
+        {/* Navigation Layer */}
+        <Navigation activePage={activePage} onNavigate={setActivePage} />
 
+        {/* Debug Tester */}
+        <NotificationTester />
 
-      {/* Back button for secondary pages */}
-      {!navPages.includes(activePage) && (
-        <button
-          className="btn"
-          style={{ position: 'fixed', bottom: 100, right: 20, zIndex: 200 }}
-          onClick={() => setActivePage('feed')} // simplified back
-        >
-          Back to Home
-        </button>
-      )}
-    </div>
+        {/* Back button for secondary pages */}
+        {!navPages.includes(activePage) && (
+          <button
+            className="btn"
+            style={{ position: 'fixed', bottom: 100, right: 20, zIndex: 200 }}
+            onClick={() => setActivePage('feed')} // simplified back
+          >
+            Back to Home
+          </button>
+        )}
+      </div>
+    </NotificationProvider>
   );
 }
 
