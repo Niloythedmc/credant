@@ -29,6 +29,7 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: credant-backend
+          project_id: rwa-exchange
           region: us-central1
           source: ./backend
           # Ensure appropriate flags are set
