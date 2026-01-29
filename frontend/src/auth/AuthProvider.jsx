@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState(null);
     const [tgUser, setTgUser] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
 
     // Production Backend URL
     const BACKEND_URL = 'https://credant-backend-37550868092.us-central1.run.app/api';
@@ -25,6 +26,21 @@ export const AuthProvider = ({ children }) => {
                     // Get ID Token for API calls
                     const idToken = await firebaseUser.getIdToken();
                     setToken(idToken);
+
+                    // Fetch User Profile (with Wallet)
+                    try {
+                        const res = await fetch(`${BACKEND_URL}/auth/me`, {
+                            headers: { 'Authorization': `Bearer ${idToken}` }
+                        });
+                        if (res.ok) {
+                            const profile = await res.json();
+                            console.log("User Profile Loaded:", profile);
+                            setUserProfile(profile);
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch user profile", e);
+                    }
+
                     setLoading(false);
                     return;
                 }
@@ -82,7 +98,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         logout,
         backendUrl: BACKEND_URL,
-        tgUser
+        tgUser,
+        userProfile
     };
 
     return (

@@ -3,6 +3,8 @@ const router = express.Router();
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const { botToken } = require('../config');
+const { createWallet } = require('../services/tonService');
+const { saveSecret } = require('../services/secretService');
 
 // POST /api/auth/telegram
 router.post('/telegram', async (req, res) => {
@@ -38,15 +40,40 @@ router.post('/telegram', async (req, res) => {
         const user = JSON.parse(userJson);
         const uid = `telegram:${user.id}`;
 
-        // 4. Update User in Firestore
-        await admin.firestore().collection("users").doc(uid).set({
+        // 4. Update User in Firestore & Auto-Create Wallet
+        const userRef = admin.firestore().collection("users").doc(uid);
+        const userSnap = await userRef.get();
+
+        let walletDataToSave = {};
+
+        if (!userSnap.exists || !userSnap.data()?.wallet) {
+            console.log(`Creating new wallet for user ${uid}...`);
+            // Generate Wallet
+            const wallet = await createWallet(); // { mnemonic, address, publicKey }
+
+            // Securely Store Mnemonic
+            const secretId = `wallet-${uid}`;
+            await saveSecret(secretId, wallet.mnemonic);
+
+            walletDataToSave = {
+                wallet: {
+                    address: wallet.address,
+                    publicKey: wallet.publicKey,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    secretId: secretId
+                }
+            };
+        }
+
+        await userRef.set({
             id: user.id,
             firstName: user.first_name || "",
             lastName: user.last_name || "",
             username: user.username || "",
             photoUrl: user.photo_url || "",
             authDate: urlParams.get("auth_date"),
-            lastLogin: admin.firestore.FieldValue.serverTimestamp()
+            lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+            ...walletDataToSave
         }, { merge: true });
 
         // 5. Mint Custom Token
@@ -57,6 +84,27 @@ router.post('/telegram', async (req, res) => {
     } catch (error) {
         console.error("Auth Error:", error);
         return res.status(500).json({ error: "Internal Auth Error" });
+    }
+});
+
+// GET /api/auth/me
+// Returns current user profile
+router.get('/me', async (req, res) => {
+    try {
+        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const idToken = req.headers.authorization.split('Bearer ')[1];
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        const uid = decoded.uid;
+
+        const doc = await admin.firestore().collection('users').doc(uid).get();
+        if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+
+        return res.status(200).json(doc.data());
+    } catch (e) {
+        console.error("Get Me Error:", e);
+        return res.status(401).json({ error: 'Session Invalid' });
     }
 });
 

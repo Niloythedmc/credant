@@ -5,7 +5,7 @@ import { useApi } from '../auth/useApi';
 
 const Profile = ({ activePage }) => {
     const index = 4;
-    const { user, tgUser } = useAuth();
+    const { user, tgUser, userProfile } = useAuth();
     const { post, get } = useApi();
 
     const [wallet, setWallet] = useState(null);
@@ -14,13 +14,18 @@ const Profile = ({ activePage }) => {
 
     useEffect(() => {
         const fetchWallet = async () => {
-            // In a real app, we would store the wallet address in the user's Auth token claims or fetch user doc
-            // For MVP, assuming we can fetch or check existence via a dedicated endpoint or checking firestore directly
-            // Since we implemented /wallet/create, let's try to just use local state for now or assume user profile has it
-            // Ideally: const userProfile = await get('/user/profile'); if (userProfile.wallet) ...
+            if (userProfile?.wallet?.address) {
+                setWallet(userProfile.wallet.address);
+                try {
+                    const balRes = await get(`/wallet/balance/${userProfile.wallet.address}`);
+                    setBalance(balRes.ton);
+                } catch (e) {
+                    console.error("Failed to fetch balance", e);
+                }
+            }
         };
-        // Skipping auto-fetch for MVP simplicity, relying on Create Action
-    }, []);
+        fetchWallet();
+    }, [userProfile]);
 
     const handleCreateWallet = async () => {
         setLoadingWallet(true);
