@@ -5,7 +5,7 @@ import { useApi } from '../auth/useApi';
 
 const Profile = ({ activePage }) => {
     const index = 4;
-    const { user } = useAuth();
+    const { user, tgUser } = useAuth();
     const { post, get } = useApi();
 
     const [wallet, setWallet] = useState(null);
@@ -40,8 +40,10 @@ const Profile = ({ activePage }) => {
     };
 
     // Derived Display Data
-    const displayName = user?.displayName || user?.uid?.substring(0, 8) || "Anonymous";
-    const displayHandle = user?.reloadUserInfo?.screenName ? `@${user.reloadUserInfo.screenName}` : "@user";
+    const tgFullName = tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : null;
+    const displayName = tgFullName || user?.displayName || user?.uid?.substring(0, 8) || "Anonymous";
+    const displayHandle = tgUser?.username ? `@${tgUser.username}` : (user?.reloadUserInfo?.screenName ? `@${user.reloadUserInfo.screenName}` : "@user");
+    const profileImage = tgUser?.photo_url || user?.photoURL || "https://i.pravatar.cc/150?u=99";
 
     const MenuButton = ({ icon, label, onClick }) => (
         <button className="glass" onClick={onClick} style={{
@@ -75,7 +77,7 @@ const Profile = ({ activePage }) => {
                 {/* Header Identity */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
                     <div style={{ position: 'relative' }}>
-                        <img src="https://i.pravatar.cc/150?u=99" alt="Profile" style={{
+                        <img src={profileImage} alt="Profile" style={{
                             width: '80px', height: '80px', borderRadius: '50%',
                             border: '3px solid var(--bg-card)',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.2)'

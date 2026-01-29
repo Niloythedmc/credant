@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import PageContainer from '../components/PageContainer';
 import { useApi } from '../auth/useApi';
+import { useAuth } from '../auth/AuthProvider';
 
 const Feed = ({ activePage }) => {
     const index = 0;
     const { get, post } = useApi();
+    const { user, tgUser } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -84,12 +86,12 @@ const Feed = ({ activePage }) => {
                     {/* User Mini Profile Top Right if needed? Image shows something indistinct. Skipping for clean look. */}
                 </header>
 
-                {/* Top Profile Card (Matches "Imrxuater Alsx" section roughly) */}
+                {/* Top Profile Card */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', padding: '0 4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <img src="https://i.pravatar.cc/150?u=99" alt="Me" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid var(--bg-card)' }} />
+                        <img src={tgUser?.photo_url || user?.photoURL || "https://i.pravatar.cc/150?u=99"} alt="Me" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid var(--bg-card)' }} />
                         <div>
-                            <h2 style={{ fontSize: '16px', fontWeight: '700', lineHeight: '1.2' }}>Imrxuater Alsx</h2>
+                            <h2 style={{ fontSize: '16px', fontWeight: '700', lineHeight: '1.2' }}>{tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : (user?.displayName || "Guest")}</h2>
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Verified Grand Owner</p>
                         </div>
                     </div>

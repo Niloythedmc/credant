@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState(null);
+    const [tgUser, setTgUser] = useState(null);
 
     // Production Backend URL
     const BACKEND_URL = 'https://credant-backend-37550868092.us-central1.run.app/api';
@@ -30,7 +31,14 @@ export const AuthProvider = ({ children }) => {
 
                 // 2. Not signed in? Check Telegram WebApp Data
                 // Try window object first, then SDK fallback
-                const tgData = window.Telegram?.WebApp?.initData || WebApp.initData;
+                const tgApp = window.Telegram?.WebApp || WebApp;
+                const tgData = tgApp?.initData;
+                const tgUnsafeData = tgApp?.initDataUnsafe;
+
+                if (tgUnsafeData?.user) {
+                    console.log("Telegram User Data:", tgUnsafeData.user);
+                    setTgUser(tgUnsafeData.user);
+                }
 
                 if (tgData) {
                     console.log("Telegram InitData found:", tgData);
@@ -73,7 +81,8 @@ export const AuthProvider = ({ children }) => {
         token,
         loading,
         logout,
-        backendUrl: BACKEND_URL
+        backendUrl: BACKEND_URL,
+        tgUser
     };
 
     return (
