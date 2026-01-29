@@ -130,6 +130,25 @@ const Profile = ({ activePage }) => {
                             <span style={{ fontSize: '18px', fontWeight: '600', color: '#cbd5e1' }}>TON</span>
                         </div>
 
+                        {wallet && (
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px',
+                                background: 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '8px', width: 'fit-content'
+                            }}>
+                                <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8' }}>
+                                    {wallet.slice(0, 4) + '...' + wallet.slice(-4)}
+                                </span>
+                                <button onClick={() => { navigator.clipboard.writeText(wallet); alert('Address copied!'); }} style={{
+                                    background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex'
+                                }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button onClick={handleCreateWallet} disabled={loadingWallet} style={{
                                 flex: 2, background: 'white', color: '#0f172a', border: 'none',

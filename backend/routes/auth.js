@@ -38,7 +38,7 @@ router.post('/telegram', async (req, res) => {
         // 3. Extract User Info
         const userJson = urlParams.get("user");
         const user = JSON.parse(userJson);
-        const uid = `telegram:${user.id}`;
+        const uid = user.id.toString();
 
         // 4. Update User in Firestore & Auto-Create Wallet
         const userRef = admin.firestore().collection("users").doc(uid);
@@ -67,10 +67,6 @@ router.post('/telegram', async (req, res) => {
 
         await userRef.set({
             id: user.id,
-            firstName: user.first_name || "",
-            lastName: user.last_name || "",
-            username: user.username || "",
-            photoUrl: user.photo_url || "",
             authDate: urlParams.get("auth_date"),
             lastLogin: admin.firestore.FieldValue.serverTimestamp(),
             ...walletDataToSave
