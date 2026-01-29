@@ -138,7 +138,29 @@ const Profile = ({ activePage }) => {
                                 <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8' }}>
                                     {wallet.slice(0, 4) + '...' + wallet.slice(-4)}
                                 </span>
-                                <button onClick={() => { navigator.clipboard.writeText(wallet); alert('Address copied!'); }} style={{
+                                <button onClick={() => {
+                                    const text = wallet;
+                                    // Fallback for older browsers or insecure contexts
+                                    if (navigator.clipboard && window.isSecureContext) {
+                                        navigator.clipboard.writeText(text).then(() => alert('Address copied!'));
+                                    } else {
+                                        const textArea = document.createElement("textarea");
+                                        textArea.value = text;
+                                        textArea.style.position = "fixed";
+                                        textArea.style.left = "-9999px";
+                                        document.body.appendChild(textArea);
+                                        textArea.focus();
+                                        textArea.select();
+                                        try {
+                                            document.execCommand('copy');
+                                            alert('Address copied!');
+                                        } catch (err) {
+                                            console.error('Unable to copy', err);
+                                            alert('Failed to copy');
+                                        }
+                                        document.body.removeChild(textArea);
+                                    }
+                                }} style={{
                                     background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex'
                                 }}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -19,6 +19,15 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const initAuth = async () => {
+            // 0. Extract Telegram WebApp Data (Unsafe) immediately
+            const tgApp = window.Telegram?.WebApp || WebApp;
+            const tgUnsafeData = tgApp?.initDataUnsafe;
+
+            if (tgUnsafeData?.user) {
+                console.log("Telegram User Data:", tgUnsafeData.user);
+                setTgUser(tgUnsafeData.user);
+            }
+
             // 1. Check if we are already signed in
             const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
                 if (firebaseUser) {
@@ -45,16 +54,8 @@ export const AuthProvider = ({ children }) => {
                     return;
                 }
 
-                // 2. Not signed in? Check Telegram WebApp Data
-                // Try window object first, then SDK fallback
-                const tgApp = window.Telegram?.WebApp || WebApp;
+                // 2. Not signed in? Check Telegram WebApp Data (Signed)
                 const tgData = tgApp?.initData;
-                const tgUnsafeData = tgApp?.initDataUnsafe;
-
-                if (tgUnsafeData?.user) {
-                    console.log("Telegram User Data:", tgUnsafeData.user);
-                    setTgUser(tgUnsafeData.user);
-                }
 
                 if (tgData) {
                     console.log("Telegram InitData found:", tgData);
