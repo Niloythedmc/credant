@@ -1,0 +1,148 @@
+Feed{
+    1. User can see all interested post with multi filter options
+    2. top trending thoughts
+    3. search for posts, channels, offers, hashtags, persons
+    4. react, share & discussions
+}
+
+Ads{
+    1. There will appear all Ads with multi filter option (revenue, budget, top, etc)
+    2. User can click on any ad to see details
+    3. There will be the post details, title, budget per killo interaction, interaction target
+    4. User can create ads by selecting time period, post length, image, requirement like average views & reaction or comments
+    5. Each Ads can target some channels
+    6. User can run by budget fixed time or fast
+}
+
+Insights{
+    1. in the Insights page, there will appear all trends, total deals, top channels, top offers, top niche, trending subjects, average budget, average cost per killo interaction,
+    2. users can see their all ads and insights
+}
+
+Channels{
+    1. Users can see all channels with multi filter option
+    2. There will be purity score, subs, average interaction, demand, post per week, Channel age
+    3. User can click on any channel to see details
+    4. User can create channel by selecting entering their channel id or username, and they have to calculate the purity score by post on the channel
+}
+
+Profile{
+    1. User can see their all posts, ads, channels, offers, deals
+    2. User can edit their profile
+    3. User can see their all ads and insights
+    4. User can manage wallet balance and transactions
+}
+
+Setting{
+    1. theme switching
+    2. Profile publishing (premium)
+    3. Language
+    4. Auto translate (premium)
+    5. Notification
+}
+
+Create Post{
+    1. enter thought as text
+    2. click on + icon to add image
+    3. use @username to target any channel or person
+    4. use #hashtag to target any niche
+    5. use / to add offers or deals in the post
+    6. click on post to publish
+}
+
+Create Ads{
+    1. enter title, description, add image, add post text with emoji
+    2. select time period, post length, channel / link, image, requirement like average views & reaction or comments
+    3. target channels
+    4. select budget and spend type
+    5. select interaction target
+    6. click on create to publish
+}
+
+List Channels{
+    1. Add the bot to the channel
+    2. Enter the channel username or chatid to Verify
+    3. POst a auto generated post to calculate the purity score
+    4. then click submit
+    5. After 24 hour, come and check the purity score and list if the score is greater then 7
+}
+
+Channels Details{
+    1. User can see the channel owner
+    2. see all deals and ads on the channel (active + pending + done)
+    3. See channel stats like view, average interaction rate, purity score
+    4. user can offer a deal to the channel
+}
+
+Offer Deal{
+    1. Enters the title, description, image, link / channel, post
+    2. set budget and duration
+    3. click on create to publish
+}
+
+Ads Details{
+    1. User can see the ad details
+    2. see all data and requirements like target, budget, duration, etc
+    3. See all channels requested for the deals
+    4. User can request by selecting one or multiple channels for the Ads according to the requirement
+}
+
+Post details{
+    1. The post
+    2. the post stats
+    3. the discussions
+}
+
+search{
+    1. search for posts, channels, offers, hashtags, persons
+}
+
+Search result{
+    1. result types by thoughts, channels, offers, persons or all
+    2. channels, then related persons, then related posts and ads
+}
+
+Share Modal {
+    1. Opens the toast with options to share on Telegram, Facebook, Twitter, WhatsApp, etc
+    2. Copy link
+    3. Share on other apps
+}
+
+Comment Modal{
+    1. see all the discussions
+    2. write my discussions
+    3. Add image or channels
+    4. target person or niche
+}
+
+Channel Preview{
+    1. Channel image, name
+    2. channel subscribers and interaction rate & purity score
+}
+
+person preview{
+    1. person image, name
+    2. person Deals
+}
+
+Select Channel Modal{
+    1. List of my channel to choose
+}
+
+deals or Ads choose modal{
+    1. List of deals & ads to choose one
+}
+
+person / channel select preview{
+    1. choose related person & channels to choose one
+}
+
+Hashtag choose preview{
+    1. list all related hashtags to choose one
+}
+
+setting modal {
+    1. Profile public option from username
+    2. choose translation Language
+    3. notification setting
+}

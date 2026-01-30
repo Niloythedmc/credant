@@ -22,6 +22,7 @@
     border-radius: 50%;
     border: 3px solid var(--bg-card);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    object-fit: cover;
 }
 
 .editBadge {
@@ -74,24 +75,14 @@
 }
 
 .walletCard {
-    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-    border-radius: 24px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: none;
     position: relative;
     overflow: hidden;
     margin-bottom: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.decoCircle {
-    position: absolute;
-    top: -20%;
-    right: -10%;
-    width: 150px;
-    height: 150px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
-    border-radius: 50%;
+    border: 1px solid var(--glass-border);
 }
 
 .walletContent {
@@ -101,51 +92,45 @@
 
 .label {
     font-size: 13px;
-    color: #94a3b8;
-    margin-bottom: 8px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
 }
 
 .balanceRow {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .balanceAmount {
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 800;
-    color: white;
+    color: var(--text-main);
     letter-spacing: -1px;
 }
 
 .balanceUnit {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
-    color: #cbd5e1;
+    color: var(--text-muted);
 }
 
 .addressRow {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 20px;
-    background: rgba(255, 255, 255, 0.05);
+    margin-bottom: 16px;
+    background: var(--bg-dark);
     padding: 8px 12px;
-    border-radius: 8px;
-    max-width: 100%;
-    /* Ensure it fits within parent */
+    border-radius: 12px;
+    max-width: fit-content;
 }
 
 .addressText {
     font-family: monospace;
-    font-size: 12px;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-    /* Important for flex child truncation */
+    font-size: 13px;
+    color: var(--text-muted);
 }
 
 .copyButton {
@@ -218,42 +203,92 @@
 
 
 
-.menuTitle {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-muted);
-    margin-bottom: 16px;
-    padding-left: 4px;
-    text-transform: uppercase;
+/* New Section Styles */
+.section {
+    margin-bottom: 24px;
 }
 
-.menuButton {
-    width: 100%;
-    padding: 16px;
-    border-radius: 16px;
-    margin-bottom: 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--glass-border);
+.sectionHeader {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    cursor: pointer;
-    text-align: left;
+    margin-bottom: 12px;
 }
 
-.menuButtonInner {
+.sectionTitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
     display: flex;
     align-items: center;
+    gap: 8px;
+}
+
+.priceIcon {
+    font-size: 16px;
+    /* color: #eab308; Removed specific color to use emoji or standard text if emoji */
+}
+
+.sectionList {
+    display: flex;
+    flex-direction: column;
     gap: 12px;
 }
 
-.menuIcon {
-    font-size: 20px;
-    color: var(--primary);
+.emptyState {
+    padding: 24px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    text-align: center;
+    border: 1px dashed var(--glass-border);
 }
 
-.menuLabel {
+.emptyText {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.createButton {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.itemCard {
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+}
+
+.itemTitle {
     font-size: 15px;
     font-weight: 600;
     color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.itemSubtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.moreButton {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
 }

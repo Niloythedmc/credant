@@ -53,17 +53,49 @@ const Profile = ({ activePage }) => {
     const displayHandle = tgUser?.username ? `@${tgUser.username}` : (user?.reloadUserInfo?.screenName ? `@${user.reloadUserInfo.screenName}` : "@user");
     const profileImage = tgUser?.photo_url || user?.photoURL || "https://i.pravatar.cc/150?u=99";
 
-    const MenuButton = ({ icon, label, onClick }) => (
-        <button className={styles.menuButton} onClick={onClick}>
-            <div className={styles.menuButtonInner}>
-                <span className={styles.menuIcon}>{icon}</span>
-                <span className={styles.menuLabel}>{label}</span>
+    const ContentSection = ({ title, items, emptyText, actionText, styles, onAction, hasPriceIcon, isClientOffer }) => {
+        const hasItems = items && items.length > 0;
+        const displayItems = hasItems ? items.slice(0, 3) : [];
+
+        return (
+            <div className={styles.section}>
+                <div className={styles.sectionHeader}>
+                    <div className={styles.sectionTitle}>
+                        {title}
+                        {hasItems && hasPriceIcon && <span className={styles.priceIcon}>💲</span>}
+                    </div>
+                </div>
+
+                {hasItems ? (
+                    <div className={styles.sectionList}>
+                        {displayItems.map((item, i) => (
+                            <div key={i} className={styles.itemCard}>
+                                <div className={styles.itemTitle}>{item.title}</div>
+                                <div className={styles.itemSubtitle}>{item.sub}</div>
+                            </div>
+                        ))}
+                        {items.length > 3 && (
+                            <button className={styles.moreButton}>More</button>
+                        )}
+                        {/* Always show action button if allowed, or only if empty? Req says "if 0 then text... share thoughts". Implies action button is for empty state mostly or bottom? 
+                        The req says: "there will be a more button after each of the section if there have more".
+                        "if 0 then there will be text... share thoughts...".
+                        Let's put the action button in the empty state.
+                         */}
+                    </div>
+                ) : (
+                    <div className={styles.emptyState}>
+                        <p className={styles.emptyText}>{emptyText}</p>
+                        {!isClientOffer && actionText && (
+                            <button className={styles.createButton} onClick={onAction}>
+                                {actionText}
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        </button>
-    );
+        );
+    };
 
     return (
         <PageContainer id="profile" activePage={activePage} index={index}>
@@ -91,9 +123,6 @@ const Profile = ({ activePage }) => {
 
                 {/* Wallet Card */}
                 <div className={styles.walletCard}>
-                    {/* Decorative Circles */}
-                    <div className={styles.decoCircle} />
-
                     <div className={styles.walletContent}>
                         <p className={styles.label}>Total Earnings</p>
                         <div className={styles.balanceRow}>
@@ -110,7 +139,6 @@ const Profile = ({ activePage }) => {
                                     e.stopPropagation();
                                     e.preventDefault();
                                     const text = wallet;
-
                                     const fallbackCopy = () => {
                                         const textArea = document.createElement("textarea");
                                         textArea.value = text;
@@ -128,7 +156,6 @@ const Profile = ({ activePage }) => {
                                         }
                                         document.body.removeChild(textArea);
                                     };
-
                                     if (navigator.clipboard && window.isSecureContext) {
                                         navigator.clipboard.writeText(text)
                                             .then(() => addNotification('chain', 'Address copied'))
@@ -149,41 +176,55 @@ const Profile = ({ activePage }) => {
                         )}
 
                         <div className={styles.actionRow}>
-                            <button onClick={handleCreateWallet} disabled={loadingWallet} className={styles.primaryButton}>
-                                {loadingWallet ? "Processing..." : (wallet ? "Withdraw" : "Create Wallet")}
+                            <button className={styles.primaryButton} onClick={() => addNotification('info', 'Deposit feature coming soon')}>
+                                Deposit
                             </button>
-                            <button className={styles.secondaryButton}>
-                                History
+                            <button className={styles.secondaryButton} onClick={() => addNotification('info', 'Withdraw feature coming soon')}>
+                                Withdraw
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Publisher Stats - Using Defaults for MVP since backend stats aren't hooked up yet */}
-                <div className={styles.statsGrid}>
-                    {[
-                        { label: 'Channels', value: '3', icon: '📢' },
-                        { label: 'Ads Posted', value: '12', icon: '⚡' },
-                        { label: 'Trust Score', value: '98', icon: '🛡️', color: '#10b981' },
-                    ].map((stat, i) => (
-                        <div key={i} className={styles.statCard}>
-                            <span style={{ fontSize: '20px' }}>{stat.icon}</span>
-                            <div>
-                                <div className={styles.statValue} style={stat.color ? { color: stat.color } : {}}>{stat.value}</div>
-                                <div className={styles.statLabel}>{stat.label}</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                {/* Content Sections */}
+                <ContentSection
+                    title="My Thoughts"
+                    items={[]} // Mock: [] for empty, or fill for data
+                    emptyText="You have no thoughts"
+                    actionText="Share Thoughts"
+                    styles={styles}
+                    onAction={() => addNotification('info', 'Share Thoughts coming soon')}
+                />
 
-                {/* Menu */}
-                <div>
-                    <h3 className={styles.menuTitle}>Management</h3>
-                    <MenuButton icon="📢" label="My Channels" onClick={() => { }} />
-                    <MenuButton icon="📊" label="Ad Performance" onClick={() => { }} />
-                    <MenuButton icon="⚙️" label="Settings" onClick={() => { }} />
-                    <MenuButton icon="❓" label="Help & Support" onClick={() => { }} />
-                </div>
+                <ContentSection
+                    title="My Channels"
+                    items={[{ id: 1, title: 'Tech News Daily', sub: '12.5k subs' }, { id: 2, title: 'Crypto Alerts', sub: '5.2k subs' }, { id: 3, title: 'Daily Memes', sub: '8.1k subs' }]}
+                    emptyText="You have no channels"
+                    actionText="List Channel"
+                    styles={styles}
+                    onAction={() => addNotification('info', 'List Channel coming soon')}
+                    hasPriceIcon={true}
+                />
+
+                <ContentSection
+                    title="My Ads"
+                    items={[{ id: 1, title: 'Promo: Wallet App', sub: 'Active • 120 clicks' }]}
+                    emptyText="You have no ads"
+                    actionText="Post Ads"
+                    styles={styles}
+                    onAction={() => addNotification('info', 'Post Ads coming soon')}
+                    hasPriceIcon={true}
+                />
+
+                <ContentSection
+                    title="Offers"
+                    items={[]}
+                    emptyText="You have no offers"
+                    actionText="" // No action for offers as per req ("created by clients")
+                    styles={styles}
+                    onAction={() => { }}
+                    isClientOffer={true}
+                />
 
             </div>
         </PageContainer>
