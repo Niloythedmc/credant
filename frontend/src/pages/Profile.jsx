@@ -3,6 +3,7 @@ import PageContainer from '../components/PageContainer';
 import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../auth/useApi';
 import { useNotification } from '../context/NotificationContext';
+import { FiArrowDownLeft, FiArrowUpRight } from 'react-icons/fi';
 import styles from './Profile.module.css';
 
 const Profile = ({ activePage }) => {
@@ -112,79 +113,75 @@ const Profile = ({ activePage }) => {
                         </div>
                     </div>
                     <h2 className={styles.displayName}>{displayName}</h2>
-                    <div className={styles.handleContainer}>
-                        <span className={styles.handle}>{displayHandle}</span>
-                        <span className={styles.dot}></span>
-                        <span className={styles.verifiedBadge}>
-                            Verified Publisher
-                        </span>
-                    </div>
-                </div>
 
-                {/* Wallet Card */}
-                <div className={styles.walletCard}>
-                    <div className={styles.walletContent}>
-                        <p className={styles.label}>Total Earnings</p>
-                        <div className={styles.balanceRow}>
-                            <h1 className={styles.balanceAmount}>{balance}</h1>
-                            <span className={styles.balanceUnit}>TON</span>
+                    {/* Wallet Section Merged into Header */}
+                    <div className={styles.headerWallet}>
+                        <div className={styles.balanceRowHeader}>
+                            <span className={styles.balanceAmountHeader}>{balance}</span>
+                            <span className={styles.balanceUnitHeader}>TON</span>
                         </div>
 
                         {wallet && (
-                            <div className={styles.addressRow}>
-                                <span className={styles.addressText}>
+                            <div className={styles.addressContainer} onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const text = wallet;
+                                const fallbackCopy = () => {
+                                    const textArea = document.createElement("textarea");
+                                    textArea.value = text;
+                                    textArea.style.position = "fixed";
+                                    textArea.style.left = "-9999px";
+                                    document.body.appendChild(textArea);
+                                    textArea.focus();
+                                    textArea.select();
+                                    try {
+                                        document.execCommand('copy');
+                                        addNotification('chain', 'Address copied');
+                                    } catch (err) {
+                                        console.error('Fallback copy failed', err);
+                                        addNotification('error', 'Failed to copy address');
+                                    }
+                                    document.body.removeChild(textArea);
+                                };
+                                if (navigator.clipboard && window.isSecureContext) {
+                                    navigator.clipboard.writeText(text)
+                                        .then(() => addNotification('chain', 'Address copied'))
+                                        .catch((err) => {
+                                            console.error('Clipboard API failed', err);
+                                            fallbackCopy();
+                                        });
+                                } else {
+                                    fallbackCopy();
+                                }
+                            }}>
+                                <span className={styles.addressTextHeader}>
                                     {wallet.slice(0, 4) + '...' + wallet.slice(-4)}
                                 </span>
-                                <button onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    const text = wallet;
-                                    const fallbackCopy = () => {
-                                        const textArea = document.createElement("textarea");
-                                        textArea.value = text;
-                                        textArea.style.position = "fixed";
-                                        textArea.style.left = "-9999px";
-                                        document.body.appendChild(textArea);
-                                        textArea.focus();
-                                        textArea.select();
-                                        try {
-                                            document.execCommand('copy');
-                                            addNotification('chain', 'Address copied');
-                                        } catch (err) {
-                                            console.error('Fallback copy failed', err);
-                                            addNotification('error', 'Failed to copy address');
-                                        }
-                                        document.body.removeChild(textArea);
-                                    };
-                                    if (navigator.clipboard && window.isSecureContext) {
-                                        navigator.clipboard.writeText(text)
-                                            .then(() => addNotification('chain', 'Address copied'))
-                                            .catch((err) => {
-                                                console.error('Clipboard API failed', err);
-                                                fallbackCopy();
-                                            });
-                                    } else {
-                                        fallbackCopy();
-                                    }
-                                }} className={styles.copyButton}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                    </svg>
-                                </button>
+                                <svg className={styles.copyIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
                             </div>
                         )}
 
-                        <div className={styles.actionRow}>
-                            <button className={styles.primaryButton} onClick={() => addNotification('info', 'Deposit feature coming soon')}>
-                                Deposit
+                        <div className={styles.walletActionsHeader}>
+                            <button className={styles.actionIconButton} onClick={() => addNotification('info', 'Deposit feature coming soon')}>
+                                <div className={styles.iconCircle}>
+                                    <FiArrowDownLeft />
+                                </div>
+                                <span className={styles.actionLabel}>Deposit</span>
                             </button>
-                            <button className={styles.secondaryButton} onClick={() => addNotification('info', 'Withdraw feature coming soon')}>
-                                Withdraw
+                            <button className={styles.actionIconButton} onClick={() => addNotification('info', 'Withdraw feature coming soon')}>
+                                <div className={styles.iconCircle}>
+                                    <FiArrowUpRight />
+                                </div>
+                                <span className={styles.actionLabel}>Withdraw</span>
                             </button>
                         </div>
                     </div>
                 </div>
+
+                {/* Wallet Card Removed */}
 
                 {/* Content Sections */}
                 <ContentSection
