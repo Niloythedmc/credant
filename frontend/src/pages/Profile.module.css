@@ -48,43 +48,54 @@
 }
 
 /* Merged Wallet Header Styles */
+/* Merged Wallet Header Styles */
 .headerWallet {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    margin-top: 8px;
+    gap: 8px;
+    /* Reduced gap */
+    margin-top: 4px;
+    /* Reduced margin */
     width: 100%;
 }
 
 .balanceRowHeader {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 4px;
 }
 
 .balanceAmountHeader {
-    font-size: 28px;
+    font-size: 18px;
+    /* Reduced from 28px (~40-50% less visual weight) */
     font-weight: 800;
     color: var(--text-main);
 }
 
 .balanceUnitHeader {
-    font-size: 14px;
+    font-size: 12px;
+    /* Reduced from 14px */
     font-weight: 600;
     color: var(--text-muted);
 }
 
 .addressContainer {
     display: flex;
+    /* Ensure display is flex */
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     background: rgba(255, 255, 255, 0.05);
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: 4px 10px;
+    /* Reduced padding */
+    border-radius: 16px;
     cursor: pointer;
     transition: background 0.2s;
     border: 1px solid var(--glass-border);
+    max-width: 90%;
+    /* Ensure it doesn't overflow screen width on mobile */
+    overflow: hidden;
+    /* Prevent spillover */
 }
 
 .addressContainer:active {
@@ -94,26 +105,36 @@
 
 .addressTextHeader {
     font-family: monospace;
-    font-size: 13px;
+    font-size: 11px;
+    /* Reduced from 13px */
     color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .copyIcon {
     color: var(--text-muted);
     opacity: 0.7;
+    flex-shrink: 0;
+    /* Don't shrink icon */
+    width: 12px;
+    /* Smaller icon */
+    height: 12px;
 }
 
 .walletActionsHeader {
     display: flex;
-    gap: 24px;
-    margin-top: 8px;
+    gap: 20px;
+    /* Reduced gap */
+    margin-top: 4px;
 }
 
 .actionIconButton {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: none;
     border: none;
     cursor: pointer;
@@ -121,8 +142,9 @@
 }
 
 .iconCircle {
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    /* Reduced from 48px (~33% reduction in diam, >50% area) */
+    height: 32px;
     border-radius: 50%;
     background: var(--bg-card);
     /* or semi-transparent */
@@ -130,9 +152,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 14px;
+    /* Reduced icon size */
     color: var(--text-main);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s;
 }
 
@@ -141,7 +164,8 @@
 }
 
 .actionLabel {
-    font-size: 12px;
+    font-size: 10px;
+    /* Reduced from 12px */
     font-weight: 500;
 }
 
