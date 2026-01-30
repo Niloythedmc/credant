@@ -96,13 +96,12 @@ router.get('/me', async (req, res) => {
 
         const userRef = admin.firestore().collection('users').doc(uid);
         const doc = await userRef.get();
-        if (!doc.exists) return res.status(404).json({ error: 'User not found' });
 
-        let userData = doc.data();
+        let userData = doc.exists ? doc.data() : { id: uid };
 
-        // Auto-Create Wallet if missing
+        // Auto-Create Wallet if missing (or if user is new/missing)
         if (!userData.wallet) {
-            console.log(`Auto-creating wallet for existing user ${uid} in /me`);
+            console.log(`Auto-creating wallet for user ${uid} in /me`);
             try {
                 // Generate Wallet
                 const wallet = await createWallet(); // { mnemonic, address, publicKey }
@@ -120,8 +119,13 @@ router.get('/me', async (req, res) => {
                     }
                 };
 
-                // Update Firestore
-                await userRef.set(walletData, { merge: true });
+                // Update/Create Firestore
+                // Use set with merge: true to handle both new and existing cases safely
+                await userRef.set({
+                    ...userData,
+                    ...walletData,
+                    lastSeen: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
 
                 // Update local variable to return
                 userData = { ...userData, ...walletData };
@@ -131,6 +135,7 @@ router.get('/me', async (req, res) => {
             }
         }
 
+        // Ensure we don't return 404 even if wallet creation failed but user implies valid auth
         return res.status(200).json(userData);
     } catch (e) {
         console.error("Get Me Error:", e);

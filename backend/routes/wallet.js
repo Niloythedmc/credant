@@ -68,10 +68,7 @@ router.get('/balance/:address', async (req, res) => {
         const response = await axios.post(`${tonApiUrl}`, {
             method: 'getAddressBalance',
             params: { address },
-            id: '1',
             jsonrpc: '2.0'
-        }, {
-            headers: { 'X-API-Key': tonApiKey }
         });
 
         if (response.data.ok) {
