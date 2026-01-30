@@ -100,14 +100,16 @@ const Profile = ({ activePage }) => {
 
                         {/* Debug Info for Mobile Auth Issue */}
                         {!wallet && (
-                            <div style={{ padding: '10px', background: '#333', borderRadius: '8px', marginTop: '10px', fontSize: '10px', color: '#fff' }}>
+                            <div style={{ padding: '10px', background: '#333', borderRadius: '8px', marginTop: '10px', fontSize: '10px', color: '#fff', wordBreak: 'break-all' }}>
                                 <p>DEBUG INFO:</p>
                                 <p>TG Available: {window.Telegram ? "Yes" : "No"}</p>
-                                <p>TG WebApp: {window.Telegram?.WebApp ? "Yes" : "No"}</p>
-                                <p>InitData Len: {window.Telegram?.WebApp?.initData?.length || 0}</p>
                                 <p>User: {user ? "Logged In" : "Null"}</p>
                                 <p>Profile: {userProfile ? "Loaded" : "Null"}</p>
-                                <button onClick={() => window.location.reload()} style={{ marginTop: '5px', padding: '4px' }}>Reload</button>
+                                {userProfile && <p>Data: {JSON.stringify(userProfile).slice(0, 100)}</p>}
+                                <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
+                                    <button onClick={() => window.location.reload()} style={{ padding: '4px' }}>Reload</button>
+                                    <button onClick={() => refreshProfile()} style={{ padding: '4px' }}>Force Sync</button>
+                                </div>
                             </div>
                         )}
 

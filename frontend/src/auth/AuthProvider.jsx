@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
                     // Actually, let's just define the fetcher here:
 
                     try {
-                        const res = await fetch(`${BACKEND_URL}/auth/me`, {
+                        const res = await fetch(`${BACKEND_URL}/auth/me?t=${Date.now()}`, {
                             headers: { 'Authorization': `Bearer ${idToken}` }
                         });
                         if (res.ok) {
