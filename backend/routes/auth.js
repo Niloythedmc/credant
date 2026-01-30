@@ -94,10 +94,44 @@ router.get('/me', async (req, res) => {
         const decoded = await admin.auth().verifyIdToken(idToken);
         const uid = decoded.uid;
 
-        const doc = await admin.firestore().collection('users').doc(uid).get();
+        const userRef = admin.firestore().collection('users').doc(uid);
+        const doc = await userRef.get();
         if (!doc.exists) return res.status(404).json({ error: 'User not found' });
 
-        return res.status(200).json(doc.data());
+        let userData = doc.data();
+
+        // Auto-Create Wallet if missing
+        if (!userData.wallet) {
+            console.log(`Auto-creating wallet for existing user ${uid} in /me`);
+            try {
+                // Generate Wallet
+                const wallet = await createWallet(); // { mnemonic, address, publicKey }
+
+                // Securely Store Mnemonic
+                const secretId = `wallet-${uid}`;
+                await saveSecret(secretId, wallet.mnemonic);
+
+                const walletData = {
+                    wallet: {
+                        address: wallet.address,
+                        publicKey: wallet.publicKey,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        secretId: secretId
+                    }
+                };
+
+                // Update Firestore
+                await userRef.set(walletData, { merge: true });
+
+                // Update local variable to return
+                userData = { ...userData, ...walletData };
+            } catch (err) {
+                console.error("Failed to auto-create wallet in /me:", err);
+                // Fallback: return user without wallet, but log critical error
+            }
+        }
+
+        return res.status(200).json(userData);
     } catch (e) {
         console.error("Get Me Error:", e);
         return res.status(401).json({ error: 'Session Invalid' });

@@ -8,13 +8,12 @@ import styles from './Profile.module.css';
 
 const Profile = ({ activePage }) => {
     const index = 4;
-    const { user, tgUser, userProfile } = useAuth();
+    const { user, tgUser, userProfile, refreshProfile } = useAuth();
     const { post, get } = useApi();
     const { addNotification } = useNotification();
 
     const [wallet, setWallet] = useState(null);
     const [balance, setBalance] = useState("0.00");
-    const [loadingWallet, setLoadingWallet] = useState(false);
 
     useEffect(() => {
         const fetchWallet = async () => {
@@ -30,23 +29,6 @@ const Profile = ({ activePage }) => {
         };
         fetchWallet();
     }, [userProfile]);
-
-    const handleCreateWallet = async () => {
-        setLoadingWallet(true);
-        try {
-            const res = await post('/wallet/create', {});
-            setWallet(res.address);
-            addNotification('success', 'Wallet created successfully!');
-            // Fetch balance immediately (likely 0)
-            const balRes = await get(`/wallet/balance/${res.address}`);
-            setBalance(balRes.ton);
-        } catch (e) {
-            console.error(e);
-            addNotification('error', 'Error creating wallet: ' + e.message);
-        } finally {
-            setLoadingWallet(false);
-        }
-    };
 
     // Derived Display Data
     const tgFullName = tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : null;
@@ -78,11 +60,6 @@ const Profile = ({ activePage }) => {
                         {items.length > 3 && (
                             <button className={styles.moreButton}>More</button>
                         )}
-                        {/* Always show action button if allowed, or only if empty? Req says "if 0 then text... share thoughts". Implies action button is for empty state mostly or bottom? 
-                        The req says: "there will be a more button after each of the section if there have more".
-                        "if 0 then there will be text... share thoughts...".
-                        Let's put the action button in the empty state.
-                         */}
                     </div>
                 ) : (
                     <div className={styles.emptyState}>

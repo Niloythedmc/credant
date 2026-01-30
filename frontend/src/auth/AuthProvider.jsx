@@ -17,6 +17,23 @@ export const AuthProvider = ({ children }) => {
     // Production Backend URL
     const BACKEND_URL = 'https://credant-backend-37550868092.us-central1.run.app/api';
 
+    // Helper to fetch/refresh user profile
+    const refreshProfile = async () => {
+        if (!user || !token) return;
+        try {
+            const res = await fetch(`${BACKEND_URL}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const profile = await res.json();
+                console.log("User Profile Loaded:", profile);
+                setUserProfile(profile);
+            }
+        } catch (e) {
+            console.error("Failed to fetch user profile", e);
+        }
+    };
+
     useEffect(() => {
         const initAuth = async () => {
             // 0. Extract Telegram WebApp Data (Unsafe) immediately
@@ -37,6 +54,12 @@ export const AuthProvider = ({ children }) => {
                     setToken(idToken);
 
                     // Fetch User Profile (with Wallet)
+                    // We can't use refreshProfile here easily because of closure/state, 
+                    // so we duplicate the fetch call or move refreshProfile definition up 
+                    // but it depends on state. simpler to just inline fetch here for init 
+                    // or better: define fetch logic outside.
+                    // Actually, let's just define the fetcher here:
+
                     try {
                         const res = await fetch(`${BACKEND_URL}/auth/me`, {
                             headers: { 'Authorization': `Bearer ${idToken}` }
@@ -100,7 +123,8 @@ export const AuthProvider = ({ children }) => {
         logout,
         backendUrl: BACKEND_URL,
         tgUser,
-        userProfile
+        userProfile,
+        refreshProfile // Exposed
     };
 
     return (
