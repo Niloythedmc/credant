@@ -115,8 +115,24 @@ const Profile = ({ activePage, onNavigate }) => {
                     <div className={styles.sectionList}>
                         {displayItems.map((item, i) => (
                             <div key={i} className={styles.itemCard} style={{ background: 'rgba(128,128,128,0.1)' }}>
-                                <div className={styles.itemTitle} style={{ color: 'var(--text-main)' }}>{item.title}</div>
-                                <div className={styles.itemSubtitle} style={{ color: 'var(--text-muted)' }}>{item.sub}</div>
+                                {item.image && (
+                                    <img src={item.image} alt="" className={styles.itemImage} onError={(e) => e.target.style.display = 'none'} />
+                                )}
+                                <div>
+                                    <div className={styles.itemTitle} style={{ color: 'var(--text-main)' }}>{item.title}</div>
+                                    <div className={styles.itemSubtitle} style={{ color: 'var(--text-muted)' }}>
+                                        {item.sub}
+                                        {item.statusText && (
+                                            <span style={{
+                                                color: item.status === 'pending_verification' ? '#ef4444' : '#22c55e',
+                                                marginLeft: '6px',
+                                                fontWeight: '500'
+                                            }}>
+                                                • {item.statusText}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         ))}
                         {items.length > 3 && (

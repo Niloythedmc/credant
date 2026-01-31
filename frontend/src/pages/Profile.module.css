@@ -278,21 +278,40 @@
 
 .itemCard {
     background: var(--bg-card);
+    border-radius: 12px;
     padding: 16px;
-    border-radius: 16px;
-    border: 1px solid var(--glass-border);
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.itemCard:hover {
+    transform: translateY(-2px);
+}
+
+.itemImage {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #333;
+    flex-shrink: 0;
 }
 
 .itemTitle {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--text-main);
-    margin-bottom: 4px;
 }
 
 .itemSubtitle {
     font-size: 13px;
     color: var(--text-muted);
+    margin-top: 4px;
 }
 
 .moreButton {

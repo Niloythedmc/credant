@@ -150,6 +150,48 @@ router.get('/me', async (req, res) => {
             }
         }
 
+        // Hydrate Channels if 'myChannels' exists
+        if (userData.myChannels && Array.isArray(userData.myChannels) && userData.myChannels.length > 0) {
+            const { getChat, getFileLink } = require('../services/botService');
+            try {
+                // Fetch details for each channel ID
+                const channelPs = userData.myChannels.map(async (cid) => {
+                    try {
+                        const chat = await getChat(cid);
+                        const chDoc = await admin.firestore().collection('channels').doc(cid.toString()).get();
+                        const chData = chDoc.exists ? chDoc.data() : {};
+
+                        // Fetch Photo
+                        let photoUrl = null;
+                        if (chat.photo && chat.photo.small_file_id) {
+                            // Use small_file_id for list view (thumbnail)
+                            photoUrl = await getFileLink(chat.photo.small_file_id);
+                        }
+
+                        const handle = chat.username ? `@${chat.username}` : "Private";
+                        const isPending = chData.status === 'pending_verification';
+
+                        return {
+                            id: cid,
+                            title: chat.title,
+                            sub: handle, // Just the handle or 'Private'
+                            statusText: isPending ? 'Pending' : 'Verified',
+                            status: chData.status || 'unknown',
+                            image: photoUrl
+                        };
+                    } catch (e) {
+                        console.error(`Failed to hydrate channel ${cid}`, e.message);
+                        return null;
+                    }
+                });
+
+                const hydratedChannels = (await Promise.all(channelPs)).filter(c => c !== null);
+                userData.channels = hydratedChannels; // Map to expected frontend property
+            } catch (err) {
+                console.error("Channel hydration error:", err);
+            }
+        }
+
         // Ensure we don't return 404 even if wallet creation failed but user implies valid auth
         return res.status(200).json(userData);
     } catch (e) {

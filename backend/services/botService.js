@@ -9,9 +9,9 @@ const bot = new TelegramBot(botToken, { polling: false });
  * @param {string} text 
  * @returns {Promise<number>} message_id
  */
-const sendMessage = async (chatId, text) => {
+const sendMessage = async (chatId, text, options = {}) => {
     try {
-        const msg = await bot.sendMessage(chatId, text);
+        const msg = await bot.sendMessage(chatId, text, options);
         return msg.message_id;
     } catch (error) {
         console.error("Bot SendMessage Error:", error);
@@ -31,4 +31,50 @@ const getChatMember = async (chatId, userId) => {
     }
 }
 
-module.exports = { sendMessage, getChatMember, botInstance: bot };
+/**
+ * Gets chat info (title, description, photo, etc.)
+ * @param {string|number} chatId 
+ */
+const getChat = async (chatId) => {
+    try {
+        return await bot.getChat(chatId);
+    } catch (error) {
+        console.error("Bot GetChat Error:", error.message);
+        throw error;
+    }
+}
+
+/**
+ * Gets member count
+ * @param {string|number} chatId 
+ */
+const getChatMemberCount = async (chatId) => {
+    try {
+        return await bot.getChatMemberCount(chatId);
+    } catch (error) {
+        console.error("Bot GetChatMemberCount Error:", error.message);
+        return 0;
+    }
+}
+
+/**
+ * Gets file link (for photos)
+ * @param {string} fileId 
+ */
+const getFileLink = async (fileId) => {
+    try {
+        return await bot.getFileLink(fileId);
+    } catch (error) {
+        console.error("Bot GetFileLink Error:", error.message);
+        return null; // Return null if fails
+    }
+}
+
+/**
+ * Gets the bot's own ID from token
+ */
+const getBotId = () => {
+    return parseInt(botToken.split(':')[0]);
+}
+
+module.exports = { sendMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId, botInstance: bot };
