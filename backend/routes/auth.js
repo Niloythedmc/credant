@@ -75,7 +75,22 @@ router.post('/telegram', async (req, res) => {
         // 5. Mint Custom Token
         const token = await admin.auth().createCustomToken(uid);
 
-        return res.status(200).json({ token });
+        // 6. Return Token AND User Data (so frontend has it immediately)
+        // Construct the final user object to return
+        const finalUserData = {
+            id: user.id,
+            authDate: urlParams.get("auth_date"),
+            lastLogin: admin.firestore.FieldValue.serverTimestamp(), // This will be a server timestamp object in DB, but for JSON return we might want to approximate or just omit if not needed strictly by FE immediately
+            ...walletDataToSave,
+            // merge with existing if any, but simplified here:
+            ...((userSnap.exists ? userSnap.data() : {})),
+            ...walletDataToSave // ensure new wallet overrides if created
+        };
+
+        return res.status(200).json({
+            token,
+            user: finalUserData
+        });
 
     } catch (error) {
         console.error("Auth Error:", error);

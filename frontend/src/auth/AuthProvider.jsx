@@ -92,7 +92,12 @@ export const AuthProvider = ({ children }) => {
 
                         if (!response.ok) throw new Error("Auth Failed");
 
-                        const { token: customToken } = await response.json();
+                        const { token: customToken, user: userData } = await response.json();
+
+                        if (userData) {
+                            console.log("Pre-loaded User Profile from Auth:", userData);
+                            setUserProfile(userData);
+                        }
 
                         // Sign in to Firebase
                         await signInWithCustomToken(auth, customToken);
