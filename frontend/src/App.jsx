@@ -9,10 +9,14 @@ import Insights from './pages/Insights';
 
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import NotificationContainer from './components/Notification/NotificationContainer';
+import Inbox from './pages/Inbox';
+import Setting from './pages/Setting';
+import WebApp from '@twa-dev/sdk';
 
 
 function App() {
-  const [activePage, setActivePage] = useState('feed');
+  const [activeNavPage, setActiveNavPage] = useState('feed'); // Tracks the bottom nav
+  const [overlayPage, setOverlayPage] = useState(null);       // Tracks secondary pages (inbox, setting, etc)
   const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
@@ -25,20 +29,60 @@ function App() {
 
   // List of all pages
   const navPages = ['feed', 'ads', 'insights', 'channels', 'profile'];
-  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting'];
+  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox'];
   const allPages = [...navPages, ...secondaryPages];
 
+  // Helper to handle navigation
+  const handleNavigate = (page) => {
+    if (navPages.includes(page)) {
+      setActiveNavPage(page);
+      setOverlayPage(null); // Clear overlay when switching main tabs
+    } else {
+      setOverlayPage(page);
+    }
+  };
+
+  // TELEGRAM BACK BUTTON LOGIC
+  useEffect(() => {
+    if (overlayPage) {
+      WebApp.BackButton.show();
+      const handleBack = () => {
+        setOverlayPage(null); // Close overlay
+      };
+      WebApp.BackButton.onClick(handleBack);
+
+      return () => {
+        WebApp.BackButton.offClick(handleBack);
+      };
+    } else {
+      WebApp.BackButton.hide();
+    }
+  }, [overlayPage]);
+
   const renderPage = (id) => {
-    if (id === 'feed') return <Feed key={id} activePage={activePage} />;
-    if (id === 'ads') return <Ads key={id} activePage={activePage} />;
-    if (id === 'insights') return <Insights key={id} activePage={activePage} />;
-    if (id === 'profile') return <Profile key={id} activePage={activePage} />;
-    if (id === 'channels') return <Channels key={id} activePage={activePage} />;
+    // Determine which "active" state this page cares about
+    // Nav pages display if they equal activeNavPage
+    // Secondary pages display if they equal overlayPage
+
+    // PageContainer uses `activePage` prop to determine visibility/position.
+    // For a Nav Page, we pass `activeNavPage` so it can position itself relative to other nav pages.
+    // For a Secondary Page, we pass `overlayPage` so it shows if it matches.
+    const relevantActivePage = navPages.includes(id) ? activeNavPage : overlayPage;
+
+    if (id === 'feed') return <Feed key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'ads') return <Ads key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'insights') return <Insights key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'profile') return <Profile key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'channels') return <Channels key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'inbox') return <Inbox key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'setting') return <Setting key={id} activePage={relevantActivePage} onNavigate={handleNavigate} theme={theme} toggleTheme={toggleTheme} />;
+
     return (
       <GenericPage
         key={id}
         id={id}
-        activePage={activePage}
+        activePage={relevantActivePage}
+        onNavigate={handleNavigate}
         title={id.charAt(0).toUpperCase() + id.slice(1)}
       />
     );
@@ -52,19 +96,9 @@ function App() {
         {/* Render all pages */}
         {allPages.map(pageId => renderPage(pageId))}
 
-        {/* Navigation Layer */}
-        <Navigation activePage={activePage} onNavigate={setActivePage} />
+        {/* Navigation Layer - Always reflects activeNavPage */}
+        <Navigation activePage={activeNavPage} onNavigate={handleNavigate} />
 
-        {/* Back button for secondary pages */}
-        {!navPages.includes(activePage) && (
-          <button
-            className="btn"
-            style={{ position: 'fixed', bottom: 100, right: 20, zIndex: 200 }}
-            onClick={() => setActivePage('feed')} // simplified back
-          >
-            Back to Home
-          </button>
-        )}
       </div>
     </NotificationProvider>
   );

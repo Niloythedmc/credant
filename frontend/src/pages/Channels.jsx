@@ -1,60 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PageContainer from '../components/PageContainer';
 import styles from './Channels.module.css';
+import { useTranslation } from 'react-i18next';
+import { useApi } from '../auth/useApi';
 
 const Channels = ({ activePage }) => {
+    const { t } = useTranslation();
+    const { get } = useApi();
     // Index for "side by side" transition. 
     // Navigation order: feed (0), ads (1), insights (2), channels (3), profile (4)
     const index = 3;
 
-    // Mock Data based on Image
-    const channels = [
-        {
-            id: 1,
-            name: "Crypto Insights",
-            verified: true,
-            subs: "158.2K Subscribers",
-            price: "508 TON",
-            color: "yellow",
-            avatar: "https://i.pravatar.cc/150?u=channel1"
-        },
-        {
-            id: 2,
-            name: "AI Daily",
-            verified: false,
-            subs: "158K Subs",
-            price: "598 TON",
-            color: "blue",
-            avatar: "https://i.pravatar.cc/150?u=channel2"
-        },
-        {
-            id: 3,
-            name: "Startup Stories",
-            verified: false,
-            subs: "156K Subs",
-            price: "508 TON",
-            color: "blue",
-            avatar: "https://i.pravatar.cc/150?u=channel3"
-        },
-        {
-            id: 4,
-            name: "Startup & Stritss", // Text garbled in image, approximation
-            verified: false,
-            subs: "190K Subs",
-            price: "508 TON",
-            color: "blue",
-            avatar: "https://i.pravatar.cc/150?u=channel4"
-        },
-        {
-            id: 5,
-            name: "Stodid Key Games", // Text garbled
-            verified: false,
-            subs: "190K Subs",
-            price: "598 TON",
-            color: "blue",
-            avatar: "https://i.pravatar.cc/150?u=channel5"
-        }
-    ];
+    const [channels, setChannels] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchChannels = async () => {
+            try {
+                const data = await get('/channels');
+                if (data && data.channels) {
+                    setChannels(data.channels);
+                }
+            } catch (error) {
+                console.error("Failed to load channels", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchChannels();
+    }, []);
 
     const VerifiedIcon = () => (
         <svg className={styles.verifiedIcon} viewBox="0 0 24 24">
@@ -85,7 +59,7 @@ const Channels = ({ activePage }) => {
                             <polyline points="12 19 5 12 12 5"></polyline>
                         </svg>
                     </button>
-                    <h1 className={styles.title}>Marketplace</h1>
+                    <h1 className={styles.title}>{t('channels.title')}</h1>
                 </header>
 
                 {/* Search and Action */}
@@ -97,22 +71,25 @@ const Channels = ({ activePage }) => {
                         </svg>
                         <input
                             type="text"
-                            placeholder="Find channels"
+                            placeholder={t('channels.searchPlaceholder')}
                             className={styles.searchInput}
                         />
                     </div>
                     <button className={styles.createButton}>
-                        Create Campaign
+                        {t('channels.create')}
                     </button>
                 </div>
 
                 {/* Channel List */}
                 <div className={styles.channelList}>
+                    {loading && <div className={styles.loading}>{t('common.loading')}</div>}
+                    {!loading && channels.length === 0 && <div className={styles.empty}>{t('channels.searchPlaceholder')}...</div>}
+
                     {channels.map(channel => (
                         <div key={channel.id} className={styles.channelCard}>
                             <div className={styles.channelInfo}>
                                 <img
-                                    src={channel.avatar}
+                                    src={channel.avatar || "https://i.pravatar.cc/150"}
                                     alt={channel.name}
                                     className={styles.avatar}
                                 />
@@ -121,10 +98,10 @@ const Channels = ({ activePage }) => {
                                         <h3 className={styles.name}>{channel.name}</h3>
                                         {channel.verified && <VerifiedIcon />}
                                     </div>
-                                    <p className={styles.subs}>{channel.subs}</p>
+                                    <p className={styles.subs}>{channel.subs} {t('channels.subs')}</p>
                                 </div>
                             </div>
-                            <PriceBadge price={channel.price} color={channel.color} />
+                            <PriceBadge price={channel.price} color={channel.color || 'blue'} />
                         </div>
                     ))}
                 </div>

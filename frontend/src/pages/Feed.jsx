@@ -3,8 +3,10 @@ import PageContainer from '../components/PageContainer';
 import { useApi } from '../auth/useApi';
 import { useAuth } from '../auth/AuthProvider';
 import styles from './Feed.module.css';
+import { useTranslation } from 'react-i18next';
 
 const Feed = ({ activePage }) => {
+    const { t } = useTranslation();
     const index = 0;
     const { get, post } = useApi();
     const { user, tgUser } = useAuth();
@@ -57,7 +59,7 @@ const Feed = ({ activePage }) => {
         <PageContainer id="feed" activePage={activePage} index={index}>
             <div className={styles.page}>
                 <header className={styles.header}>
-                    <h1 className={styles.headerTitle}>Feed</h1>
+                    <h1 className={styles.headerTitle}>{t('feed.title')}</h1>
                 </header>
 
                 <div className={styles.profileCard}>
@@ -69,22 +71,22 @@ const Feed = ({ activePage }) => {
                         />
                         <div>
                             <h2 className={styles.userName}>
-                                {tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : (user?.displayName || "Guest")}
+                                {tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : (user?.displayName || t('common.guest'))}
                             </h2>
-                            <p className={styles.userStatus}>Verified Grand Owner</p>
+                            <p className={styles.userStatus}>{t('feed.verifiedOwner')}</p>
                         </div>
                     </div>
                     <button className={styles.inviteButton}>
-                        8 invited
+                        8 {t('feed.invited')}
                     </button>
                 </div>
 
                 <div className={styles.feedList}>
-                    {loading && <div className={styles.loading}>Loading Feed...</div>}
+                    {loading && <div className={styles.loading}>{t('feed.loading')}</div>}
 
                     {!loading && posts.length === 0 && (
                         <div className={styles.emptyState}>
-                            <p>No posts yet.</p>
+                            <p>{t('feed.empty')}</p>
                         </div>
                     )}
 
@@ -99,7 +101,7 @@ const Feed = ({ activePage }) => {
                                     />
                                     <div>
                                         <div className={styles.postUserInfo}>
-                                            <h3 className={styles.postName}>{post.name || "Unknown User"}</h3>
+                                            <h3 className={styles.postName}>{post.name || t('common.unknown')}</h3>
                                             {post.verified && <VerifiedIcon />}
                                         </div>
                                     </div>
@@ -120,7 +122,7 @@ const Feed = ({ activePage }) => {
                                     onClick={() => handleLike(post.id)}
                                     className={styles.likeButton}
                                 >
-                                    ❤️ {post.likesCount || 0} Likes
+                                    ❤️ {post.likesCount || 0} {t('feed.like')}
                                 </button>
                             </div>
                         </div>

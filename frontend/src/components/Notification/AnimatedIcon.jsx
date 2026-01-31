@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Lottie from 'lottie-react';
 import pako from 'pako';
 
-const AnimatedIcon = ({ emojiId, size = 40 }) => {
+const AnimatedIcon = ({ emojiId, size = 40, loop = false }) => {
     const [animationData, setAnimationData] = useState(null);
 
     useEffect(() => {
@@ -38,7 +38,7 @@ const AnimatedIcon = ({ emojiId, size = 40 }) => {
         <div style={{ width: size, height: size }}>
             <Lottie
                 animationData={animationData}
-                loop={true}
+                loop={loop}
                 autoplay={true}
                 style={{ width: '100%', height: '100%' }}
             />

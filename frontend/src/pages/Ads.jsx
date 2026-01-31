@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import PageContainer from '../components/PageContainer';
 import { useApi } from '../auth/useApi';
 import styles from './Ads.module.css';
+import { useTranslation } from 'react-i18next';
 
 const Ads = ({ activePage }) => {
+    const { t } = useTranslation();
     const index = 1;
     const { get } = useApi();
     const [campaigns, setCampaigns] = useState([]);
@@ -28,9 +30,9 @@ const Ads = ({ activePage }) => {
     const activeCampaigns = campaigns.filter(c => c.status === 'posted' || c.status === 'approved').length;
 
     const stats = [
-        { label: "Total Spend", value: `${totalSpend} TON`, change: "+12%", bg: "linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(196, 181, 253, 0.05))" },
-        { label: "Active Ads", value: activeCampaigns.toString(), change: "+5%", bg: "linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(251, 207, 232, 0.05))" },
-        { label: "Impressions", value: "0", change: "-", bg: "linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(191, 219, 254, 0.05))" },
+        { label: t('ads.totalSpend'), value: `${totalSpend} TON`, change: "+12%", bg: "linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(196, 181, 253, 0.05))" },
+        { label: t('ads.activeAds'), value: activeCampaigns.toString(), change: "+5%", bg: "linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(251, 207, 232, 0.05))" },
+        { label: t('ads.impressions'), value: "0", change: "-", bg: "linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(191, 219, 254, 0.05))" },
     ];
 
     const getStatusColor = (status) => {
@@ -40,14 +42,18 @@ const Ads = ({ activePage }) => {
         return '#6366f1';
     };
 
+    const getStatusText = (status) => {
+        return t(`ads.status.${status}`) || status;
+    };
+
     return (
         <PageContainer id="ads" activePage={activePage} index={index}>
             <div className={styles.page}>
                 {/* Header */}
                 <div className={styles.header}>
                     <div>
-                        <h1 className={styles.title}>Campaigns</h1>
-                        <p className={styles.subtitle}>Manage your promotions</p>
+                        <h1 className={styles.title}>{t('ads.title')}</h1>
+                        <p className={styles.subtitle}>{t('ads.subtitle')}</p>
                     </div>
                     <button className={styles.plusButton}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -69,11 +75,11 @@ const Ads = ({ activePage }) => {
                 </div>
 
                 {/* Active Campaigns */}
-                <h2 className={styles.activityTitle}>Recent Activity</h2>
+                <h2 className={styles.activityTitle}>{t('ads.recent')}</h2>
                 <div className={styles.campaignList}>
-                    {loading && <div className={styles.loading}>Loading Campaigns...</div>}
+                    {loading && <div className={styles.loading}>{t('ads.loading')}</div>}
 
-                    {!loading && campaigns.length === 0 && <div className={styles.emptyState}>No campaigns found.</div>}
+                    {!loading && campaigns.length === 0 && <div className={styles.emptyState}>{t('ads.empty')}</div>}
 
                     {campaigns.map(camp => (
                         <div key={camp.id} className={`glass ${styles.campaignCard}`}>
@@ -90,16 +96,16 @@ const Ads = ({ activePage }) => {
 
                             <div className={styles.content}>
                                 <div className={styles.campHeader}>
-                                    <h3 className={styles.campId}>Deal #{camp.id}</h3>
+                                    <h3 className={styles.campId}>{t('ads.deal')} #{camp.id}</h3>
                                     <span className={styles.statusBadge} style={{
                                         color: getStatusColor(camp.status),
                                         background: `${getStatusColor(camp.status)}20`,
                                     }}>
-                                        {camp.status}
+                                        {getStatusText(camp.status)}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                    <p className={styles.amount}>Amount: {camp.amount} TON</p>
+                                    <p className={styles.amount}>{t('ads.amount')}: {camp.amount} TON</p>
                                 </div>
                             </div>
                         </div>

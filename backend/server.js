@@ -24,6 +24,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/deals', dealRoutes);
 app.use('/api/feed', feedRoutes);
+app.use('/api/channels', require('./routes/channels'));
+app.use('/api/insights', require('./routes/insights'));
+app.use('/api/inbox', require('./routes/inbox'));
 
 // Health Check
 app.get('/', (req, res) => {

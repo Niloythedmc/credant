@@ -1,14 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageContainer from '../components/PageContainer';
 import styles from './Insights.module.css';
+import { useTranslation } from 'react-i18next';
+import { useApi } from '../auth/useApi';
 
 const Insights = ({ activePage }) => {
+    const { t } = useTranslation();
+    const { get } = useApi();
     const index = 2; // Navigation order
     const [timeRange, setTimeRange] = useState('7d');
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    // Mock Chart Data (Simple SVG Path Generator)
-    const chartData = [10, 25, 18, 40, 35, 60, 55, 80, 75, 90, 85, 100];
-    const maxVal = Math.max(...chartData);
+    useEffect(() => {
+        const fetchInsights = async () => {
+            try {
+                const data = await get('/insights');
+                if (data && data.stats) {
+                    setStats(data.stats);
+                }
+            } catch (error) {
+                console.error("Failed to load insights", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchInsights();
+    }, []);
+
+    // Default chart data if stats is null (loading/error)
+    const chartData = stats?.chartData || [0, 0, 0, 0, 0, 0];
+    const maxVal = Math.max(...chartData) || 100;
     const points = chartData.map((val, i) => {
         const x = (i / (chartData.length - 1)) * 100;
         const y = 100 - (val / maxVal) * 80; // keep some padding top
@@ -27,14 +49,29 @@ const Insights = ({ activePage }) => {
         </div>
     );
 
+    if (loading) {
+        return (
+            <PageContainer id="insights" activePage={activePage} index={index}>
+                <div className={styles.page}>
+                    <div className={styles.header}>
+                        <h1 className={styles.title}>{t('insights.title')}</h1>
+                    </div>
+                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        {t('common.loading')}
+                    </div>
+                </div>
+            </PageContainer>
+        );
+    }
+
     return (
         <PageContainer id="insights" activePage={activePage} index={index}>
             <div className={styles.page}>
                 {/* Header */}
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Insights</h1>
+                    <h1 className={styles.title}>{t('insights.title')}</h1>
                     <div className={styles.timeFilter}>
-                        {['7d', '30d', 'All'].map(range => (
+                        {['7d', '30d', t('insights.time.all')].map(range => (
                             <button key={range}
                                 onClick={() => setTimeRange(range)}
                                 className={`${styles.rangeButton} ${timeRange === range ? styles.rangeButtonActive : ''}`}
@@ -48,10 +85,14 @@ const Insights = ({ activePage }) => {
                 {/* Main Growth Card */}
                 <div className={`glass ${styles.growthCard}`}>
                     <div className={styles.growthHeader}>
-                        <p className={styles.totalSubsLabel}>Total Subscribers</p>
+                        <p className={styles.totalSubsLabel}>{t('insights.totalSubs')}</p>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                            <h2 className={styles.totalSubsValue}>158.2K</h2>
-                            <span className={styles.growthBadge}>+12.5%</span>
+                            <h2 className={styles.totalSubsValue}>{(stats?.subscribers || 0).toLocaleString()}</h2>
+                            <span className={styles.growthBadge} style={{
+                                color: (stats?.growth || 0) >= 0 ? '#10b981' : '#ef4444'
+                            }}>
+                                {(stats?.growth || 0) > 0 ? '+' : ''}{stats?.growth}%
+                            </span>
                         </div>
                     </div>
 
@@ -83,18 +124,18 @@ const Insights = ({ activePage }) => {
                 <div className={styles.gridContainer}>
                     {/* Demographics */}
                     <div className={`glass ${styles.demographicsCard}`}>
-                        <h3 className={styles.cardTitle}>Audience</h3>
-                        <DemographicsBar label="Male" value={65} color="#3b82f6" />
-                        <DemographicsBar label="Female" value={32} color="#ec4899" />
-                        <DemographicsBar label="Other" value={3} color="#8b5cf6" />
+                        <h3 className={styles.cardTitle}>{t('insights.audience')}</h3>
+                        <DemographicsBar label={t('insights.male')} value={stats?.demographics?.male || 0} color="#3b82f6" />
+                        <DemographicsBar label={t('insights.female')} value={stats?.demographics?.female || 0} color="#ec4899" />
+                        <DemographicsBar label={t('insights.other')} value={stats?.demographics?.other || 0} color="#8b5cf6" />
                     </div>
 
                     {/* Engagement */}
                     <div className={`glass ${styles.engagementCard}`}>
-                        <h3 className={styles.cardTitle}>Engagement</h3>
+                        <h3 className={styles.cardTitle}>{t('insights.engagement')}</h3>
                         <div className={styles.engagementStat}>
-                            <span className={styles.engagementValue}>8.4%</span>
-                            <p className={styles.engagementLabel}>Avg. Rate</p>
+                            <span className={styles.engagementValue}>{(stats?.engagement || 8.4)}%</span>
+                            <p className={styles.engagementLabel}>{t('insights.avgRate')}</p>
                         </div>
                         <div className={styles.barChart}>
                             {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
@@ -106,12 +147,12 @@ const Insights = ({ activePage }) => {
 
                 {/* Top Countries List */}
                 <div className={`glass ${styles.locationsCard}`}>
-                    <h3 className={styles.cardTitle}>Top Locations</h3>
-                    {[
+                    <h3 className={styles.cardTitle}>{t('insights.locations')}</h3>
+                    {(stats?.topCountries || [
                         { country: "United States", flag: "🇺🇸", pct: "45%" },
                         { country: "United Kingdom", flag: "🇬🇧", pct: "20%" },
                         { country: "Germany", flag: "🇩🇪", pct: "12%" },
-                    ].map((loc, i) => (
+                    ]).map((loc, i) => (
                         <div key={i} className={styles.locationRow}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span className={styles.flag}>{loc.flag}</span>
@@ -125,19 +166,19 @@ const Insights = ({ activePage }) => {
                 {/* Trust Score */}
                 <div className={`glass ${styles.trustCard}`}>
                     <div>
-                        <h3 className={styles.trustTitle}>Channel Trust Score</h3>
-                        <p className={styles.trustDesc}>High credibility among top advertisers.</p>
+                        <h3 className={styles.trustTitle}>{t('insights.trustScore')}</h3>
+                        <p className={styles.trustDesc}>{t('insights.trustDesc')}</p>
                     </div>
                     <div className={styles.trustCircleWrapper}>
                         <div className={styles.trustCircleBg} />
                         <div className={styles.trustCircleFg} />
-                        <span className={styles.trustScore}>94</span>
+                        <span className={styles.trustScore}>{stats?.trustScore || 85}</span>
                     </div>
                 </div>
 
                 {/* Market Intelligence / News */}
                 <div className={styles.newsSection}>
-                    <h3 className={styles.newsTitle}>Market Intelligence</h3>
+                    <h3 className={styles.newsTitle}>{t('insights.news')}</h3>
                     <div className={styles.newsList}>
                         {[
                             { title: "CPM Rates Stabilize in Tech Sector", time: "2h ago", color: "#3b82f6" },
@@ -146,7 +187,7 @@ const Insights = ({ activePage }) => {
                         ].map((news, i) => (
                             <div key={i} className={`glass ${styles.newsCard}`} style={{ borderLeft: `4px solid ${news.color}` }}>
                                 <h4 className={styles.newsHeadline}>{news.title}</h4>
-                                <span className={styles.newsTime}>{news.time} • Ad Performance News</span>
+                                <span className={styles.newsTime}>{news.time} • {t('insights.newsTag')}</span>
                             </div>
                         ))}
                     </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './Navigation.module.css';
 
 const NavIcon = ({ name, active }) => {
@@ -46,6 +47,7 @@ const NavIcon = ({ name, active }) => {
 };
 
 const Navigation = ({ activePage, onNavigate }) => {
+    const { t } = useTranslation();
     const navItems = ['feed', 'ads', 'insights', 'channels', 'profile'];
 
     return (
@@ -58,7 +60,7 @@ const Navigation = ({ activePage, onNavigate }) => {
                 >
                     <NavIcon name={item} active={activePage === item} />
                     <span className={`${styles.label} ${activePage === item ? styles.active : ''}`}>
-                        {item}
+                        {t(`nav.${item}`)}
                     </span>
                 </button>
             ))}
