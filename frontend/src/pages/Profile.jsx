@@ -18,11 +18,24 @@ const Profile = ({ activePage }) => {
     const userFriendlyAddress = useTonAddress();
 
     const [wallet, setWallet] = useState(null); // Internal wallet address
-    const [balance, setBalance] = useState("0.00");
+    const [rawBalance, setRawBalance] = useState(0); // Store numeric balance
 
     // Modal State
     const [modalType, setModalType] = useState(null); // 'deposit' | 'withdraw' | null
     const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+
+    // Helper: Floor amount to N decimals, optionally subtract reserve
+    const formatBalance = (amount, decimals = 1, subtractReserve = false) => {
+        let val = parseFloat(amount || 0);
+        if (subtractReserve) val = Math.max(0, val - 0.1); // Reserve 0.1 TON
+        if (isNaN(val)) return "0.0";
+
+        const factor = Math.pow(10, decimals);
+        return (Math.floor(val * factor) / factor).toFixed(decimals);
+    };
+
+    // Derived Display Balance (1 decimal, minus reserve)
+    const displayBalance = formatBalance(rawBalance, 1, true);
 
     useEffect(() => {
         const fetchWallet = async () => {
@@ -30,7 +43,7 @@ const Profile = ({ activePage }) => {
                 setWallet(userProfile.wallet.address);
                 try {
                     const balRes = await get(`/wallet/balance/${userProfile.wallet.address}`);
-                    setBalance(balRes.ton);
+                    setRawBalance(parseFloat(balRes.ton));
                 } catch (e) {
                     console.error("Failed to fetch balance", e);
                 }
@@ -38,6 +51,30 @@ const Profile = ({ activePage }) => {
         };
         fetchWallet();
     }, [userProfile]);
+
+    const toggleRefresh = async () => {
+        // Immediate refresh
+        await refreshProfile();
+
+        const fetchBal = async () => {
+            if (userProfile?.wallet?.address) {
+                try {
+                    const balRes = await get(`/wallet/balance/${userProfile.wallet.address}`);
+                    setRawBalance(parseFloat(balRes.ton));
+                } catch (e) { }
+            }
+        };
+
+        await fetchBal();
+
+        // POLL polling for 30 seconds (every 3s)
+        let attempts = 0;
+        const interval = setInterval(async () => {
+            attempts++;
+            await fetchBal();
+            if (attempts >= 10) clearInterval(interval);
+        }, 3000);
+    };
 
     // Derived Display Data
     const tgFullName = tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : null;
@@ -116,7 +153,7 @@ const Profile = ({ activePage }) => {
                     {/* Wallet Section Merged into Header */}
                     <div className={styles.headerWallet}>
                         <div className={styles.balanceRowHeader}>
-                            <span className={styles.balanceAmountHeader}>{balance}</span>
+                            <span className={styles.balanceAmountHeader}>{displayBalance}</span>
                             <span className={styles.balanceUnitHeader}>TON</span>
                         </div>
 
@@ -216,7 +253,9 @@ const Profile = ({ activePage }) => {
                 type={modalType || 'deposit'}
                 isOpen={!!modalType}
                 onClose={() => setModalType(null)}
-                walletAddress={wallet} // Passes Internal Wallet Address
+                walletAddress={wallet}
+                balance={rawBalance} // Pass RAW balance
+                onSuccess={toggleRefresh} // Trigger refresh on success
             />
 
             {/* Disconnect Confirmation Modal */}

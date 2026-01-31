@@ -3,8 +3,9 @@ import Modal from './Modal';
 import { useApi } from '../auth/useApi';
 import { useNotification } from '../context/NotificationContext';
 import { useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
+import { Address, beginCell } from 'ton-core';
 
-const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalletAddress }) => {
+const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalletAddress, balance = 0, onSuccess }) => {
     // type: 'deposit' | 'withdraw'
     const { post } = useApi();
     const { addNotification } = useNotification();
@@ -13,6 +14,16 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
 
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Calc max available for withdraw (balance - 0.1 reserved)
+    // Ensure we don't show negative
+    const maxAvailable = Math.max(0, parseFloat((balance - 0.1).toFixed(4)));
+
+    // Formatter for Modal (Floor to 2 decimals)
+    const formatForModal = (val) => {
+        const factor = 100;
+        return (Math.floor(val * factor) / factor).toFixed(2);
+    };
 
     const handleAction = async () => {
         if (!amount) return;
@@ -26,21 +37,34 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
                     return;
                 }
 
+                // Parse address and make it NON-BOUNCEABLE
+                const address = Address.parse(internalWalletAddress);
+                const nonBounceableAddress = address.toString({ bounceable: false });
+
+                // Create Payload with Comment
+                const payload = beginCell()
+                    .storeUint(0, 32) // OpCode for text comment
+                    .storeStringTail(`Credant_Deposit-${Date.now()}`) // Comment text
+                    .endCell();
+
                 // Create transaction
                 const transaction = {
                     validUntil: Math.floor(Date.now() / 1000) + 600, // 10 min
                     messages: [
                         {
-                            address: internalWalletAddress, // Send TO internal wallet
+                            address: nonBounceableAddress, // Send TO internal wallet (Non-Bounceable)
                             amount: Math.floor(parseFloat(amount) * 1e9).toString(), // in nanoton
+                            payload: payload.toBoc().toString('base64') // Add payload
                         },
                     ],
                 };
 
                 try {
                     await tonConnectUI.sendTransaction(transaction);
-                    addNotification('success', 'Transaction Sent!');
+                    addNotification('success', 'Transaction Sent! Waiting for confirmation...');
                     onClose();
+                    // Note: Deposit success takes time on-chain. We can trigger refresh anyway.
+                    if (onSuccess) onSuccess();
                 } catch (e) {
                     console.error(e);
                     addNotification('error', 'Transaction cancelled or failed');
@@ -54,6 +78,13 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
                     return;
                 }
 
+                const val = parseFloat(amount);
+                if (val > maxAvailable) {
+                    addNotification('warning', `Insufficient funds. Max withdrawable: ${formatForModal(maxAvailable)} TON`);
+                    setLoading(false);
+                    return;
+                }
+
                 const res = await post('/wallet/withdraw', {
                     amount,
                     toAddress: userFriendlyAddress // Send TO connected wallet
@@ -61,6 +92,7 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
 
                 if (res.status === 'success') {
                     addNotification('success', 'Withdrawal Sent!');
+                    if (onSuccess) onSuccess();
                     onClose();
                     setAmount('');
                 } else {
@@ -113,6 +145,16 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
                     <>
                         <div style={{ fontSize: '12px', color: '#888', textAlign: 'center' }}>
                             {type === 'deposit' ? `From: ${userFriendlyAddress.slice(0, 4)}...${userFriendlyAddress.slice(-4)}` : `To: ${userFriendlyAddress.slice(0, 4)}...${userFriendlyAddress.slice(-4)}`}
+                        </div>
+
+                        {/* Balance Display */}
+                        <div style={{ textAlign: 'center', color: '#aaa', fontSize: '14px' }}>
+                            Available: <strong>{formatForModal(maxAvailable)} TON</strong>
+                            {type === 'withdraw' && (
+                                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                                    (Reserve: 0.1 TON for fees)
+                                </div>
+                            )}
                         </div>
 
                         <div>

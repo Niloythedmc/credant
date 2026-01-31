@@ -16,6 +16,6 @@ module.exports = {
     serviceAccount,
     botToken: "8010131469:AAFF8ophAzIBbGtijIlA-dN-dEikejQlqxU",
     tonApiUrl: "https://toncenter.com/api/v2/jsonRPC",
-    tonApiKey: "AEMUNTFHNERDDRAAAAABNJXS4FZJZEMRXDMKUTD5I2JUGVKXL2XUYXVJQYAWDNAVMESLWFQ",
+    // tonApiKey: "...", // Invalid key removed to use public access
     port: process.env.PORT || 8080
 };

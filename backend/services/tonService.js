@@ -24,6 +24,30 @@ const createWallet = async () => {
     };
 };
 
+// Helper for retry logic
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const withRetry = async (fn, retries = 5, delay = 1000) => {
+    try {
+        return await fn();
+    } catch (e) {
+        // Retry on 429
+        if (
+            retries > 0 &&
+            (
+                (e.response && e.response.status === 429) ||
+                (e.message && e.message.includes('429')) ||
+                (typeof e.code === 'number' && e.code === 429)
+            )
+        ) {
+            console.warn(`[TON] Rate limited. Retrying in ${delay}ms...`);
+            await wait(delay);
+            return withRetry(fn, retries - 1, delay * 2);
+        }
+        throw e;
+    }
+};
+
 const transferTon = async (mnemonic, toAddress, amount) => {
     // 1. Initialize Client
     const client = new TonClient({
@@ -40,14 +64,14 @@ const transferTon = async (mnemonic, toAddress, amount) => {
         publicKey: keyPair.publicKey
     });
 
-    // 4. Contract Provider
+    // 4. Contract Provider (Wrapped open isn't async but methods are)
     const contract = client.open(wallet);
 
-    // 5. Check Seqno
-    const seqno = await contract.getSeqno();
+    // 5. Check Seqno with Retry
+    const seqno = await withRetry(() => contract.getSeqno());
 
-    // 6. Transfer
-    await contract.sendTransfer({
+    // 6. Transfer with Retry
+    await withRetry(() => contract.sendTransfer({
         seqno,
         secretKey: keyPair.secretKey,
         messages: [
@@ -58,7 +82,7 @@ const transferTon = async (mnemonic, toAddress, amount) => {
                 bounce: false,
             })
         ]
-    });
+    }));
 
     return seqno;
 };

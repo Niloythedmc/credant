@@ -14,7 +14,7 @@ const NotificationContainer = () => {
             width: '100%',
             height: '100%', // Cover screen but allow click-through via pointer-events
             pointerEvents: 'none',
-            zIndex: 9999,
+            zIndex: 20000,
             display: 'flex',
             justifyContent: 'center'
         }}>
