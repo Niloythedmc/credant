@@ -14,6 +14,7 @@ import Setting from './pages/Setting';
 import ShareThought from './pages/ShareThought';
 import ListChannel from './pages/ListChannel';
 import PostAds from './pages/PostAds';
+import WebApp from '@twa-dev/sdk';
 
 function App() {
   const [activeNavPage, setActiveNavPage] = useState('feed'); // Tracks the bottom nav
