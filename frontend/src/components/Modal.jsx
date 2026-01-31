@@ -1,8 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
-    return (
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+            // Also lock html to be safe on some mobile browsers
+            document.documentElement.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+
+        // Cleanup
+        return () => {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -19,8 +38,9 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             right: 0,
                             bottom: 0,
                             background: 'rgba(0,0,0,0.6)',
-                            zIndex: 1000,
-                            backdropFilter: 'blur(4px)'
+                            zIndex: 9999, // High z-index to be on top of everything
+                            backdropFilter: 'blur(4px)',
+                            overscrollBehavior: 'contain' // Prevent scroll chaining
                         }}
                     />
 
@@ -47,9 +67,10 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             borderTopLeftRadius: '24px',
                             borderTopRightRadius: '24px',
                             padding: '24px',
-                            zIndex: 1001,
-                            maxHeight: '90vh',
-                            overflowY: 'auto'
+                            zIndex: 10000,
+                            maxHeight: '85vh', // Slightly less than 90 to show more backdrop
+                            overflowY: 'auto',
+                            overscrollBehavior: 'contain'
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -78,7 +99,8 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                     </motion.div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
 

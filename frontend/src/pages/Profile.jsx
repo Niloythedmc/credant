@@ -6,18 +6,23 @@ import { useNotification } from '../context/NotificationContext';
 import { FiArrowDownLeft, FiArrowUpRight } from 'react-icons/fi';
 import styles from './Profile.module.css';
 import WalletActionModal from '../components/WalletActionModal';
+import { useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
+import Modal from '../components/Modal';
 
 const Profile = ({ activePage }) => {
     const index = 4;
     const { user, tgUser, userProfile, refreshProfile } = useAuth();
     const { post, get } = useApi();
     const { addNotification } = useNotification();
+    const [tonConnectUI] = useTonConnectUI();
+    const userFriendlyAddress = useTonAddress();
 
-    const [wallet, setWallet] = useState(null);
+    const [wallet, setWallet] = useState(null); // Internal wallet address
     const [balance, setBalance] = useState("0.00");
 
     // Modal State
     const [modalType, setModalType] = useState(null); // 'deposit' | 'withdraw' | null
+    const [showDisconnectModal, setShowDisconnectModal] = useState(false);
 
     useEffect(() => {
         const fetchWallet = async () => {
@@ -39,6 +44,19 @@ const Profile = ({ activePage }) => {
     const displayName = tgFullName || user?.displayName || user?.uid?.substring(0, 8) || "Anonymous";
     const displayHandle = tgUser?.username ? `@${tgUser.username}` : (user?.reloadUserInfo?.screenName ? `@${user.reloadUserInfo.screenName}` : "@user");
     const profileImage = tgUser?.photo_url || user?.photoURL || "https://i.pravatar.cc/150?u=99";
+
+    const handleConnectClick = () => {
+        if (userFriendlyAddress) {
+            setShowDisconnectModal(true);
+        } else {
+            tonConnectUI.openModal();
+        }
+    };
+
+    const handleDisconnect = async () => {
+        await tonConnectUI.disconnect();
+        setShowDisconnectModal(false);
+    };
 
     const ContentSection = ({ title, items, emptyText, actionText, styles, onAction, hasPriceIcon, isClientOffer }) => {
         const hasItems = items && items.length > 0;
@@ -117,48 +135,22 @@ const Profile = ({ activePage }) => {
                             </div>
                         )}
 
-                        {wallet && (
-                            <div className={styles.addressContainer} onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                const text = wallet;
-                                const fallbackCopy = () => {
-                                    const textArea = document.createElement("textarea");
-                                    textArea.value = text;
-                                    textArea.style.position = "fixed";
-                                    textArea.style.left = "-9999px";
-                                    document.body.appendChild(textArea);
-                                    textArea.focus();
-                                    textArea.select();
-                                    try {
-                                        document.execCommand('copy');
-                                        addNotification('chain', 'Address copied');
-                                    } catch (err) {
-                                        console.error('Fallback copy failed', err);
-                                        addNotification('error', 'Failed to copy address');
-                                    }
-                                    document.body.removeChild(textArea);
-                                };
-                                if (navigator.clipboard && window.isSecureContext) {
-                                    navigator.clipboard.writeText(text)
-                                        .then(() => addNotification('chain', 'Address copied'))
-                                        .catch((err) => {
-                                            console.error('Clipboard API failed', err);
-                                            fallbackCopy();
-                                        });
-                                } else {
-                                    fallbackCopy();
-                                }
-                            }}>
-                                <span className={styles.addressTextHeader}>
-                                    {wallet.slice(0, 4) + '...' + wallet.slice(-4)}
-                                </span>
-                                <svg className={styles.copyIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                            </div>
-                        )}
+                        <div className={styles.addressContainer} onClick={handleConnectClick} style={{ cursor: 'pointer' }}>
+                            {userFriendlyAddress ? (
+                                <>
+                                    <span className={styles.addressTextHeader}>
+                                        {userFriendlyAddress.slice(0, 4) + '...' + userFriendlyAddress.slice(-4)}
+                                    </span>
+                                    {/* Using a power/disconnect icon */}
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                                        <line x1="12" y1="2" x2="12" y2="12"></line>
+                                    </svg>
+                                </>
+                            ) : (
+                                <span className={styles.addressTextHeader}>Connect Wallet</span>
+                            )}
+                        </div>
 
                         <div className={styles.walletActionsHeader}>
                             <button className={styles.actionIconButton} onClick={() => setModalType('deposit')}>
@@ -224,8 +216,35 @@ const Profile = ({ activePage }) => {
                 type={modalType || 'deposit'}
                 isOpen={!!modalType}
                 onClose={() => setModalType(null)}
-                walletAddress={wallet}
+                walletAddress={wallet} // Passes Internal Wallet Address
             />
+
+            {/* Disconnect Confirmation Modal */}
+            <Modal
+                isOpen={showDisconnectModal}
+                onClose={() => setShowDisconnectModal(false)}
+                title="Disconnect Wallet"
+            >
+                <div>
+                    <p style={{ color: '#ccc', textAlign: 'center', marginBottom: '20px' }}>
+                        Are you sure you want to disconnect your wallet?
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                            onClick={() => setShowDisconnectModal(false)}
+                            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleDisconnect}
+                            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#e53935', color: 'white', fontWeight: 'bold' }}
+                        >
+                            Disconnect
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </PageContainer>
     );
 };
