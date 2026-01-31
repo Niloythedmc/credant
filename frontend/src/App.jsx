@@ -11,8 +11,9 @@ import { NotificationProvider, useNotification } from './context/NotificationCon
 import NotificationContainer from './components/Notification/NotificationContainer';
 import Inbox from './pages/Inbox';
 import Setting from './pages/Setting';
-import WebApp from '@twa-dev/sdk';
-
+import ShareThought from './pages/ShareThought';
+import ListChannel from './pages/ListChannel';
+import PostAds from './pages/PostAds';
 
 function App() {
   const [activeNavPage, setActiveNavPage] = useState('feed'); // Tracks the bottom nav
@@ -29,7 +30,7 @@ function App() {
 
   // List of all pages
   const navPages = ['feed', 'ads', 'insights', 'channels', 'profile'];
-  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox'];
+  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox', 'shareThought', 'listChannel', 'postAds'];
   const allPages = [...navPages, ...secondaryPages];
 
   // Helper to handle navigation
@@ -76,6 +77,9 @@ function App() {
     if (id === 'channels') return <Channels key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'inbox') return <Inbox key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'setting') return <Setting key={id} activePage={relevantActivePage} onNavigate={handleNavigate} theme={theme} toggleTheme={toggleTheme} />;
+    if (id === 'shareThought') return <ShareThought key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'listChannel') return <ListChannel key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'postAds') return <PostAds key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
 
     return (
       <GenericPage

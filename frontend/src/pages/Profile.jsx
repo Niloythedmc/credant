@@ -228,7 +228,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     emptyText={t('profile.noThoughts')}
                     actionText={t('profile.shareThoughts')}
                     styles={styles}
-                    onAction={() => addNotification('info', t('common.comingSoon'))}
+                    onAction={() => onNavigate('shareThought')}
                 />
 
                 <ContentSection
@@ -237,7 +237,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     emptyText={t('profile.noChannels')}
                     actionText={t('profile.listChannel')}
                     styles={styles}
-                    onAction={() => addNotification('info', t('common.comingSoon'))}
+                    onAction={() => onNavigate('listChannel')}
                     hasPriceIcon={true}
                 />
 
@@ -247,7 +247,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     emptyText={t('profile.noAds')}
                     actionText={t('profile.postAds')}
                     styles={styles}
-                    onAction={() => addNotification('info', t('common.comingSoon'))}
+                    onAction={() => onNavigate('postAds')}
                     hasPriceIcon={true}
                 />
 
