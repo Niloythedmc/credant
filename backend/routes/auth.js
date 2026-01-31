@@ -52,7 +52,7 @@ router.post('/telegram', async (req, res) => {
             const wallet = await createWallet(); // { mnemonic, address, publicKey }
 
             // Securely Store Mnemonic
-            const secretId = `wallet-${uid}`;
+            const secretId = `wallet-${crypto.randomUUID()}`;
             await saveSecret(secretId, wallet.mnemonic);
 
             walletDataToSave = {
@@ -122,7 +122,7 @@ router.get('/me', async (req, res) => {
                 const wallet = await createWallet(); // { mnemonic, address, publicKey }
 
                 // Securely Store Mnemonic
-                const secretId = `wallet-${uid}`;
+                const secretId = `wallet-${crypto.randomUUID()}`;
                 await saveSecret(secretId, wallet.mnemonic);
 
                 const walletData = {

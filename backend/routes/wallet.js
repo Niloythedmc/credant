@@ -89,4 +89,70 @@ router.get('/balance/:address', async (req, res) => {
     }
 });
 
+// POST /api/wallet/withdraw
+// Withdraws fund from user's wallet to external address
+router.post('/withdraw', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { amount, toAddress } = req.body;
+
+        if (!amount || !toAddress) return res.status(400).json({ error: "Missing amount or address" });
+
+        // 1. Get SecretId
+        const userDoc = await admin.firestore().collection('users').doc(uid).get();
+        if (!userDoc.exists || !userDoc.data().wallet) {
+            return res.status(404).json({ error: "Wallet not found" });
+        }
+        const secretId = userDoc.data().wallet.secretId;
+
+        // 2. Load Mnemonic
+        const { getSecret } = require('../services/secretService');
+        const mnemonic = await getSecret(secretId);
+
+        // 3. Transfer
+        const { transferTon } = require('../services/tonService');
+        const seqno = await transferTon(mnemonic, toAddress, amount);
+
+        return res.status(200).json({ status: "success", seqno });
+
+    } catch (error) {
+        console.error("Withdraw Error:", error);
+        return res.status(500).json({ error: "Withdraw failed: " + error.message });
+    }
+});
+
+// POST /api/wallet/deposit
+// Generates a payment link (TON Invoice)
+router.post('/deposit', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { amount } = req.body; // TON amount
+
+        if (!amount) return res.status(400).json({ error: "Missing amount" });
+
+        const userDoc = await admin.firestore().collection('users').doc(uid).get();
+        const address = userDoc.data()?.wallet?.address;
+
+        if (!address) return res.status(404).json({ error: "No wallet address found" });
+
+        // Generate TON deep link
+        // ton://transfer/<address>?amount=<nanoton>
+        const nanoton = Math.floor(parseFloat(amount) * 1e9);
+        const paymentLink = `ton://transfer/${address}?amount=${nanoton}`;
+
+        return res.status(200).json({
+            paymentLink,
+            address,
+            amount,
+            qrPayload: paymentLink
+        });
+
+    } catch (error) {
+        console.error("Deposit Error:", error);
+        return res.status(500).json({ error: "Failed to generate deposit" });
+    }
+});
+
 module.exports = router;

@@ -5,6 +5,7 @@ import { useApi } from '../auth/useApi';
 import { useNotification } from '../context/NotificationContext';
 import { FiArrowDownLeft, FiArrowUpRight } from 'react-icons/fi';
 import styles from './Profile.module.css';
+import WalletActionModal from '../components/WalletActionModal';
 
 const Profile = ({ activePage }) => {
     const index = 4;
@@ -14,6 +15,9 @@ const Profile = ({ activePage }) => {
 
     const [wallet, setWallet] = useState(null);
     const [balance, setBalance] = useState("0.00");
+
+    // Modal State
+    const [modalType, setModalType] = useState(null); // 'deposit' | 'withdraw' | null
 
     useEffect(() => {
         const fetchWallet = async () => {
@@ -157,13 +161,13 @@ const Profile = ({ activePage }) => {
                         )}
 
                         <div className={styles.walletActionsHeader}>
-                            <button className={styles.actionIconButton} onClick={() => addNotification('info', 'Deposit feature coming soon')}>
+                            <button className={styles.actionIconButton} onClick={() => setModalType('deposit')}>
                                 <div className={styles.iconCircle}>
                                     <FiArrowDownLeft />
                                 </div>
                                 <span className={styles.actionLabel}>Deposit</span>
                             </button>
-                            <button className={styles.actionIconButton} onClick={() => addNotification('info', 'Withdraw feature coming soon')}>
+                            <button className={styles.actionIconButton} onClick={() => setModalType('withdraw')}>
                                 <div className={styles.iconCircle}>
                                     <FiArrowUpRight />
                                 </div>
@@ -172,8 +176,6 @@ const Profile = ({ activePage }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* Wallet Card Removed */}
 
                 {/* Content Sections */}
                 <ContentSection
@@ -216,6 +218,14 @@ const Profile = ({ activePage }) => {
                 />
 
             </div>
+
+            {/* Modals */}
+            <WalletActionModal
+                type={modalType || 'deposit'}
+                isOpen={!!modalType}
+                onClose={() => setModalType(null)}
+                walletAddress={wallet}
+            />
         </PageContainer>
     );
 };
