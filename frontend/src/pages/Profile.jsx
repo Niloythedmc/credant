@@ -224,7 +224,7 @@ const Profile = ({ activePage, onNavigate }) => {
                 {/* Content Sections */}
                 <ContentSection
                     title={t('profile.thoughts')}
-                    items={[]}
+                    items={userProfile?.thoughts || []}
                     emptyText={t('profile.noThoughts')}
                     actionText={t('profile.shareThoughts')}
                     styles={styles}
@@ -233,7 +233,7 @@ const Profile = ({ activePage, onNavigate }) => {
 
                 <ContentSection
                     title={t('profile.channels')}
-                    items={[{ id: 1, title: 'Tech News Daily', sub: '12.5k subs' }, { id: 2, title: 'Crypto Alerts', sub: '5.2k subs' }, { id: 3, title: 'Daily Memes', sub: '8.1k subs' }]}
+                    items={userProfile?.channels || []}
                     emptyText={t('profile.noChannels')}
                     actionText={t('profile.listChannel')}
                     styles={styles}
@@ -243,7 +243,7 @@ const Profile = ({ activePage, onNavigate }) => {
 
                 <ContentSection
                     title={t('profile.ads')}
-                    items={[{ id: 1, title: 'Promo: Wallet App', sub: 'Active • 120 clicks' }]}
+                    items={userProfile?.ads || []}
                     emptyText={t('profile.noAds')}
                     actionText={t('profile.postAds')}
                     styles={styles}
@@ -253,7 +253,7 @@ const Profile = ({ activePage, onNavigate }) => {
 
                 <ContentSection
                     title={t('profile.offers')}
-                    items={[]}
+                    items={userProfile?.offers || []}
                     emptyText={t('profile.noOffers')}
                     actionText=""
                     styles={styles}
