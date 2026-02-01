@@ -56,7 +56,7 @@ router.post('/refresh-metadata', async (req, res) => {
         if (!doc.exists) return res.status(404).json({ error: "Channel not found" });
 
         const data = doc.data();
-        const chatId = data.id; // e.g. -100123...
+        const chatId = data.channelId || doc.id; // Fix: Use channelId field or doc ID
 
         // Use bot to get fresh chat info
         const chat = await getChat(chatId);
@@ -85,7 +85,7 @@ router.post('/refresh-metadata', async (req, res) => {
 
     } catch (error) {
         console.error("Refresh metadata failed:", error);
-        res.status(500).json({ error: "Refresh failed" });
+        res.status(500).json({ error: "Refresh failed: " + error.message });
     }
 });
 
@@ -174,7 +174,7 @@ router.post('/verify-post', async (req, res) => {
             ownerId: userId,
             status: 'pending_verification',
             purityScore: null,
-            startPrice: req.body.startPrice || null, // Optional Start Price
+            startPrice: req.body.startPrice ? parseFloat(req.body.startPrice) : null, // Ensure float
             verificationMessageId: messageId,
             verificationStartTime: admin.firestore.FieldValue.serverTimestamp(),
             // Store template used?
@@ -501,7 +501,7 @@ router.post('/list-later', async (req, res) => {
             ownerId: userId,
             status: 'listed', // Distinct from 'pending_verification'
             purityScore: null, // N/A until calculated
-            startPrice: req.body.startPrice || null, // Optional Start Price
+            startPrice: req.body.startPrice ? parseFloat(req.body.startPrice) : null, // Ensure float
             memberCount: memberCount || 0,
             verificationStartTime: null, // Not started
             verificationMessageId: null

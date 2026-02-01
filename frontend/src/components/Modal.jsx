@@ -63,14 +63,15 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             bottom: 0,
                             left: 0,
                             right: 0,
-                            background: '#1a1b1e', // Dark theme matching app
+                            background: 'var(--bg-card)', // Changed from hardcoded #1a1b1e
                             borderTopLeftRadius: '24px',
                             borderTopRightRadius: '24px',
                             padding: '24px',
                             zIndex: 10000,
-                            maxHeight: '85vh', // Slightly less than 90 to show more backdrop
+                            maxHeight: '85vh',
                             overflowY: 'auto',
-                            overscrollBehavior: 'contain'
+                            overscrollBehavior: 'contain',
+                            color: 'var(--text-main)' // Ensure text inherits correct color
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -78,7 +79,8 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                         <div style={{
                             width: '40px',
                             height: '4px',
-                            background: 'rgba(255,255,255,0.2)',
+                            background: 'var(--text-muted)', // Adaptive handle color
+                            opacity: 0.3,
                             borderRadius: '2px',
                             margin: '0 auto 20px auto'
                         }} />
@@ -89,7 +91,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                                 fontWeight: '700',
                                 marginBottom: '24px',
                                 textAlign: 'center',
-                                color: 'white'
+                                color: 'var(--text-main)' // Adaptive title
                             }}>
                                 {title}
                             </h2>

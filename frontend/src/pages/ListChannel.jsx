@@ -165,28 +165,29 @@ const ListChannel = ({ activePage, onNavigate }) => {
                 <button className={styles.backButton} onClick={() => window.history.back()}>
                     <FiChevronDown size={24} />
                 </button>
-                <h2 className={styles.title}>
-                    {step === 'templates' ? 'Select Post Style' : (step === 'input' ? t('profile.listChannel') : 'Verify Channel')}
+                <h2 className={styles.title} style={{ color: 'var(--text-main)' }}>
+                    {step === 'templates' ? t('listChannel.selectStyle') : (step === 'input' ? t('profile.listChannel') : t('listChannel.title'))}
                 </h2>
             </div>
 
             <div className={styles.content}>
                 {step === 'input' && (
                     <>
-                        <div className={styles.helperText}>
-                            <strong>How to verify:</strong><br />
-                            1. Add our bot <strong>@CredantBot</strong> to your channel as Admin.<br />
-                            2. Enter your channel username below.<br />
-                            3. We will fetch details and check permissions.
+                        <div className={styles.helperText} style={{ color: 'var(--text-muted)' }}>
+                            <strong>{t('listChannel.howTo')}</strong><br />
+                            {t('listChannel.step1')}<br />
+                            {t('listChannel.step2')}<br />
+                            {t('listChannel.step3')}
                         </div>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Channel Username / ID</label>
+                            <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('listChannel.usernameLabel')}</label>
                             <input
                                 className={styles.input}
                                 placeholder="@my_channel"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
+                                style={{ background: 'var(--bg-card)', color: 'var(--text-main)', borderColor: 'var(--glass-border)' }}
                             />
                         </div>
 
@@ -195,14 +196,14 @@ const ListChannel = ({ activePage, onNavigate }) => {
                             onClick={handleFetchPreview}
                             disabled={loading}
                         >
-                            {loading ? 'Fetching Details...' : 'Continue'}
+                            {loading ? t('listChannel.fetching') : t('listChannel.fetch')}
                         </button>
                     </>
                 )}
 
                 {step === 'preview' && channelData && (
                     <>
-                        <div className={styles.previewCard}>
+                        <div className={styles.previewCard} style={{ background: 'var(--bg-card)', borderColor: 'var(--glass-border)' }}>
                             <div className={styles.previewHeader}>
                                 <img
                                     src={channelData.photoUrl || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"}
@@ -210,10 +211,10 @@ const ListChannel = ({ activePage, onNavigate }) => {
                                     className={styles.previewImage}
                                 />
                                 <div className={styles.previewInfo}>
-                                    <div className={styles.previewTitle}>{channelData.title}</div>
-                                    <div className={styles.previewUsername}>@{channelData.username}</div>
-                                    <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
-                                        {channelData.memberCount} subscribers • {channelData.type}
+                                    <div className={styles.previewTitle} style={{ color: 'var(--text-main)' }}>{channelData.title}</div>
+                                    <div className={styles.previewUsername} style={{ color: 'var(--primary)' }}>@{channelData.username}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                        {channelData.memberCount} {t('channels.subs')} • {channelData.type}
                                     </div>
                                 </div>
                             </div>
@@ -221,14 +222,14 @@ const ListChannel = ({ activePage, onNavigate }) => {
                             <div className={`${styles.requirementsBox} ${allChecksPassed ? styles.success : ''}`} style={{ marginTop: '16px' }}>
                                 <div className={styles.reqHeader}>
                                     {allChecksPassed ? <FiCheckCircle /> : <FiAlertCircle />}
-                                    {allChecksPassed ? "Ready to Verify" : "Requirements Missing"}
+                                    {allChecksPassed ? t('listChannel.readyVerify') : t('listChannel.requirementsMissing')}
                                 </div>
                                 <div className={styles.checkList}>
                                     <div className={`${styles.checkItem} ${checks.botIsAdmin ? styles.pass : styles.fail}`}>
-                                        {checks.botIsAdmin ? <FiCheckCircle /> : <FiXCircle />} Bot is Admin
+                                        {checks.botIsAdmin ? <FiCheckCircle /> : <FiXCircle />} {t('listChannel.botAdmin')}
                                     </div>
                                     <div className={`${styles.checkItem} ${checks.userIsAdmin ? styles.pass : styles.fail}`}>
-                                        {checks.userIsAdmin ? <FiCheckCircle /> : <FiXCircle />} You are Creator
+                                        {checks.userIsAdmin ? <FiCheckCircle /> : <FiXCircle />} {t('listChannel.creator')}
                                     </div>
                                 </div>
                             </div>
@@ -236,13 +237,14 @@ const ListChannel = ({ activePage, onNavigate }) => {
                             {/* Start Price Input - Only if checks passed */}
                             {allChecksPassed && (
                                 <div className={styles.formGroup} style={{ marginTop: '16px' }}>
-                                    <label className={styles.label}>Start Price (USD)</label>
+                                    <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('profile.startPrice')} (USD)</label>
                                     <input
                                         className={styles.input}
                                         type="number"
                                         placeholder="e.g. 100"
                                         value={startPrice}
                                         onChange={(e) => setStartPrice(e.target.value)}
+                                        style={{ background: 'var(--bg-dark)', color: 'var(--text-main)', borderColor: 'var(--primary)' }}
                                     />
                                 </div>
                             )}
@@ -251,27 +253,27 @@ const ListChannel = ({ activePage, onNavigate }) => {
                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {allChecksPassed ? (
                                 <>
-                                    <div style={{ textAlign: 'center', marginBottom: '10px', color: '#aaa', fontSize: '13px' }}>
+                                    <div style={{ textAlign: 'center', marginBottom: '10px', color: 'var(--text-muted)', fontSize: '13px' }}>
                                         Choose verification method:
                                     </div>
                                     <button className={styles.submitButton} onClick={() => setStep('templates')}>
-                                        Calculate Purity Now (Recommended)
+                                        {t('listChannel.calculateNow')}
                                     </button>
                                     <button
                                         className={styles.secondaryButton}
                                         onClick={handleListLater}
                                         disabled={loading}
-                                        style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none' }}
+                                        style={{ background: 'rgba(128,128,128,0.1)', color: 'var(--text-muted)', border: 'none' }}
                                     >
-                                        {loading ? 'Processing...' : 'Later (Skip Verification)'}
+                                        {loading ? t('common.loading') : t('listChannel.later')}
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     <button className={styles.submitButton} onClick={handleFetchPreview} disabled={loading}>
-                                        {loading ? 'Rechecking...' : 'Recheck Requirements'}
+                                        {loading ? t('listChannel.fetching') : 'Recheck Requirements'}
                                     </button>
-                                    <button className={styles.secondaryButton} onClick={() => setStep('input')}>Back</button>
+                                    <button className={styles.secondaryButton} onClick={() => setStep('input')}>{t('common.back')}</button>
                                 </>
                             )}
                         </div>
@@ -280,8 +282,8 @@ const ListChannel = ({ activePage, onNavigate }) => {
 
                 {step === 'templates' && (
                     <>
-                        <div className={styles.helperText}>
-                            Choose a message style to post in your channel. This will verify active users.
+                        <div className={styles.helperText} style={{ color: 'var(--text-muted)' }}>
+                            {t('listChannel.postStyleDesc')}
                         </div>
 
                         <div className={styles.templateGrid}>
@@ -290,8 +292,14 @@ const ListChannel = ({ activePage, onNavigate }) => {
                                     key={t.id}
                                     className={`${styles.templateCard} ${selectedTemplate === t.id ? styles.selected : ''}`}
                                     onClick={() => setSelectedTemplate(t.id)}
+                                    // Should refactor card styles to support theme
+                                    style={{
+                                        background: selectedTemplate === t.id ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-card)',
+                                        borderColor: selectedTemplate === t.id ? 'var(--primary)' : 'var(--glass-border)',
+                                        color: 'var(--text-main)'
+                                    }}
                                 >
-                                    <div className={styles.templateText}>{t.text}</div>
+                                    <div className={styles.templateText} style={{ color: 'var(--text-main)' }}>{t.text}</div>
                                     <div className={styles.templateBtnPreview}>{t.btn}</div>
                                 </div>
                             ))}
@@ -299,7 +307,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
 
                         <div style={{ marginTop: 'auto' }}>
                             <button className={styles.submitButton} onClick={handlePostVerification} disabled={loading}>
-                                {loading ? 'Posting...' : 'Post & Verify Channel'}
+                                {loading ? t('common.loading') : t('listChannel.postVerify')}
                             </button>
                         </div>
                     </>

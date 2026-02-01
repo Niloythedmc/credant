@@ -38,27 +38,27 @@ const PostAds = ({ activePage, onNavigate }) => {
             <div className={styles.content}>
 
                 <div className={styles.formGroup}>
-                    <label className={styles.label}>Campaign Title</label>
-                    <input className={styles.input} placeholder="e.g. Summer Sale" onChange={e => handleChange('title', e.target.value)} />
+                    <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('ads.campaignTitle')}</label>
+                    <input className={styles.input} placeholder={t('ads.titlePlaceholder')} onChange={e => handleChange('title', e.target.value)} style={{ background: 'var(--bg-card)', color: 'var(--text-main)', borderColor: 'var(--glass-border)' }} />
                 </div>
 
                 <div className={styles.formGroup}>
-                    <label className={styles.label}>Description / Post Text</label>
-                    <textarea className={styles.textarea} placeholder="Ad content..." style={{ minHeight: '80px' }} onChange={e => handleChange('description', e.target.value)} />
+                    <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('ads.description')}</label>
+                    <textarea className={styles.textarea} placeholder={t('ads.contentPlaceholder')} style={{ minHeight: '80px', background: 'var(--bg-card)', color: 'var(--text-main)', borderColor: 'var(--glass-border)' }} onChange={e => handleChange('description', e.target.value)} />
                 </div>
 
                 <div className={styles.formGroup}>
-                    <label className={styles.label}>Target Link / Channel</label>
-                    <input className={styles.input} placeholder="https://t.me/..." onChange={e => handleChange('link', e.target.value)} />
+                    <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('ads.targetLink')}</label>
+                    <input className={styles.input} placeholder={t('ads.linkPlaceholder')} onChange={e => handleChange('link', e.target.value)} style={{ background: 'var(--bg-card)', color: 'var(--text-main)', borderColor: 'var(--glass-border)' }} />
                 </div>
 
                 <div className={styles.formGroup}>
-                    <label className={styles.label}>Budget (TON)</label>
-                    <input className={styles.input} type="number" placeholder="0.0" onChange={e => handleChange('budget', e.target.value)} />
+                    <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('ads.budget')}</label>
+                    <input className={styles.input} type="number" placeholder="0.0" onChange={e => handleChange('budget', e.target.value)} style={{ background: 'var(--bg-card)', color: 'var(--text-main)', borderColor: 'var(--glass-border)' }} />
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>
-                    Create Ad Campaign
+                    {t('ads.create')}
                 </button>
             </div>
         </div>

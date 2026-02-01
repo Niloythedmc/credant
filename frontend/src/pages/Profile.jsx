@@ -392,7 +392,7 @@ const Profile = ({ activePage, onNavigate }) => {
             <Modal
                 isOpen={!!selectedChannel}
                 onClose={() => setSelectedChannel(null)}
-                title="Channel Status"
+                title={t('profile.channelStatus')}
             >
                 {selectedChannel && (() => {
                     const stats = getChannelStats(selectedChannel.startedAt);
@@ -423,14 +423,14 @@ const Profile = ({ activePage, onNavigate }) => {
                     };
 
                     const handleDelete = async () => {
-                        if (!confirm("Are you sure you want to delete this channel?")) return;
+                        if (!confirm(t('common.confirmDelete'))) return;
                         try {
                             await del(`/channels/${selectedChannel.channelId || selectedChannel.id}`, { userId: user.uid || user.id });
-                            addNotification('success', 'Channel Deleted');
+                            addNotification('success', t('common.success'));
                             toggleRefresh();
                             setSelectedChannel(null);
                         } catch (e) {
-                            addNotification('error', 'Delete failed');
+                            addNotification('error', t('common.error'));
                         }
                     };
 
@@ -463,8 +463,8 @@ const Profile = ({ activePage, onNavigate }) => {
                                     style={{ width: '60px', height: '60px', borderRadius: '50%' }}
                                 />
                                 <div>
-                                    <h3 style={{ margin: 0, color: 'white' }}>{selectedChannel.title}</h3>
-                                    <p style={{ margin: 0, color: '#aaa' }}>
+                                    <h3 style={{ margin: 0, color: 'var(--text-main)' }}>{selectedChannel.title}</h3>
+                                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
                                         {selectedChannel.username ? `@${selectedChannel.username}` : "Private Channel"}
                                     </p>
                                 </div>
@@ -472,29 +472,29 @@ const Profile = ({ activePage, onNavigate }) => {
 
                             {/* Bio */}
                             {selectedChannel.description && (
-                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', fontSize: '13px', color: '#ccc', fontStyle: 'italic' }}>
+                                <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic', border: '1px solid var(--glass-border)' }}>
                                     {selectedChannel.description}
                                 </div>
                             )}
 
                             {/* Stats Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Subscribers</div>
-                                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'white' }}>{selectedChannel.subscribers || selectedChannel.memberCount || 0}</div>
+                                <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('channels.subs')}</div>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main)' }}>{selectedChannel.subscribers || selectedChannel.memberCount || 0}</div>
                                 </div>
-                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Activity Score</div>
-                                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'white' }}>{selectedChannel.activityScore || 0}</div>
+                                <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('profile.activityScore')}</div>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main)' }}>{selectedChannel.activityScore || 0}</div>
                                 </div>
-                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Time Status</div>
+                                <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('profile.timeStatus')}</div>
                                     <div style={{ fontSize: '15px', fontWeight: '600', color: stats.timeLeft ? (stats.isReady ? '#4ade80' : 'var(--primary)') : '#EF4444' }}>
                                         {stats.timeLeft || 'Not Started'}
                                     </div>
                                 </div>
-                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '15px', fontWeight: '600', color: isCalculated ? '#4ade80' : 'white' }}>
+                                <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: isCalculated ? '#4ade80' : 'var(--text-main)' }}>
                                         {isCalculated ? `${selectedChannel.purityScore}%` : 'Pending'}
                                     </div>
                                 </div>
@@ -509,12 +509,12 @@ const Profile = ({ activePage, onNavigate }) => {
                                 marginTop: '8px'
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                    <span style={{ fontSize: '13px', color: '#93c5fd' }}>Start Price</span>
+                                    <span style={{ fontSize: '13px', color: '#93c5fd' }}>{t('profile.startPrice')}</span>
                                     <button
                                         onClick={() => setIsEditingPrice(!isEditingPrice)}
                                         style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px' }}
                                     >
-                                        {isEditingPrice ? 'Cancel' : 'Edit'}
+                                        {isEditingPrice ? t('common.cancel') : t('common.edit')}
                                     </button>
                                 </div>
 
@@ -522,7 +522,7 @@ const Profile = ({ activePage, onNavigate }) => {
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <input
                                             type="number"
-                                            placeholder="Price"
+                                            placeholder={t('ads.amount')}
                                             value={newPrice}
                                             onChange={(e) => setNewPrice(e.target.value)}
                                             style={{
@@ -530,8 +530,8 @@ const Profile = ({ activePage, onNavigate }) => {
                                                 padding: '8px',
                                                 borderRadius: '8px',
                                                 border: '1px solid #3b82f6',
-                                                background: 'rgba(0,0,0,0.2)',
-                                                color: 'white'
+                                                background: 'var(--bg-dark)',
+                                                color: 'var(--text-main)'
                                             }}
                                         />
                                         <button
@@ -545,7 +545,7 @@ const Profile = ({ activePage, onNavigate }) => {
                                                 cursor: 'pointer'
                                             }}
                                         >
-                                            Update
+                                            {t('common.update')}
                                         </button>
                                     </div>
                                 ) : (
@@ -557,12 +557,12 @@ const Profile = ({ activePage, onNavigate }) => {
 
                             {/* Info */}
                             {!isCalculated && (
-                                <p style={{ fontSize: '13px', color: '#888', textAlign: 'center', lineHeight: '1.5' }}>
+                                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.5' }}>
                                     {stats.timeLeft
                                         ? (stats.isReady
-                                            ? "Verification period complete. You can now calculate."
-                                            : "Collecting data. Please wait for 24-hour cycle.")
-                                        : "Verification has not started. Start now to calculate purity."
+                                            ? t('profile.ready')
+                                            : t('profile.collectingData'))
+                                        : t('profile.notStarted')
                                     }
                                 </p>
                             )}
@@ -576,8 +576,8 @@ const Profile = ({ activePage, onNavigate }) => {
                                             width: '100%',
                                             padding: '16px',
                                             borderRadius: '16px',
-                                            background: stats.isReady ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                            color: stats.isReady ? 'white' : '#666',
+                                            background: stats.isReady ? 'var(--primary)' : 'rgba(128,128,128,0.1)', // Neutral disabled
+                                            color: stats.isReady ? 'white' : 'var(--text-muted)',
                                             border: 'none',
                                             fontWeight: 'bold',
                                             fontSize: '16px',
@@ -585,7 +585,7 @@ const Profile = ({ activePage, onNavigate }) => {
                                         }}
                                         onClick={handleCalculate}
                                     >
-                                        {isCalculated ? "Calculate Again" : (stats.isReady ? "Check" : `Check (${stats.timeLeft})`)}
+                                        {isCalculated ? t('profile.calculateAgain') : (stats.isReady ? t('profile.check') : `${t('profile.check')} (${stats.timeLeft})`)}
                                     </button>
                                 ) : (
                                     <button
@@ -602,7 +602,7 @@ const Profile = ({ activePage, onNavigate }) => {
                                         }}
                                         onClick={handleStartVerification}
                                     >
-                                        Start Verification
+                                        {t('profile.startVerification')}
                                     </button>
                                 )}
 
@@ -619,7 +619,7 @@ const Profile = ({ activePage, onNavigate }) => {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Delete Channel
+                                    {t('common.delete')}
                                 </button>
                             </div>
                         </div>

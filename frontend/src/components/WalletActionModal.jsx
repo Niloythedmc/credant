@@ -176,7 +176,7 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
                                 style={{
                                     width: '100%',
                                     padding: '16px',
-                                    background: 'rgba(255,255,255,0.05)',
+                                    background: 'var(--bg-dark)',
                                     border: '1px solid var(--glass-border)',
                                     borderRadius: '12px',
                                     color: 'var(--text-main)',

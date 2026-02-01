@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './Navigation.module.css';
 
 const NavIcon = ({ name, active }) => {
-    const color = active ? '#8b5cf6' : '#9ca3af';
+    const color = active ? 'var(--primary)' : 'var(--text-muted)';
 
     // Simple Premium SVG Icons
     const icons = {

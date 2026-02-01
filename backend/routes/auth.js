@@ -207,9 +207,9 @@ router.get('/me', async (req, res) => {
                             purityScore: chData.purityScore,
                             activityScore: chData.activityScore || 0,
                             pureMembersCount: chData.pureMembersCount || 0,
-                            pureMembersCount: chData.pureMembersCount || 0,
                             subscribers: chData.memberCount || chData.subscribers || 0, // Prefer memberCount as it is updated by our backend
                             memberCount: chData.memberCount || 0, // Explicitly pass memberCount too
+                            startPrice: chData.startPrice || 0, // Include Start Price
 
                             // Metadata
                             username: chData.username,
