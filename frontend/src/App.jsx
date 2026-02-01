@@ -21,7 +21,7 @@ import { useApi } from './auth/useApi';
 function App() {
   const [activeNavPage, setActiveNavPage] = useState('feed'); // Tracks the bottom nav
   const [overlayPage, setOverlayPage] = useState(null);       // Tracks secondary pages (inbox, setting, etc)
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const { user, loading: authLoading } = useAuth();
   const { post } = useApi();
   const { addNotification } = useNotification();
@@ -29,6 +29,7 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {

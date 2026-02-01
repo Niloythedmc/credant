@@ -131,7 +131,6 @@ const Setting = ({ activePage, theme, toggleTheme }) => {
         <PageContainer id="setting" activePage={activePage}>
             <div style={{
                 padding: '20px',
-                paddingTop: '80px',
                 background: 'var(--bg-dark)', // CSS Variable
                 minHeight: '100vh',
                 color: 'var(--text-main)', // CSS Variable

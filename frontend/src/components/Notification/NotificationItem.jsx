@@ -54,7 +54,7 @@ const NotificationItem = ({ id, type, message, emojiId, index }) => {
                 margin: '0 auto',
                 width: '90%',
                 maxWidth: '400px',
-                background: 'rgba(255, 255, 255, 0.07)', // #fff1 approx for glass effect
+                background: 'var(--notif-bg)',
                 backdropFilter: 'blur(20px)',
                 // backgroundColor: 'rgba(30, 41, 59, 0.9)', // Removed opaque fallback for transparency
                 border: '1px solid rgba(255, 255, 255, 0.1)',

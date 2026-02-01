@@ -9,10 +9,10 @@ const NotificationContainer = () => {
     return (
         <div style={{
             position: 'fixed',
-            top: 0,
+            top: '80px',
             left: 0,
             width: '100%',
-            height: '100%', // Cover screen but allow click-through via pointer-events
+            height: 'calc(100% - 80px)', // Cover screen but allow click-through via pointer-events
             pointerEvents: 'none',
             zIndex: 20000,
             display: 'flex',

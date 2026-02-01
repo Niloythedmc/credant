@@ -18,6 +18,8 @@
   --badge-blue-text: #60a5fa;
   --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
   --icon-verified: #3b82f6;
+  --notif-bg: rgba(255, 255, 255, 0.07);
+  /* Dark theme #fff1 */
 }
 
 [data-theme="light"] {
@@ -29,6 +31,8 @@
   --text-main: #111827;
   --text-muted: #6b7280;
   --glass-border: rgba(0, 0, 0, 0.05);
+  --notif-bg: rgba(255, 255, 255, 0.2);
+  /* Light theme #fff3 - stronger opacity needed for visibility against light bg? User said #fff3 which is white... 20% white on white card is invisible. Wait. #fff3 is 20% white. On light gray background it might show. But notifications are usually white text? Let's check item text color. The item text is `var(--text-main)` in my previous view. */
 
   /* Feed UI Light Mode Overrides */
   --badge-yellow-bg: #fef9c3;
