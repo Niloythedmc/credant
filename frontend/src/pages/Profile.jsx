@@ -425,6 +425,28 @@ const Profile = ({ activePage, onNavigate }) => {
                         }
                     };
 
+                    const [isEditingPrice, setIsEditingPrice] = useState(false);
+                    const [newPrice, setNewPrice] = useState(selectedChannel.startPrice || '');
+
+                    const handleUpdatePrice = async () => {
+                        if (!newPrice || parseFloat(newPrice) < 0) return;
+                        try {
+                            await post('/channels/update-price', {
+                                channelId: selectedChannel.id || selectedChannel.channelId, // Check ID field mapping
+                                userId: user.uid || user.id,
+                                price: newPrice
+                            });
+                            addNotification('success', 'Price Updated!');
+                            setIsEditingPrice(false);
+                            // Optimistic Update
+                            setSelectedChannel(prev => ({ ...prev, startPrice: newPrice }));
+                            toggleRefresh(); // Refresh list
+                        } catch (error) {
+                            console.error(error);
+                            addNotification('error', 'Update Failed');
+                        }
+                    };
+
                     return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             {/* Header Info */}
@@ -465,11 +487,65 @@ const Profile = ({ activePage, onNavigate }) => {
                                     </div>
                                 </div>
                                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Purity Score</div>
                                     <div style={{ fontSize: '15px', fontWeight: '600', color: isCalculated ? '#4ade80' : 'white' }}>
                                         {isCalculated ? `${selectedChannel.purityScore}%` : 'Pending'}
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Start Price Section */}
+                            <div style={{
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                padding: '16px',
+                                borderRadius: '16px',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                marginTop: '8px'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <span style={{ fontSize: '13px', color: '#93c5fd' }}>Start Price</span>
+                                    <button
+                                        onClick={() => setIsEditingPrice(!isEditingPrice)}
+                                        style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px' }}
+                                    >
+                                        {isEditingPrice ? 'Cancel' : 'Edit'}
+                                    </button>
+                                </div>
+
+                                {isEditingPrice ? (
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="number"
+                                            placeholder="Price"
+                                            value={newPrice}
+                                            onChange={(e) => setNewPrice(e.target.value)}
+                                            style={{
+                                                flex: 1,
+                                                padding: '8px',
+                                                borderRadius: '8px',
+                                                border: '1px solid #3b82f6',
+                                                background: 'rgba(0,0,0,0.2)',
+                                                color: 'white'
+                                            }}
+                                        />
+                                        <button
+                                            onClick={handleUpdatePrice}
+                                            style={{
+                                                padding: '8px 16px',
+                                                borderRadius: '8px',
+                                                background: '#3b82f6',
+                                                color: 'white',
+                                                border: 'none',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Update
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#60a5fa', textAlign: 'center' }}>
+                                        ${selectedChannel.startPrice || 0}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Info */}

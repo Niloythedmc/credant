@@ -7,21 +7,95 @@ const admin = require('firebase-admin');
 router.get('/', async (req, res) => {
     try {
         // Query 'channels' collection (verified/top channels)
-        // For MVP, if empty, we can return a Seeded "System" set or empty
-        const snapshot = await admin.firestore().collection('channels').limit(20).get();
+        const snapshot = await admin.firestore().collection('channels')
+            .orderBy('memberCount', 'desc')
+            .limit(20)
+            .get();
 
-        let channels = [];
-        if (snapshot.empty) {
-            // OPTIONAL: Auto-seed if empty for demo purposes? 
-            // Better to return empty and handle in UI, but user wants "Real Data". 
-            // We will manually seed via script later.
-        } else {
-            channels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const channels = [];
+        snapshot.forEach(doc => {
+            if (doc.id !== 'quickData' && doc.id !== 'system') { // Filter excluded docs
+                channels.push({ id: doc.id, ...doc.data() });
+            }
+        });
+
+        res.json({ channels });
+    } catch (error) {
+        console.error("Error fetching channels:", error);
+        res.status(500).json({ error: "Failed to fetch channels" });
+    }
+});
+
+// POST /refresh-metadata - Real-time Sync
+router.post('/refresh-metadata', async (req, res) => {
+    const { channelId } = req.body;
+    try {
+        // Fetch from Telegram
+        // Note: We need the channel numerical ID or username. 
+        // Our DB stores 'id' as "-100..." string.
+
+        const docRef = admin.firestore().collection('channels').doc(channelId);
+        const doc = await docRef.get();
+        if (!doc.exists) return res.status(404).json({ error: "Channel not found" });
+
+        const data = doc.data();
+        const chatId = data.id; // e.g. -100123...
+
+        // Use bot to get fresh chat info
+        const chat = await require('../services/botService').getChat(chatId);
+
+        // Update DB
+        const updates = {
+            title: chat.title,
+            username: chat.username ? chat.username.toLowerCase() : null,
+            description: chat.description || null,
+        };
+
+        // Try to update photo if possible (getChat doesn't return file_id directly always, but let's check)
+        // Actually, getChat returns 'photo' object.
+        if (chat.photo) {
+            const fileId = chat.photo.big_file_id;
+            const photoUrl = await require('../services/botService').getFileLink(fileId);
+            updates.photoUrl = photoUrl;
         }
 
-        return res.status(200).json({ channels });
+        await docRef.update(updates);
+
+        // Update quickData too
+        await addToQuickData(channelId, updates.title, updates.username);
+
+        res.json({ success: true, updates });
+
     } catch (error) {
-        return res.status(500).json({ error: error.message });
+        console.error("Refresh metadata failed:", error);
+        res.status(500).json({ error: "Refresh failed" });
+    }
+});
+
+// POST /update-price
+router.post('/update-price', async (req, res) => {
+    const { channelId, userId, price } = req.body;
+    if (!price || price < 0) return res.status(400).json({ error: "Invalid price" });
+
+    try {
+        const docRef = admin.firestore().collection('channels').doc(channelId);
+
+        await admin.firestore().runTransaction(async (t) => {
+            const doc = await t.get(docRef);
+            if (!doc.exists) throw new Error("Channel not found");
+            const data = doc.data();
+
+            if (data.ownerId !== userId) {
+                throw new Error("Unauthorized");
+            }
+
+            t.update(docRef, { startPrice: parseFloat(price) });
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Update price failed:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 

@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 
 const Channels = ({ activePage }) => {
     const { t } = useTranslation();
-    const { get } = useApi();
+    const { get, post } = useApi(); // Added post
     const index = 3;
 
     const [channels, setChannels] = useState([]);
@@ -21,6 +21,17 @@ const Channels = ({ activePage }) => {
                 const data = await get('/channels');
                 if (data && data.channels) {
                     setChannels(data.channels);
+
+                    // Background Refresh Metadata for top channels
+                    // We do this silently to update cache
+                    setTimeout(() => {
+                        data.channels.forEach(ch => {
+                            // Only refresh if data seems stale (optional, but for now just refresh)
+                            // Or simple fire-and-forget for all
+                            post('/channels/refresh-metadata', { channelId: ch.id })
+                                .catch(err => console.warn("Background refresh failed for", ch.id));
+                        });
+                    }, 1000);
                 }
             } catch (error) {
                 console.error("Failed to load channels", error);
