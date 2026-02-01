@@ -27,6 +27,22 @@ router.get('/', async (req, res) => {
 
 const { sendMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId } = require('../services/botService');
 
+// Helper to update Quick Search Data
+const addToQuickData = async (id, title, username) => {
+    try {
+        const quickRef = admin.firestore().collection('channels').doc('quickData');
+        await quickRef.set({
+            items: admin.firestore.FieldValue.arrayUnion({
+                id: id.toString(),
+                title: title || '',
+                username: username || ''
+            })
+        }, { merge: true });
+    } catch (e) {
+        console.error("Failed to update quickData:", e);
+    }
+};
+
 // Templates for verification posts
 const POST_TEMPLATES = {
     1: {
@@ -104,6 +120,14 @@ router.post('/verify-post', async (req, res) => {
         await userRef.update({
             myChannels: admin.firestore.FieldValue.arrayUnion(channelId.toString())
         });
+
+        // Add to Quick Data for Search
+        try {
+            const chat = await getChat(channelId);
+            await addToQuickData(channelId, chat.title, chat.username);
+        } catch (e) {
+            console.error("Failed to fetch chat details for quickData update");
+        }
 
         return res.status(200).json({ success: true, messageId });
     } catch (error) {
@@ -205,14 +229,14 @@ router.post('/check-purity', async (req, res) => {
 
     try {
         const { getChatMember } = require('../services/botService');
+        const db = admin.firestore();
 
-        // 1. Verify Membership
+        // 1. Check if User is Member
         let member;
         try {
             member = await getChatMember(channelId, userId);
         } catch (e) {
             console.error("Purity Check - Member fetch failed:", e.message);
-            // If we can't fetch, we assume not a member or bot blocked
             return res.status(200).json({ success: false, reason: "membership_check_failed" });
         }
 
@@ -221,65 +245,65 @@ router.post('/check-purity', async (req, res) => {
             return res.status(200).json({ success: false, reason: "not_member" });
         }
 
-        // 2. Check for Duplicate Verification (Idempotency)
-        // We store verification records in a subcollection
-        const verificationRef = admin.firestore()
-            .collection('channels')
-            .doc(channelId.toString())
-            .collection('verifications')
-            .doc(userId.toString());
+        const channelRef = db.collection('channels').doc(channelId.toString());
 
-        const doc = await verificationRef.get();
-        if (doc.exists) {
-            // Already counted
-            return res.status(200).json({ success: true, alreadyVerified: true });
-        }
+        // Transaction for Atomic Updates
+        await db.runTransaction(async (t) => {
+            const channelDoc = await t.get(channelRef);
+            if (!channelDoc.exists) throw new Error("Channel not found");
 
-        // 3. Update Stats (Atomic Increment)
-        const channelRef = admin.firestore().collection('channels').doc(channelId.toString());
-        await admin.firestore().runTransaction(async (t) => {
-            t.set(verificationRef, {
-                userId,
-                referrerId: referrerId || null,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                status: member.status
-            });
+            const chData = channelDoc.data();
+            const verifiedUserIds = chData.verifiedUserIds || [];
 
-            // Increment Verified Count (NOT Purity Score yet)
-            // User requested: "Whenever user enters... don't edit the purity score"
-            // We track 'verifiedCount' as the raw number of real humans found.
+            // 2. Idempotency: Check if already verified
+            if (verifiedUserIds.includes(userId.toString())) {
+                // Already verified, do nothing
+                return;
+            }
+
+            // 3. User Validation (Active & Premium)
+            // Active: Any member who validates.
+            // Premium: Member who has Telegram Premium
+            const isPremium = member.user && member.user.is_premium === true;
+
+            // Check if user is "New" for referral purposes (still keeping this per previous request context)
+            const userRef = db.collection('users').doc(userId.toString());
+            const userDoc = await t.get(userRef);
+            let isNewUser = false;
+
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                const createdAt = userData.createdAt ? (userData.createdAt.toMillis ? userData.createdAt.toMillis() : Date.parse(userData.createdAt)) : Date.now();
+                const now = Date.now();
+                if ((now - createdAt) < (5 * 60 * 1000)) {
+                    isNewUser = true;
+                }
+            }
+
+            // 4. Update Channel Stats
             t.update(channelRef, {
-                verifiedCount: admin.firestore.FieldValue.increment(1)
+                verifiedUserIds: admin.firestore.FieldValue.arrayUnion(userId.toString()),
+                activeUsers: admin.firestore.FieldValue.increment(1),
+                premiumUsers: isPremium ? admin.firestore.FieldValue.increment(1) : admin.firestore.FieldValue.increment(0)
             });
 
-            // 4. Update Referrer Stats if exists
-            // 4. Update Referrer Stats if exists - ONLY IF USER IS NEW (e.g. created < 5 min ago)
-            if (referrerId && referrerId !== userId) {
-                // Fetch user to check creation time
-                const userDoc = await admin.firestore().collection('users').doc(userId).get();
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
-                    const createdAt = userData.createdAt; // Firestore Timestamp
+            // 5. Handle Referrals
+            if (referrerId && referrerId !== userId && isNewUser) {
+                const referrerRef = db.collection('users').doc(referrerId.toString());
+                const referrerDoc = await t.get(referrerRef);
 
-                    // Check if created recently (e.g. within last 1 hour to allow for some delay)
-                    // If no createdAt (old user), skip.
-                    if (createdAt) {
-                        const createdTime = createdAt.toMillis ? createdAt.toMillis() : Date.parse(createdAt);
-                        const now = Date.now();
-                        const isNew = (now - createdTime) < (60 * 60 * 1000); // 1 hour threshold
-
-                        if (isNew) {
-                            const referrerRef = admin.firestore().collection('users').doc(referrerId.toString());
-                            t.update(referrerRef, {
-                                referralCount: admin.firestore.FieldValue.increment(1),
-                                lastReferral: admin.firestore.FieldValue.serverTimestamp()
-                            });
-                        }
-                    }
+                if (referrerDoc.exists) {
+                    t.update(referrerRef, {
+                        referrals: admin.firestore.FieldValue.arrayUnion(userId.toString())
+                    });
+                    t.update(userRef, {
+                        referredBy: referrerId.toString()
+                    });
                 }
             }
         });
 
+        // Return verified=true. Frontend will start interaction tracking.
         return res.status(200).json({ success: true, verified: true });
 
     } catch (error) {
@@ -288,8 +312,43 @@ router.post('/check-purity', async (req, res) => {
     }
 });
 
+// POST /api/channels/mark-pure
+// Called by frontend after user interaction constraints are met (20s, 5 clicks)
+router.post('/mark-pure', async (req, res) => {
+    const { channelId, userId } = req.body;
+
+    if (!channelId || !userId) return res.status(400).json({ error: "Missing fields" });
+
+    try {
+        const db = admin.firestore();
+        const channelRef = db.collection('channels').doc(channelId.toString());
+
+        await db.runTransaction(async (t) => {
+            const doc = await t.get(channelRef);
+            if (!doc.exists) throw new Error("Channel not found");
+
+            const data = doc.data();
+            const pureUserIds = data.pureUserIds || [];
+
+            // Idempotency
+            if (pureUserIds.includes(userId.toString())) return;
+
+            // Increment Pure Users
+            t.update(channelRef, {
+                pureUserIds: admin.firestore.FieldValue.arrayUnion(userId.toString()),
+                pureUsers: admin.firestore.FieldValue.increment(1)
+            });
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error("Mark Pure Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 // POST /api/channels/calculate-purity
-// Calculates score based on verifiedCount / memberCount
+// Calculates score based on pureUsers / activeUsers and premiumUsers / activeUsers
 router.post('/calculate-purity', async (req, res) => {
     const { channelId, userId } = req.body;
 
@@ -307,38 +366,35 @@ router.post('/calculate-purity', async (req, res) => {
 
         const data = doc.data();
 
-        // Use verifiedCount (real users) and memberCount (from initial preview or update)
-        // If memberCount is missing in DB, we might need to fetch it again or default to verifiedCount (100%)
-        // BUT memberCount is not saved in verify-post. We should save it.
-        // For now, let's fetch fresh member count to be accurate.
+        const activeUsers = data.activeUsers || 0;
+        const pureUsers = data.pureUsers || 0;
+        const premiumUsers = data.premiumUsers || 0;
 
+        // Formulae
+        let score = 0;
+        let premiumScore = 0;
+
+        if (activeUsers > 0) {
+            score = (pureUsers / activeUsers) * 100;
+            premiumScore = (premiumUsers / activeUsers) * 100;
+        }
+
+        score = parseFloat(Math.min(100, Math.max(0, score)).toFixed(1));
+        premiumScore = parseFloat(Math.min(100, Math.max(0, premiumScore)).toFixed(1));
+
+        // Fetch fresh member count for display purposes too
         const { getChatMemberCount } = require('../services/botService');
         let memberCount = data.memberCount || 0;
-
         try {
-            // Try to get fresh count
             const freshCount = await getChatMemberCount(channelId);
             if (freshCount > 0) memberCount = freshCount;
-        } catch (e) {
-            console.log("Failed to fetch fresh member count, using stored or 0");
-        }
-
-        if (memberCount === 0) {
-            // Avoid division by zero
-            return res.status(200).json({ success: true, purityScore: 0 });
-        }
-
-        const verifiedCount = data.verifiedCount || 0;
-
-        // Calculation: (Verified / Members) * 100
-        let score = (verifiedCount / memberCount) * 100;
-        score = Math.min(100, Math.max(0, score)); // Clamp 0-100
-        score = parseFloat(score.toFixed(1)); // 1 decimal
+        } catch (e) { }
 
         // Update DB
         await channelRef.update({
             purityScore: score,
-            memberCount: memberCount, // Save latest count
+            premiumScore: premiumScore, // Store premium score
+            memberCount: memberCount,
             lastCalculatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
@@ -383,6 +439,14 @@ router.post('/list-later', async (req, res) => {
         await userRef.update({
             myChannels: admin.firestore.FieldValue.arrayUnion(channelId.toString())
         });
+
+        // Add to Quick Data
+        try {
+            const chat = await getChat(channelId);
+            await addToQuickData(channelId, chat.title, chat.username);
+        } catch (e) {
+            console.error("Failed to fetch chat details for quickData update", e);
+        }
 
         return res.status(200).json({ success: true });
 

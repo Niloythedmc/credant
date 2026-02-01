@@ -72,7 +72,7 @@ function App() {
     // Only run if user is loaded and not already checked
     if (authLoading || !user || purityChecked) return;
 
-    const checkPurity = async () => {
+    const runVerificationParams = async () => {
       const startParam = WebApp.initDataUnsafe?.start_param;
       if (!startParam) {
         setPurityChecked(true);
@@ -85,8 +85,6 @@ function App() {
         let channelId = match[1].replace('n', '-'); // Restore negative sign
         const referrerId = match[2];
 
-        // Prevent self-referral loop if referrer is same as user (though allowed in backend check, good to skip if obvious)
-
         try {
           const result = await post('/channels/check-purity', {
             channelId,
@@ -95,17 +93,12 @@ function App() {
           });
 
           if (result.success) {
-            if (result.alreadyVerified) {
-              addNotification('info', 'You have already verified this channel.');
-            } else if (result.verified) {
-              addNotification('success', 'Channel Verified! Purity Score updated.');
-              // Could also navigate to that channel or show specific UI
+            if (result.alreadyVerified || result.verified) {
+              // If verified (even if already), start tracking interaction
+              // We store channelId in state to track interaction
+              setTrackingStart({ channelId: channelId, time: Date.now() });
+              addNotification('success', 'Verification started! Explore the app.');
             } else {
-              // success=false, likely not member
-              addNotification('warning', 'Join the channel to verify your purity!');
-            }
-          } else {
-            if (result.reason === 'not_member') {
               addNotification('warning', 'Please join the channel to verify.');
             }
           }
@@ -116,8 +109,87 @@ function App() {
       setPurityChecked(true);
     };
 
-    checkPurity();
+    runVerificationParams();
   }, [user, authLoading, purityChecked, post, addNotification]);
+
+  // INTERACTION TRACKER LOGIC
+  const [trackingStart, setTrackingStart] = useState(null); // { channelId, time }
+  const [clickCount, setClickCount] = useState(0);
+
+  useEffect(() => {
+    if (!trackingStart) return;
+
+    const handleClick = () => {
+      setClickCount(prev => {
+        const newCount = prev + 1;
+        // Check thresholds: 5 clicks
+        if (newCount >= 5) {
+          const duration = Date.now() - trackingStart.time;
+          // Check duration: 20s (20000ms)
+          if (duration >= 20000) {
+            // Check Username
+            // User object should have username from Auth
+            const hasUsername = user.username || (user.wallet && user.wallet.address); // Fallback to wallet if needed or strict username?
+            // User Request: "have a valid username" -> Telegram username usually.
+            // Our user object has 'username' if mapped from TG.
+
+            if (hasUsername) {
+              // Mark Pure
+              post('/channels/mark-pure', {
+                channelId: trackingStart.channelId,
+                userId: user.uid || user.id
+              })
+                .then(() => {
+                  addNotification('success', 'You are marked as a Pure User! 🌟');
+                  setTrackingStart(null); // Stop tracking
+                })
+                .catch(err => console.error("Mark Pure Failed", err));
+            }
+          }
+        }
+        return newCount;
+      });
+    };
+
+    // Also check time interval purely? 
+    // The user wants "stay... 20s AND clicks...". 
+    // So we check on every click, but what if they click 10 times in 5s then wait 20s?
+    // We need a timer to check after 20s if clicks are satisfied?
+    // Or check on click if time satisfied.
+    // Let's check on click. If they click active, they are active.
+    // If they click 5 times quickly, they have clicks. Wait for 20s.
+    // Better: when clicks >= 5, set a timeout to check time?
+    // Simplest: Check on every click. If time not passed, wait for next click?
+    // Risk: User clicks 5 times then stops clicking. 20s passes. No event triggers.
+    // Fix: Set an interval to check actively if clicks met.
+
+    const interval = setInterval(() => {
+      if (clickCount >= 5) {
+        const duration = Date.now() - trackingStart.time;
+        if (duration >= 20000) {
+          const hasUsername = user.username; // Strict TG username
+          if (hasUsername) {
+            post('/channels/mark-pure', {
+              channelId: trackingStart.channelId,
+              userId: user.uid || user.id
+            })
+              .then(() => {
+                addNotification('success', 'You are marked as a Pure User! 🌟');
+                setTrackingStart(null);
+                setClickCount(0);
+              })
+              .catch(console.error);
+          }
+        }
+      }
+    }, 5000); // Check every 5s
+
+    document.addEventListener('click', handleClick);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      clearInterval(interval);
+    };
+  }, [trackingStart, clickCount, user, post, addNotification]);
 
   // PURITY CHECK LOGIC
   // We need access to API and User, but App.jsx is outside AuthProvider?

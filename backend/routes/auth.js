@@ -168,6 +168,25 @@ router.get('/me', async (req, res) => {
                             photoUrl = await getFileLink(chat.photo.small_file_id);
                         }
 
+                        // Get FRESH member count
+                        let freshMemberCount = 0;
+                        try {
+                            const { getChatMemberCount } = require('../services/botService');
+                            freshMemberCount = await getChatMemberCount(cid);
+
+                            // Async update DB with fresh count (fire and forget)
+                            if (freshMemberCount > 0 && freshMemberCount !== chData.memberCount) {
+                                admin.firestore().collection('channels').doc(cid.toString()).update({
+                                    memberCount: freshMemberCount
+                                }).catch(err => console.error("Failed to update fresh member count in DB", err.message));
+                            }
+                        } catch (e) {
+                            console.warn(`Failed to fetch fresh member count for ${cid}`);
+                        }
+
+                        // Use fresh count if available, else stored
+                        const finalMemberCount = freshMemberCount > 0 ? freshMemberCount : (chData.memberCount || 0);
+
                         const handle = chat.username ? `@${chat.username}` : "Private";
                         const isPending = chData.status === 'pending_verification';
 
