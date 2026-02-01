@@ -23,18 +23,13 @@ const PostAds = ({ activePage, onNavigate }) => {
 
     const handleSubmit = () => {
         if (!formData.title || !formData.budget) return;
-        addNotification('success', 'Ad campaign created!');
+        addNotification('success', t('ads.campaignCreated'));
         window.history.back();
     };
 
     return (
         <div className={styles.page} style={style}>
-            <div className={styles.header}>
-                <button className={styles.backButton} onClick={() => window.history.back()}>
-                    <FiChevronDown size={24} />
-                </button>
-                <h2 className={styles.title}>{t('profile.postAds')}</h2>
-            </div>
+
             <div className={styles.content}>
 
                 <div className={styles.formGroup}>

@@ -7,7 +7,7 @@
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding-bottom: var(--safe-area-bottom);
+    padding-bottom: calc(var(--safe-area-bottom) + 40px);
     z-index: 999;
 }
 

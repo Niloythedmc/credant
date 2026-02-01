@@ -17,27 +17,23 @@ const ShareThought = ({ activePage, onNavigate }) => {
     const handleSubmit = () => {
         if (!thought.trim()) return;
         // API call would go here
-        addNotification('success', 'Thought shared successfully!');
+        addNotification('success', t('profile.thoughtShared'));
         setThought('');
         window.history.back();
     };
 
     return (
         <div className={styles.page} style={style}>
-            <div className={styles.header}>
-                <button className={styles.backButton} onClick={() => window.history.back()}>
-                    <FiChevronDown size={24} />
-                </button>
-                <h2 className={styles.title}>{t('profile.shareThoughts')}</h2>
-            </div>
+
             <div className={styles.content}>
                 <div className={styles.formGroup}>
                     <textarea
                         className={styles.textarea}
-                        placeholder="What's on your mind? Use @ to mention, # for hashtag..."
+                        placeholder={t('profile.thoughtPlaceholder')}
                         value={thought}
                         onChange={(e) => setThought(e.target.value)}
                         autoFocus={isVisible}
+                        style={{ background: 'var(--bg-card)', color: 'var(--text-main)', borderColor: 'var(--glass-border)' }}
                     />
                 </div>
 
@@ -47,7 +43,7 @@ const ShareThought = ({ activePage, onNavigate }) => {
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>
-                    Share Post
+                    {t('profile.shareAction')}
                 </button>
             </div>
         </div>

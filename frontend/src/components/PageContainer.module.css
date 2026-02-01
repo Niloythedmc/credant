@@ -10,6 +10,8 @@
     will-change: transform;
     background-color: var(--bg-dark);
     scrollbar-width: none;
+    padding-top: 80px;
+    /* User Constraint: Account for TG button/status */
 }
 
 .secondaryPage {

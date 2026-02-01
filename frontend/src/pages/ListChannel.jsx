@@ -19,6 +19,12 @@ const ListChannel = ({ activePage, onNavigate }) => {
     const { user, refreshProfile } = useAuth();
     const isVisible = activePage === 'listChannel';
 
+    const TEMPLATES = [
+        { id: 1, text: t('listChannel.template1'), btn: t('listChannel.verifyBoost') },
+        { id: 2, text: t('listChannel.template2'), btn: t('listChannel.calcPurity') },
+        { id: 3, text: t('listChannel.template3'), btn: t('listChannel.human') }
+    ];
+
     // State
     const [step, setStep] = useState('input'); // input | preview | templates
     const [username, setUsername] = useState('');
@@ -161,14 +167,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
 
     return (
         <div className={styles.page} style={style}>
-            <div className={styles.header}>
-                <button className={styles.backButton} onClick={() => window.history.back()}>
-                    <FiChevronDown size={24} />
-                </button>
-                <h2 className={styles.title} style={{ color: 'var(--text-main)' }}>
-                    {step === 'templates' ? t('listChannel.selectStyle') : (step === 'input' ? t('profile.listChannel') : t('listChannel.title'))}
-                </h2>
-            </div>
+
 
             <div className={styles.content}>
                 {step === 'input' && (
@@ -254,7 +253,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
                             {allChecksPassed ? (
                                 <>
                                     <div style={{ textAlign: 'center', marginBottom: '10px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                                        Choose verification method:
+                                        {t('listChannel.chooseMethod')}
                                     </div>
                                     <button className={styles.submitButton} onClick={() => setStep('templates')}>
                                         {t('listChannel.calculateNow')}
@@ -271,7 +270,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
                             ) : (
                                 <>
                                     <button className={styles.submitButton} onClick={handleFetchPreview} disabled={loading}>
-                                        {loading ? t('listChannel.fetching') : 'Recheck Requirements'}
+                                        {loading ? t('listChannel.fetching') : t('listChannel.recheck')}
                                     </button>
                                     <button className={styles.secondaryButton} onClick={() => setStep('input')}>{t('common.back')}</button>
                                 </>

@@ -274,22 +274,31 @@ const Profile = ({ activePage, onNavigate }) => {
                             </div>
                         )}
 
-                        <div className={styles.addressContainer} onClick={handleConnectClick} style={{ cursor: 'pointer', background: 'rgba(128,128,128,0.1)' }}>
-                            {userFriendlyAddress ? (
-                                <>
-                                    <span className={styles.addressTextHeader} style={{ color: 'var(--text-muted)' }}>
-                                        {userFriendlyAddress.slice(0, 4) + '...' + userFriendlyAddress.slice(-4)}
-                                    </span>
-                                    {/* Using a power/disconnect icon */}
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
-                                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-                                        <line x1="12" y1="2" x2="12" y2="12"></line>
-                                    </svg>
-                                </>
-                            ) : (
-                                <span className={styles.addressTextHeader} style={{ color: 'var(--primary)' }}>{t('common.connectWallet')}</span>
-                            )}
-                        </div>
+                        {/* Wallet Display Address: Priority to Backend stored address */
+                            /* User request: "userData.wallet address not conencted wallet address" */
+                        }
+                        {(() => {
+                            const displayAddr = userProfile?.wallet?.address || userFriendlyAddress;
+
+                            return (
+                                <div className={styles.addressContainer} onClick={handleConnectClick} style={{ cursor: 'pointer', background: 'rgba(128,128,128,0.1)' }}>
+                                    {displayAddr ? (
+                                        <>
+                                            <span className={styles.addressTextHeader} style={{ color: 'var(--text-muted)' }}>
+                                                {displayAddr.slice(0, 4) + '...' + displayAddr.slice(-4)}
+                                            </span>
+                                            {/* Disconnect Icon */}
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                                                <line x1="12" y1="2" x2="12" y2="12"></line>
+                                            </svg>
+                                        </>
+                                    ) : (
+                                        <span className={styles.addressTextHeader} style={{ color: 'var(--primary)' }}>{t('common.connectWallet')}</span>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         <div className={styles.walletActionsHeader}>
                             <button className={styles.actionIconButton} onClick={() => setModalType('deposit')}>

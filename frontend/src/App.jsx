@@ -67,6 +67,17 @@ function App() {
     }
   }, [overlayPage]);
 
+  // FULLSCREEN LOGIC
+  useEffect(() => {
+    try {
+      WebApp.requestFullscreen();
+      // Ensure expand too just in case
+      WebApp.expand();
+    } catch (e) {
+      console.log('Fullscreen/Expand failed (likely not in TWA)', e);
+    }
+  }, []);
+
   // PURITY CHECK LOGIC
   useEffect(() => {
     // Only run if user is loaded and not already checked
