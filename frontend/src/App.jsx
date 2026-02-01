@@ -74,23 +74,29 @@ function App() {
 
     const runVerificationParams = async () => {
       const startParam = WebApp.initDataUnsafe?.start_param;
+      console.log("Checking start_param:", startParam); // DEBUG
       if (!startParam) {
+        console.log("No start_param found."); // DEBUG
         setPurityChecked(true);
         return;
       }
 
       // Parse: c_{channelId}_r_{referrerId} (or n instead of -)
       const match = startParam.match(/^c_([0-9n]+)_r_([0-9]+)$/);
+      console.log("Regex match result:", match); // DEBUG
       if (match) {
         let channelId = match[1].replace('n', '-'); // Restore negative sign
         const referrerId = match[2];
+        console.log("Parsed ChannelId:", channelId, "ReferrerId:", referrerId); // DEBUG
 
         try {
+          console.log("Calling check-purity..."); // DEBUG
           const result = await post('/channels/check-purity', {
             channelId,
             userId: user.uid || user.id,
             referrerId
           });
+          console.log("Check-purity result:", result); // DEBUG
 
           if (result.success) {
             if (result.alreadyVerified || result.verified) {
@@ -101,10 +107,16 @@ function App() {
             } else {
               addNotification('warning', 'Please join the channel to verify.');
             }
+          } else {
+            if (result.reason === 'not_member') {
+              addNotification('warning', 'Please join the channel to verify.');
+            }
           }
         } catch (error) {
           console.error("Purity check failed", error);
         }
+      } else {
+        console.warn("start_param did not match regex format");
       }
       setPurityChecked(true);
     };

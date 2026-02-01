@@ -34,8 +34,8 @@ const addToQuickData = async (id, title, username) => {
         await quickRef.set({
             items: admin.firestore.FieldValue.arrayUnion({
                 id: id.toString(),
-                title: title || '',
-                username: username || ''
+                title: (title || '').toLowerCase(),
+                username: (username || '').toLowerCase()
             })
         }, { merge: true });
     } catch (e) {
