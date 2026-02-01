@@ -142,8 +142,10 @@ function App() {
           // Check duration: 20s (20000ms)
           if (duration >= 20000) {
             // Check Username
-            const hasUsername = user.username || (user.wallet && user.wallet.address);
-            console.log("Username check:", hasUsername); // DEBUG
+            console.log("Full InitDataUnsafe:", WebApp.initDataUnsafe); // DEBUG
+            const tgUser = WebApp.initDataUnsafe?.user;
+            const hasUsername = (user.username) || (tgUser && tgUser.username) || (user.wallet && user.wallet.address);
+            console.log("Username check (Internal vs TG):", user.username, tgUser?.username, "Result:", hasUsername); // DEBUG
 
             if (hasUsername) {
               // Mark Pure
