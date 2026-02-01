@@ -99,6 +99,15 @@ const Profile = ({ activePage, onNavigate }) => {
     };
 
     const [selectedChannel, setSelectedChannel] = useState(null);
+    const [isEditingPrice, setIsEditingPrice] = useState(false);
+    const [newPrice, setNewPrice] = useState('');
+
+    useEffect(() => {
+        if (selectedChannel) {
+            setNewPrice(selectedChannel.startPrice || '');
+            setIsEditingPrice(false);
+        }
+    }, [selectedChannel]);
 
     // Helper: Calculate Time Stats
     const getChannelStats = (startedAt) => {
@@ -425,8 +434,6 @@ const Profile = ({ activePage, onNavigate }) => {
                         }
                     };
 
-                    const [isEditingPrice, setIsEditingPrice] = useState(false);
-                    const [newPrice, setNewPrice] = useState(selectedChannel.startPrice || '');
 
                     const handleUpdatePrice = async () => {
                         if (!newPrice || parseFloat(newPrice) < 0) return;

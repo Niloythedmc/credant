@@ -1,6 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
+const { sendMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId } = require('../services/botService');
+
+// Helper to update Quick Search Data
+const addToQuickData = async (id, title, username) => {
+    try {
+        const quickRef = admin.firestore().collection('channels').doc('quickData');
+        await quickRef.set({
+            items: admin.firestore.FieldValue.arrayUnion({
+                id: id.toString(),
+                title: (title || '').toLowerCase(),
+                username: (username || '').toLowerCase()
+            })
+        }, { merge: true });
+    } catch (e) {
+        console.error("Failed to update quickData:", e);
+    }
+};
 
 // GET /api/channels
 // Public marketplace listing
@@ -42,7 +59,7 @@ router.post('/refresh-metadata', async (req, res) => {
         const chatId = data.id; // e.g. -100123...
 
         // Use bot to get fresh chat info
-        const chat = await require('../services/botService').getChat(chatId);
+        const chat = await getChat(chatId);
 
         // Update DB
         const updates = {
@@ -55,7 +72,7 @@ router.post('/refresh-metadata', async (req, res) => {
         // Actually, getChat returns 'photo' object.
         if (chat.photo) {
             const fileId = chat.photo.big_file_id;
-            const photoUrl = await require('../services/botService').getFileLink(fileId);
+            const photoUrl = await getFileLink(fileId);
             updates.photoUrl = photoUrl;
         }
 
@@ -99,24 +116,7 @@ router.post('/update-price', async (req, res) => {
     }
 });
 
-const { sendMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId } = require('../services/botService');
-
-// Helper to update Quick Search Data
-const addToQuickData = async (id, title, username) => {
-    try {
-        const quickRef = admin.firestore().collection('channels').doc('quickData');
-        await quickRef.set({
-            items: admin.firestore.FieldValue.arrayUnion({
-                id: id.toString(),
-                title: (title || '').toLowerCase(),
-                username: (username || '').toLowerCase()
-            })
-        }, { merge: true });
-    } catch (e) {
-        console.error("Failed to update quickData:", e);
-    }
-};
-
+// Helper imports
 // Templates for verification posts
 const POST_TEMPLATES = {
     1: {
