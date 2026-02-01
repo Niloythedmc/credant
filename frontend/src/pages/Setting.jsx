@@ -120,8 +120,8 @@ const Setting = ({ activePage, theme, toggleTheme }) => {
     }, [i18n.language]);
 
     const handleCopy = () => {
-        if (userFriendlyAddress) {
-            navigator.clipboard.writeText(userFriendlyAddress);
+        if (userProfile?.wallet?.address) {
+            navigator.clipboard.writeText(userProfile.wallet.address);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }
@@ -215,7 +215,7 @@ const Setting = ({ activePage, theme, toggleTheme }) => {
                         fontFamily: 'monospace',
                         lineHeight: '1.4'
                     }}>
-                        {userFriendlyAddress || t('settings.notConnected')}
+                        {userProfile?.wallet?.address || t('settings.notConnected')}
                     </div>
                 </div>
 

@@ -278,7 +278,7 @@ const Profile = ({ activePage, onNavigate }) => {
                             /* User request: "userData.wallet address not conencted wallet address" */
                         }
                         {(() => {
-                            const displayAddr = userProfile?.wallet?.address || userFriendlyAddress;
+                            const displayAddr = userFriendlyAddress;
 
                             return (
                                 <div className={styles.addressContainer} onClick={handleConnectClick} style={{ cursor: 'pointer', background: 'rgba(128,128,128,0.1)' }}>
