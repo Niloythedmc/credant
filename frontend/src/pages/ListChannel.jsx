@@ -25,6 +25,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
     const [loading, setLoading] = useState(false);
     const [channelData, setChannelData] = useState(null);
     const [selectedTemplate, setSelectedTemplate] = useState(1);
+    const [startPrice, setStartPrice] = useState(''); // New State for Price
 
     const style = {
         transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
@@ -73,12 +74,20 @@ const ListChannel = ({ activePage, onNavigate }) => {
 
     const handleListLater = async () => {
         if (!channelData || !user) return;
+
+        // Validation: Start Price Required
+        if (!startPrice || parseFloat(startPrice) <= 0) {
+            addNotification('warning', 'Please enter a valid Start Price.');
+            return;
+        }
+
         setLoading(true);
         try {
             await post('/channels/list-later', {
                 channelId: channelData.id,
                 userId: user.uid || user.id,
-                memberCount: channelData.memberCount // Pass memberCount
+                memberCount: channelData.memberCount,
+                startPrice: parseFloat(startPrice) // Send Start Price
             });
 
             // Refresh Profile to get new channel list
@@ -91,6 +100,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
             setTimeout(() => {
                 setStep('input');
                 setUsername('');
+                setStartPrice(''); // Reset
                 setChannelData(null);
             }, 500);
 
@@ -104,13 +114,21 @@ const ListChannel = ({ activePage, onNavigate }) => {
 
     const handlePostVerification = async () => {
         if (!channelData || !user) return;
+
+        // Validation: Start Price Required
+        if (!startPrice || parseFloat(startPrice) <= 0) {
+            addNotification('warning', 'Please enter a valid Start Price.');
+            return;
+        }
+
         setLoading(true);
         try {
             await post('/channels/verify-post', {
                 channelId: channelData.id,
                 userId: user.uid || user.id,
                 templateId: selectedTemplate,
-                memberCount: channelData.memberCount // Pass memberCount
+                memberCount: channelData.memberCount,
+                startPrice: parseFloat(startPrice) // Send Start Price
             });
 
             // Refresh Profile to get new channel list
@@ -124,6 +142,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
             setTimeout(() => {
                 setStep('input');
                 setUsername('');
+                setStartPrice(''); // Reset
                 setChannelData(null);
             }, 500);
 
@@ -213,6 +232,20 @@ const ListChannel = ({ activePage, onNavigate }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Start Price Input - Only if checks passed */}
+                            {allChecksPassed && (
+                                <div className={styles.formGroup} style={{ marginTop: '16px' }}>
+                                    <label className={styles.label}>Start Price (USD)</label>
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        placeholder="e.g. 100"
+                                        value={startPrice}
+                                        onChange={(e) => setStartPrice(e.target.value)}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>

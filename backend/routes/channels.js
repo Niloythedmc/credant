@@ -100,6 +100,7 @@ router.post('/verify-post', async (req, res) => {
             ownerId: userId,
             status: 'pending_verification',
             purityScore: null,
+            startPrice: req.body.startPrice || null, // Optional Start Price
             verificationMessageId: messageId,
             verificationStartTime: admin.firestore.FieldValue.serverTimestamp(),
             // Store template used?
@@ -426,6 +427,7 @@ router.post('/list-later', async (req, res) => {
             ownerId: userId,
             status: 'listed', // Distinct from 'pending_verification'
             purityScore: null, // N/A until calculated
+            startPrice: req.body.startPrice || null, // Optional Start Price
             memberCount: memberCount || 0,
             verificationStartTime: null, // Not started
             verificationMessageId: null
