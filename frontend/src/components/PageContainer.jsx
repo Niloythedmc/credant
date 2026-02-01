@@ -50,7 +50,7 @@ const PageContainer = ({ id, activePage, index, children, className = '' }) => {
         transform: isActive ? 'translate3d(0, 0, 0)' : 'translate3d(100%, 0, 0)',
         opacity: isActive ? 1 : 0,
         pointerEvents: isActive ? 'auto' : 'none',
-        zIndex: 20 // Keep inline or use explicit class for consistency
+        zIndex: 2000 // Ensure it covers the Bottom Nav
       };
     }
   }, [activeIndex, myIndex, isNavPage, isActive]);

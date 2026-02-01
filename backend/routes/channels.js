@@ -83,11 +83,17 @@ router.post('/verify-post', async (req, res) => {
             channelId: channelId,
             ownerId: userId,
             status: 'pending_verification',
-            purityScore: 0,
+            purityScore: null,
+            verifiedCount: 0,
             verificationMessageId: messageId,
             verificationStartTime: admin.firestore.FieldValue.serverTimestamp(),
             // Store template used?
-            templateId: templateId
+            templateId: templateId,
+            // Store initial memberCount if we have it? 
+            // We don't have it in req.body. 
+            // Optimistically we will fetch it on calculation.
+            // But we can try to fetch it here too if fast.
+            // (Skipping for speed, calculate-purity will handle it)
         };
         await channelRef.set(channelData, { merge: true });
 
@@ -164,6 +170,10 @@ router.post('/preview', async (req, res) => {
             userInChat: userMember.status !== 'left' && userMember.status !== 'kicked'
         };
 
+        // Check if already listed in Firestore
+        const channelDoc = await admin.firestore().collection('channels').doc(chat.id.toString()).get();
+        const isListed = channelDoc.exists;
+
         const previewData = {
             id: chat.id,
             title: chat.title,
@@ -172,13 +182,194 @@ router.post('/preview', async (req, res) => {
             photoUrl: photoUrl,
             memberCount: memberCount,
             type: chat.type,
-            checks: checks
+            checks: checks,
+            isListed: isListed // Flag for frontend
         };
 
         return res.status(200).json(previewData);
     } catch (error) {
         console.error("Channel Preview Error:", error);
         return res.status(404).json({ error: "Channel not found or Bot not accessible" });
+    }
+});
+
+// POST /api/channels/check-purity
+// Called when a user enters via a deep link
+router.post('/check-purity', async (req, res) => {
+    const { channelId, userId, referrerId } = req.body;
+
+    if (!channelId || !userId) {
+        return res.status(400).json({ error: "Missing channelId or userId" });
+    }
+
+    try {
+        const { getChatMember } = require('../services/botService');
+
+        // 1. Verify Membership
+        let member;
+        try {
+            member = await getChatMember(channelId, userId);
+        } catch (e) {
+            console.error("Purity Check - Member fetch failed:", e.message);
+            // If we can't fetch, we assume not a member or bot blocked
+            return res.status(200).json({ success: false, reason: "membership_check_failed" });
+        }
+
+        const isMember = ['creator', 'administrator', 'member'].includes(member.status);
+        if (!isMember) {
+            return res.status(200).json({ success: false, reason: "not_member" });
+        }
+
+        // 2. Check for Duplicate Verification (Idempotency)
+        // We store verification records in a subcollection
+        const verificationRef = admin.firestore()
+            .collection('channels')
+            .doc(channelId.toString())
+            .collection('verifications')
+            .doc(userId.toString());
+
+        const doc = await verificationRef.get();
+        if (doc.exists) {
+            // Already counted
+            return res.status(200).json({ success: true, alreadyVerified: true });
+        }
+
+        // 3. Update Stats (Atomic Increment)
+        const channelRef = admin.firestore().collection('channels').doc(channelId.toString());
+        await admin.firestore().runTransaction(async (t) => {
+            t.set(verificationRef, {
+                userId,
+                referrerId: referrerId || null,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: member.status
+            });
+
+            // Increment Verified Count (NOT Purity Score yet)
+            // User requested: "Whenever user enters... don't edit the purity score"
+            // We track 'verifiedCount' as the raw number of real humans found.
+            t.update(channelRef, {
+                verifiedCount: admin.firestore.FieldValue.increment(1)
+            });
+
+            // 4. Update Referrer Stats if exists
+            if (referrerId && referrerId !== userId) {
+                const referrerRef = admin.firestore().collection('users').doc(referrerId.toString());
+                // Maybe increment a 'referralCount' or 'points'
+                t.update(referrerRef, {
+                    referralCount: admin.firestore.FieldValue.increment(1),
+                    lastReferral: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        });
+
+        return res.status(200).json({ success: true, verified: true });
+
+    } catch (error) {
+        console.error("Purity Check Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/channels/calculate-purity
+// Calculates score based on verifiedCount / memberCount
+router.post('/calculate-purity', async (req, res) => {
+    const { channelId, userId } = req.body;
+
+    if (!channelId || !userId) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+        const channelRef = admin.firestore().collection('channels').doc(channelId.toString());
+        const doc = await channelRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ error: "Channel not found" });
+        }
+
+        const data = doc.data();
+
+        // Use verifiedCount (real users) and memberCount (from initial preview or update)
+        // If memberCount is missing in DB, we might need to fetch it again or default to verifiedCount (100%)
+        // BUT memberCount is not saved in verify-post. We should save it.
+        // For now, let's fetch fresh member count to be accurate.
+
+        const { getChatMemberCount } = require('../services/botService');
+        let memberCount = data.memberCount || 0;
+
+        try {
+            // Try to get fresh count
+            const freshCount = await getChatMemberCount(channelId);
+            if (freshCount > 0) memberCount = freshCount;
+        } catch (e) {
+            console.log("Failed to fetch fresh member count, using stored or 0");
+        }
+
+        if (memberCount === 0) {
+            // Avoid division by zero
+            return res.status(200).json({ success: true, purityScore: 0 });
+        }
+
+        const verifiedCount = data.verifiedCount || 0;
+
+        // Calculation: (Verified / Members) * 100
+        let score = (verifiedCount / memberCount) * 100;
+        score = Math.min(100, Math.max(0, score)); // Clamp 0-100
+        score = parseFloat(score.toFixed(1)); // 1 decimal
+
+        // Update DB
+        await channelRef.update({
+            purityScore: score,
+            memberCount: memberCount, // Save latest count
+            lastCalculatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return res.status(200).json({ success: true, purityScore: score });
+
+    } catch (error) {
+        console.error("Calculate Purity Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/channels/list-later
+// Adds channel to DB without posting verification message
+router.post('/list-later', async (req, res) => {
+    const { channelId, userId } = req.body;
+
+    if (!channelId || !userId) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+        const channelRef = admin.firestore().collection('channels').doc(channelId.toString());
+
+        // Check if exists to avoid overwrite? 
+        // We assume frontend did preview check, but safe to use merge.
+
+        const channelData = {
+            channelId: channelId,
+            ownerId: userId,
+            status: 'listed', // Distinct from 'pending_verification'
+            purityScore: null, // N/A until calculated
+            verifiedCount: 0,
+            verificationStartTime: null, // Not started
+            verificationMessageId: null
+        };
+
+        await channelRef.set(channelData, { merge: true });
+
+        // Update User
+        const userRef = admin.firestore().collection('users').doc(userId);
+        await userRef.update({
+            myChannels: admin.firestore.FieldValue.arrayUnion(channelId.toString())
+        });
+
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error("List Later Error:", error);
+        return res.status(500).json({ error: error.message });
     }
 });
 

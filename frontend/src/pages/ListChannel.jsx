@@ -16,7 +16,7 @@ const ListChannel = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
     const { addNotification } = useNotification();
     const { post } = useApi();
-    const { user } = useAuth();
+    const { user, refreshProfile } = useAuth();
     const isVisible = activePage === 'listChannel';
 
     // State
@@ -30,6 +30,23 @@ const ListChannel = ({ activePage, onNavigate }) => {
         transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
     };
 
+    // Auto-resume verification flow if redirected from Profile
+    React.useEffect(() => {
+        if (isVisible && step === 'input') {
+            const pending = sessionStorage.getItem('pendingChannel');
+            if (pending) {
+                try {
+                    const data = JSON.parse(pending);
+                    setChannelData(data);
+                    setStep('templates'); // Skip preview, go straight to templates
+                    sessionStorage.removeItem('pendingChannel'); // Clean up
+                } catch (e) {
+                    console.error("Failed to parse pending channel", e);
+                }
+            }
+        }
+    }, [isVisible, step]);
+
     const handleFetchPreview = async () => {
         if (!username) return;
         setLoading(true);
@@ -38,11 +55,47 @@ const ListChannel = ({ activePage, onNavigate }) => {
                 username,
                 userId: user?.uid || user?.id
             });
+
+            if (data.isListed) {
+                addNotification('error', 'This channel is already listed on Credant.');
+                return;
+            }
+
             setChannelData(data);
             setStep('preview');
         } catch (error) {
             console.error(error);
             addNotification('error', 'Channel not found or bot cannot access it.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleListLater = async () => {
+        if (!channelData || !user) return;
+        setLoading(true);
+        try {
+            await post('/channels/list-later', {
+                channelId: channelData.id,
+                userId: user.uid || user.id
+            });
+
+            // Refresh Profile to get new channel list
+            await refreshProfile();
+
+            addNotification('success', 'Channel listed successfully!');
+            onNavigate('profile');
+
+            // Reset state
+            setTimeout(() => {
+                setStep('input');
+                setUsername('');
+                setChannelData(null);
+            }, 500);
+
+        } catch (error) {
+            console.error(error);
+            addNotification('error', 'Failed to list channel.');
         } finally {
             setLoading(false);
         }
@@ -58,8 +111,12 @@ const ListChannel = ({ activePage, onNavigate }) => {
                 templateId: selectedTemplate
             });
 
+            // Refresh Profile to get new channel list
+            await refreshProfile();
+
             addNotification('success', 'Verification post sent! Checking audience purity...');
-            window.history.back();
+            // Explicitly navigate back to profile to close the overlay
+            onNavigate('profile');
 
             // Reset state
             setTimeout(() => {
@@ -155,15 +212,30 @@ const ListChannel = ({ activePage, onNavigate }) => {
 
                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {allChecksPassed ? (
-                                <button className={styles.submitButton} onClick={() => setStep('templates')}>
-                                    Next: Select Post Style
-                                </button>
+                                <>
+                                    <div style={{ textAlign: 'center', marginBottom: '10px', color: '#aaa', fontSize: '13px' }}>
+                                        Choose verification method:
+                                    </div>
+                                    <button className={styles.submitButton} onClick={() => setStep('templates')}>
+                                        Calculate Purity Now (Recommended)
+                                    </button>
+                                    <button
+                                        className={styles.secondaryButton}
+                                        onClick={handleListLater}
+                                        disabled={loading}
+                                        style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none' }}
+                                    >
+                                        {loading ? 'Processing...' : 'Later (Skip Verification)'}
+                                    </button>
+                                </>
                             ) : (
-                                <button className={styles.submitButton} onClick={handleFetchPreview} disabled={loading}>
-                                    {loading ? 'Rechecking...' : 'Recheck Requirements'}
-                                </button>
+                                <>
+                                    <button className={styles.submitButton} onClick={handleFetchPreview} disabled={loading}>
+                                        {loading ? 'Rechecking...' : 'Recheck Requirements'}
+                                    </button>
+                                    <button className={styles.secondaryButton} onClick={() => setStep('input')}>Back</button>
+                                </>
                             )}
-                            <button className={styles.secondaryButton} onClick={() => setStep('input')}>Back</button>
                         </div>
                     </>
                 )}

@@ -22,6 +22,7 @@ export const useApi = () => {
 
     const get = (endpoint) => request(endpoint, { method: 'GET' });
     const post = (endpoint, body) => request(endpoint, { method: 'POST', body: JSON.stringify(body) });
+    const del = (endpoint, body) => request(endpoint, { method: 'DELETE', body: JSON.stringify(body) });
 
-    return { get, post };
+    return { get, post, del };
 };

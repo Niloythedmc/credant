@@ -171,13 +171,31 @@ router.get('/me', async (req, res) => {
                         const handle = chat.username ? `@${chat.username}` : "Private";
                         const isPending = chData.status === 'pending_verification';
 
+                        // Convert Firestore timestamp to millis
+                        let startTime = null;
+                        if (chData.verificationStartTime) {
+                            startTime = chData.verificationStartTime.toMillis ? chData.verificationStartTime.toMillis() : Date.parse(chData.verificationStartTime);
+                        }
+
                         return {
                             id: cid,
                             title: chat.title,
                             sub: handle, // Just the handle or 'Private'
                             statusText: isPending ? 'Pending' : 'Verified',
                             status: chData.status || 'unknown',
-                            image: photoUrl
+                            image: photoUrl,
+                            // Extended Stats
+                            purityScore: chData.purityScore,
+                            activityScore: chData.activityScore || 0,
+                            pureMembersCount: chData.pureMembersCount || 0,
+                            subscribers: chData.subscribers || 0,
+
+                            // Metadata
+                            username: chData.username,
+                            description: chData.description,
+
+                            startedAt: startTime,
+                            messageId: chData.verificationMessageId
                         };
                     } catch (e) {
                         console.error(`Failed to hydrate channel ${cid}`, e.message);

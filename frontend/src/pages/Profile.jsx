@@ -15,7 +15,7 @@ const Profile = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
     const index = 4;
     const { user, tgUser, userProfile, refreshProfile } = useAuth();
-    const { post, get } = useApi();
+    const { post, get, del } = useApi();
     const { addNotification } = useNotification();
     const [tonConnectUI] = useTonConnectUI();
     const userFriendlyAddress = useTonAddress();
@@ -98,9 +98,44 @@ const Profile = ({ activePage, onNavigate }) => {
         setShowDisconnectModal(false);
     };
 
-    const ContentSection = ({ title, items, emptyText, actionText, styles, onAction, hasPriceIcon, isClientOffer }) => {
+    const [selectedChannel, setSelectedChannel] = useState(null);
+
+    // Helper: Calculate Time Stats
+    const getChannelStats = (startedAt) => {
+        if (!startedAt) return { timeLeft: null, elapsed: null, isReady: false };
+
+        const now = Date.now();
+        const start = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
+        const diff = now - start;
+        const totalDuration = 24 * 60 * 60 * 1000; // 24 hours
+        const left = totalDuration - diff;
+
+        const isReady = left <= 0;
+
+        // Format Elapsed
+        const hoursElapsed = Math.floor(diff / (1000 * 60 * 60));
+        const elapsedText = hoursElapsed > 0 ? `${hoursElapsed}h ago` : 'Just now';
+
+        // Format Left
+        let leftText = '';
+        if (isReady) {
+            leftText = 'Ready';
+        } else {
+            const h = Math.floor(left / (1000 * 60 * 60));
+            const m = Math.floor((left % (1000 * 60 * 60)) / (1000 * 60));
+            leftText = `${h}h ${m}m left`;
+        }
+
+        return { timeLeft: leftText, elapsed: elapsedText, isReady };
+    };
+
+    // Content Section Component
+    const ContentSection = ({ title, items, emptyText, actionText, styles, onAction, hasPriceIcon, isClientOffer, onAdd }) => {
+        const [isExpanded, setIsExpanded] = useState(false);
         const hasItems = items && items.length > 0;
-        const displayItems = hasItems ? items.slice(0, 3) : [];
+
+        // Show all if expanded, otherwise max 3
+        const displayItems = isExpanded ? items : (hasItems ? items.slice(0, 3) : []);
 
         return (
             <div className={styles.section}>
@@ -109,34 +144,61 @@ const Profile = ({ activePage, onNavigate }) => {
                         {title}
                         {hasItems && hasPriceIcon && <span className={styles.priceIcon}>💲</span>}
                     </div>
+                    {/* Add Icon if items exist and onAdd provided */}
+                    {hasItems && onAdd && (
+                        <div onClick={onAdd} style={{
+                            cursor: 'pointer',
+                            padding: '4px',
+                            background: 'rgba(255,255,255,0.1)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }}>
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </div>
+                    )}
                 </div>
 
                 {hasItems ? (
                     <div className={styles.sectionList}>
-                        {displayItems.map((item, i) => (
-                            <div key={i} className={styles.itemCard} style={{ background: 'rgba(128,128,128,0.1)' }}>
-                                {item.image && (
-                                    <img src={item.image} alt="" className={styles.itemImage} onError={(e) => e.target.style.display = 'none'} />
-                                )}
-                                <div>
-                                    <div className={styles.itemTitle} style={{ color: 'var(--text-main)' }}>{item.title}</div>
-                                    <div className={styles.itemSubtitle} style={{ color: 'var(--text-muted)' }}>
-                                        {item.sub}
-                                        {item.statusText && (
-                                            <span style={{
-                                                color: item.status === 'pending_verification' ? '#ef4444' : '#22c55e',
-                                                marginLeft: '6px',
-                                                fontWeight: '500'
-                                            }}>
-                                                • {item.statusText}
-                                            </span>
-                                        )}
+                        {displayItems.map((item, i) => {
+                            // Calculate stats per item if it's a channel
+                            const stats = item.startedAt ? getChannelStats(item.startedAt) : null;
+
+                            return (
+                                <div key={i} className={styles.itemCard}
+                                    style={{ background: 'rgba(128,128,128,0.1)', cursor: onAdd ? 'pointer' : 'default' }}
+                                    onClick={() => onAdd && setSelectedChannel(item)} // Only channels clickable for now
+                                >
+                                    {item.image && (
+                                        <img src={item.image} alt="" className={styles.itemImage} onError={(e) => e.target.style.display = 'none'} />
+                                    )}
+                                    <div>
+                                        <div className={styles.itemTitle} style={{ color: 'var(--text-main)' }}>{item.title}</div>
+                                        {item.username ? `@${item.username}` : (item.sub ? item.sub : "Private")} • {item.subscribers ? `${item.subscribers} subs` : (item.memberCount ? `${item.memberCount} mem` : '')}
                                     </div>
+                                    {/* Time Left Display */}
+                                    {stats && stats.timeLeft && (
+                                        <div style={{ fontSize: '11px', color: stats.isReady ? '#4ade80' : 'var(--primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                            {stats.isReady ? "Ready to Calculate" : stats.timeLeft}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {items.length > 3 && (
-                            <button className={styles.moreButton} style={{ color: 'var(--primary)' }}>{t('common.more')}</button>
+                            <button
+                                className={styles.moreButton}
+                                style={{ color: 'var(--primary)' }}
+                                onClick={() => setIsExpanded(!isExpanded)}
+                            >
+                                {isExpanded ? 'Show Less' : `${t('common.more')} (${items.length - 3})`}
+                            </button>
                         )}
                     </div>
                 ) : (
@@ -254,6 +316,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     actionText={t('profile.listChannel')}
                     styles={styles}
                     onAction={() => onNavigate('listChannel')}
+                    onAdd={() => onNavigate('listChannel')}
                     hasPriceIcon={true}
                 />
 
@@ -314,6 +377,170 @@ const Profile = ({ activePage, onNavigate }) => {
                         </button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* Channel Details Modal */}
+            <Modal
+                isOpen={!!selectedChannel}
+                onClose={() => setSelectedChannel(null)}
+                title="Channel Status"
+            >
+                {selectedChannel && (() => {
+                    const stats = getChannelStats(selectedChannel.startedAt);
+                    const isCalculated = selectedChannel.purityScore !== null && selectedChannel.purityScore !== undefined;
+
+                    const handleCalculate = async () => {
+                        try {
+                            const res = await post('/channels/calculate-purity', {
+                                channelId: selectedChannel.channelId || selectedChannel.id,
+                                userId: user.uid || user.id
+                            });
+                            if (res.success) {
+                                addNotification('success', `Score Calculated: ${res.purityScore}%`);
+                                toggleRefresh();
+                                setSelectedChannel(null);
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            addNotification('error', e.response?.data?.error || 'Calculation failed');
+                        }
+                    };
+
+                    const handleStartVerification = () => {
+                        sessionStorage.setItem('pendingChannel', JSON.stringify(selectedChannel));
+                        addNotification('info', 'Redirecting to verification...');
+                        onNavigate('listChannel');
+                    };
+
+                    const handleDelete = async () => {
+                        if (!confirm("Are you sure you want to delete this channel?")) return;
+                        try {
+                            await del(`/channels/${selectedChannel.channelId || selectedChannel.id}`, { userId: user.uid || user.id });
+                            addNotification('success', 'Channel Deleted');
+                            toggleRefresh();
+                            setSelectedChannel(null);
+                        } catch (e) {
+                            addNotification('error', 'Delete failed');
+                        }
+                    };
+
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {/* Header Info */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <img
+                                    src={selectedChannel.image || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"}
+                                    style={{ width: '60px', height: '60px', borderRadius: '50%' }}
+                                />
+                                <div>
+                                    <h3 style={{ margin: 0, color: 'white' }}>{selectedChannel.title}</h3>
+                                    <p style={{ margin: 0, color: '#aaa' }}>
+                                        {selectedChannel.username ? `@${selectedChannel.username}` : "Private Channel"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Bio */}
+                            {selectedChannel.description && (
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', fontSize: '13px', color: '#ccc', fontStyle: 'italic' }}>
+                                    {selectedChannel.description}
+                                </div>
+                            )}
+
+                            {/* Stats Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Subscribers</div>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'white' }}>{selectedChannel.subscribers || selectedChannel.memberCount || 0}</div>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Activity Score</div>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'white' }}>{selectedChannel.activityScore || 0}</div>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Time Status</div>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: stats.timeLeft ? (stats.isReady ? '#4ade80' : 'var(--primary)') : '#EF4444' }}>
+                                        {stats.timeLeft || 'Not Started'}
+                                    </div>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>Purity Score</div>
+                                    <div style={{ fontSize: '15px', fontWeight: '600', color: isCalculated ? '#4ade80' : 'white' }}>
+                                        {isCalculated ? `${selectedChannel.purityScore}%` : 'Pending'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Info */}
+                            {!isCalculated && (
+                                <p style={{ fontSize: '13px', color: '#888', textAlign: 'center', lineHeight: '1.5' }}>
+                                    {stats.timeLeft
+                                        ? (stats.isReady
+                                            ? "Verification period complete. You can now calculate."
+                                            : "Collecting data. Please wait for 24-hour cycle.")
+                                        : "Verification has not started. Start now to calculate purity."
+                                    }
+                                </p>
+                            )}
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {stats.timeLeft ? (
+                                    <button
+                                        disabled={!stats.isReady && !isCalculated}
+                                        style={{
+                                            width: '100%',
+                                            padding: '16px',
+                                            borderRadius: '16px',
+                                            background: stats.isReady ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                            color: stats.isReady ? 'white' : '#666',
+                                            border: 'none',
+                                            fontWeight: 'bold',
+                                            fontSize: '16px',
+                                            cursor: stats.isReady ? 'pointer' : 'not-allowed'
+                                        }}
+                                        onClick={handleCalculate}
+                                    >
+                                        {isCalculated ? "Calculate Again" : (stats.isReady ? "Check" : `Check (${stats.timeLeft})`)}
+                                    </button>
+                                ) : (
+                                    <button
+                                        style={{
+                                            width: '100%',
+                                            padding: '16px',
+                                            borderRadius: '16px',
+                                            background: 'var(--primary)',
+                                            color: 'white',
+                                            border: 'none',
+                                            fontWeight: 'bold',
+                                            fontSize: '16px',
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={handleStartVerification}
+                                    >
+                                        Start Verification
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={handleDelete}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px',
+                                        borderRadius: '12px',
+                                        background: 'transparent',
+                                        color: '#ef4444',
+                                        border: '1px solid #ef4444',
+                                        fontWeight: '500',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Delete Channel
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })()}
             </Modal>
         </PageContainer>
     );

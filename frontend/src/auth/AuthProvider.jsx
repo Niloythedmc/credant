@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
     const refreshProfile = async () => {
         if (!user || !token) return;
         try {
-            const res = await fetch(`${BACKEND_URL}/auth/me`, {
+            const res = await fetch(`${BACKEND_URL}/auth/me?t=${Date.now()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {

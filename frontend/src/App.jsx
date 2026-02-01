@@ -15,11 +15,17 @@ import ShareThought from './pages/ShareThought';
 import ListChannel from './pages/ListChannel';
 import PostAds from './pages/PostAds';
 import WebApp from '@twa-dev/sdk';
+import { useAuth } from './auth/AuthProvider';
+import { useApi } from './auth/useApi';
 
 function App() {
   const [activeNavPage, setActiveNavPage] = useState('feed'); // Tracks the bottom nav
   const [overlayPage, setOverlayPage] = useState(null);       // Tracks secondary pages (inbox, setting, etc)
   const [theme, setTheme] = useState('dark');
+  const { user, loading: authLoading } = useAuth();
+  const { post } = useApi();
+  const { addNotification } = useNotification();
+  const [purityChecked, setPurityChecked] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -61,6 +67,73 @@ function App() {
     }
   }, [overlayPage]);
 
+  // PURITY CHECK LOGIC
+  useEffect(() => {
+    // Only run if user is loaded and not already checked
+    if (authLoading || !user || purityChecked) return;
+
+    const checkPurity = async () => {
+      const startParam = WebApp.initDataUnsafe?.start_param;
+      if (!startParam) {
+        setPurityChecked(true);
+        return;
+      }
+
+      // Parse: c_{channelId}_r_{referrerId} (or n instead of -)
+      const match = startParam.match(/^c_([0-9n]+)_r_([0-9]+)$/);
+      if (match) {
+        let channelId = match[1].replace('n', '-'); // Restore negative sign
+        const referrerId = match[2];
+
+        // Prevent self-referral loop if referrer is same as user (though allowed in backend check, good to skip if obvious)
+
+        try {
+          const result = await post('/channels/check-purity', {
+            channelId,
+            userId: user.uid || user.id,
+            referrerId
+          });
+
+          if (result.success) {
+            if (result.alreadyVerified) {
+              addNotification('info', 'You have already verified this channel.');
+            } else if (result.verified) {
+              addNotification('success', 'Channel Verified! Purity Score updated.');
+              // Could also navigate to that channel or show specific UI
+            } else {
+              // success=false, likely not member
+              addNotification('warning', 'Join the channel to verify your purity!');
+            }
+          } else {
+            if (result.reason === 'not_member') {
+              addNotification('warning', 'Please join the channel to verify.');
+            }
+          }
+        } catch (error) {
+          console.error("Purity check failed", error);
+        }
+      }
+      setPurityChecked(true);
+    };
+
+    checkPurity();
+  }, [user, authLoading, purityChecked, post, addNotification]);
+
+  // PURITY CHECK LOGIC
+  // We need access to API and User, but App.jsx is outside AuthProvider?
+  // Wait, AuthProvider wraps children in index.js usually. 
+  // App.jsx is the child of AuthProvider (based on typical usage, let me verify).
+  // Checking imports... Requesting view of index.js/main.jsx to be sure.
+  // Assuming App component is inside AuthProvider for now.
+  // But wait, App definition above imports 'useAuth' ? No, it doesn't.
+  // I must check where AuthProvider is. 
+  // Only 'useNotification' is imported.
+  // I need 'useApi' and 'useAuth'.
+  // I will add them to imports and usage.
+
+  // Actually, let's implement the logic safely assuming hooks exist if I import them.
+  // But strictly, let's add `useAuth, useApi` to imports first.
+
   const renderPage = (id) => {
     // Determine which "active" state this page cares about
     // Nav pages display if they equal activeNavPage
@@ -94,18 +167,16 @@ function App() {
   };
 
   return (
-    <NotificationProvider>
-      <div className="app-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <NotificationContainer />
+    <div className="app-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <NotificationContainer />
 
-        {/* Render all pages */}
-        {allPages.map(pageId => renderPage(pageId))}
+      {/* Render all pages */}
+      {allPages.map(pageId => renderPage(pageId))}
 
-        {/* Navigation Layer - Always reflects activeNavPage */}
-        <Navigation activePage={activeNavPage} onNavigate={handleNavigate} />
+      {/* Navigation Layer - Always reflects activeNavPage */}
+      <Navigation activePage={activeNavPage} onNavigate={handleNavigate} />
 
-      </div>
-    </NotificationProvider>
+    </div>
   );
 }
 
