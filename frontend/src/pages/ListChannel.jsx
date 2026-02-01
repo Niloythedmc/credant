@@ -193,6 +193,9 @@ const ListChannel = ({ activePage, onNavigate }) => {
                                 <div className={styles.previewInfo}>
                                     <div className={styles.previewTitle}>{channelData.title}</div>
                                     <div className={styles.previewUsername}>@{channelData.username}</div>
+                                    <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
+                                        {channelData.memberCount} subscribers • {channelData.type}
+                                    </div>
                                 </div>
                             </div>
 
