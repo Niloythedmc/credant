@@ -77,7 +77,8 @@ const ListChannel = ({ activePage, onNavigate }) => {
         try {
             await post('/channels/list-later', {
                 channelId: channelData.id,
-                userId: user.uid || user.id
+                userId: user.uid || user.id,
+                memberCount: channelData.memberCount // Pass memberCount
             });
 
             // Refresh Profile to get new channel list
@@ -108,7 +109,8 @@ const ListChannel = ({ activePage, onNavigate }) => {
             await post('/channels/verify-post', {
                 channelId: channelData.id,
                 userId: user.uid || user.id,
-                templateId: selectedTemplate
+                templateId: selectedTemplate,
+                memberCount: channelData.memberCount // Pass memberCount
             });
 
             // Refresh Profile to get new channel list

@@ -46,7 +46,7 @@ const POST_TEMPLATES = {
 // POST /api/channels/verify-post
 // Post the verification message to the channel
 router.post('/verify-post', async (req, res) => {
-    const { channelId, userId, templateId } = req.body;
+    const { channelId, userId, templateId, memberCount } = req.body;
 
     if (!channelId || !userId || !templateId) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -89,6 +89,7 @@ router.post('/verify-post', async (req, res) => {
             verificationStartTime: admin.firestore.FieldValue.serverTimestamp(),
             // Store template used?
             templateId: templateId,
+            memberCount: memberCount || 0
             // Store initial memberCount if we have it? 
             // We don't have it in req.body. 
             // Optimistically we will fetch it on calculation.
@@ -252,13 +253,30 @@ router.post('/check-purity', async (req, res) => {
             });
 
             // 4. Update Referrer Stats if exists
+            // 4. Update Referrer Stats if exists - ONLY IF USER IS NEW (e.g. created < 5 min ago)
             if (referrerId && referrerId !== userId) {
-                const referrerRef = admin.firestore().collection('users').doc(referrerId.toString());
-                // Maybe increment a 'referralCount' or 'points'
-                t.update(referrerRef, {
-                    referralCount: admin.firestore.FieldValue.increment(1),
-                    lastReferral: admin.firestore.FieldValue.serverTimestamp()
-                });
+                // Fetch user to check creation time
+                const userDoc = await admin.firestore().collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    const createdAt = userData.createdAt; // Firestore Timestamp
+
+                    // Check if created recently (e.g. within last 1 hour to allow for some delay)
+                    // If no createdAt (old user), skip.
+                    if (createdAt) {
+                        const createdTime = createdAt.toMillis ? createdAt.toMillis() : Date.parse(createdAt);
+                        const now = Date.now();
+                        const isNew = (now - createdTime) < (60 * 60 * 1000); // 1 hour threshold
+
+                        if (isNew) {
+                            const referrerRef = admin.firestore().collection('users').doc(referrerId.toString());
+                            t.update(referrerRef, {
+                                referralCount: admin.firestore.FieldValue.increment(1),
+                                lastReferral: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                        }
+                    }
+                }
             }
         });
 
@@ -335,7 +353,7 @@ router.post('/calculate-purity', async (req, res) => {
 // POST /api/channels/list-later
 // Adds channel to DB without posting verification message
 router.post('/list-later', async (req, res) => {
-    const { channelId, userId } = req.body;
+    const { channelId, userId, memberCount } = req.body;
 
     if (!channelId || !userId) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -352,6 +370,7 @@ router.post('/list-later', async (req, res) => {
             ownerId: userId,
             status: 'listed', // Distinct from 'pending_verification'
             purityScore: null, // N/A until calculated
+            memberCount: memberCount || 0,
             verifiedCount: 0,
             verificationStartTime: null, // Not started
             verificationMessageId: null
@@ -369,6 +388,44 @@ router.post('/list-later', async (req, res) => {
 
     } catch (error) {
         console.error("List Later Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/channels/:channelId
+router.delete('/:channelId', async (req, res) => {
+    const { channelId } = req.params;
+    const { userId } = req.body; // or req.query if passed differently, but axios delete uses data
+
+    if (!channelId || !userId) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+        const channelRef = admin.firestore().collection('channels').doc(channelId.toString());
+        const doc = await channelRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ error: "Channel not found" });
+        }
+
+        const data = doc.data();
+        if (data.ownerId.toString() !== userId.toString()) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        // Delete from Channels collection
+        await channelRef.delete();
+
+        // Remove from User's myChannels
+        const userRef = admin.firestore().collection('users').doc(userId.toString());
+        await userRef.update({
+            myChannels: admin.firestore.FieldValue.arrayRemove(channelId.toString())
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error("Delete Channel Error:", error);
         return res.status(500).json({ error: error.message });
     }
 });

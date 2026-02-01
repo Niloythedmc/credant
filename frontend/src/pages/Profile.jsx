@@ -409,6 +409,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     const handleStartVerification = () => {
                         sessionStorage.setItem('pendingChannel', JSON.stringify(selectedChannel));
                         addNotification('info', 'Redirecting to verification...');
+                        setSelectedChannel(null); // Close modal
                         onNavigate('listChannel');
                     };
 
