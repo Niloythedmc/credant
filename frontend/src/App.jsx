@@ -74,23 +74,18 @@ function App() {
 
     const runVerificationParams = async () => {
       const startParam = WebApp.initDataUnsafe?.start_param;
-      console.log("Checking start_param:", startParam); // DEBUG
       if (!startParam) {
-        console.log("No start_param found."); // DEBUG
         setPurityChecked(true);
         return;
       }
 
       // Parse: c_{channelId}_r_{referrerId} (or n instead of -)
       const match = startParam.match(/^c_([0-9n]+)_r_([0-9]+)$/);
-      console.log("Regex match result:", match); // DEBUG
       if (match) {
         let channelId = match[1].replace('n', '-'); // Restore negative sign
         const referrerId = match[2];
-        console.log("Parsed ChannelId:", channelId, "ReferrerId:", referrerId); // DEBUG
 
         try {
-          console.log("Calling check-purity..."); // DEBUG
           const result = await post('/channels/check-purity', {
             channelId,
             userId: user.uid || user.id,
@@ -134,33 +129,24 @@ function App() {
     const handleClick = () => {
       setClickCount(prev => {
         const newCount = prev + 1;
-        console.log("Interaction Click:", newCount); // DEBUG
         // Check thresholds: 5 clicks
         if (newCount >= 5) {
           const duration = Date.now() - trackingStart.time;
-          console.log("Duration check:", duration); // DEBUG
           // Check duration: 20s (20000ms)
           if (duration >= 20000) {
             // Check Username
-            console.log("Full InitDataUnsafe:", WebApp.initDataUnsafe); // DEBUG
             const tgUser = WebApp.initDataUnsafe?.user;
             const hasUsername = (user.username) || (tgUser && tgUser.username) || (user.wallet && user.wallet.address);
-            console.log("Username check (Internal vs TG):", user.username, tgUser?.username, "Result:", hasUsername); // DEBUG
 
             if (hasUsername) {
-              // Mark Pure
-              console.log("Marking Pure..."); // DEBUG
               post('/channels/mark-pure', {
                 channelId: trackingStart.channelId,
                 userId: user.uid || user.id
               })
                 .then(() => {
-                  addNotification('success', 'You are marked as a Pure User! 🌟');
                   setTrackingStart(null); // Stop tracking
                 })
                 .catch(err => console.error("Mark Pure Failed", err));
-            } else {
-              console.warn("User has no username, cannot mark pure");
             }
           }
         }
