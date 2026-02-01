@@ -100,7 +100,6 @@ router.post('/verify-post', async (req, res) => {
             ownerId: userId,
             status: 'pending_verification',
             purityScore: null,
-            verifiedCount: 0,
             verificationMessageId: messageId,
             verificationStartTime: admin.firestore.FieldValue.serverTimestamp(),
             // Store template used?
@@ -249,28 +248,33 @@ router.post('/check-purity', async (req, res) => {
 
         // Transaction for Atomic Updates
         await db.runTransaction(async (t) => {
+            // 1. READ ALL DOCS FIRST
             const channelDoc = await t.get(channelRef);
             if (!channelDoc.exists) throw new Error("Channel not found");
 
+            const userRef = db.collection('users').doc(userId.toString());
+            const userDoc = await t.get(userRef);
+
+            let referrerRef = null;
+            let referrerDoc = null;
+            if (referrerId && referrerId !== userId) {
+                referrerRef = db.collection('users').doc(referrerId.toString());
+                referrerDoc = await t.get(referrerRef);
+            }
+
+            // 2. COMPUTE LOGIC
             const chData = channelDoc.data();
             const verifiedUserIds = chData.verifiedUserIds || [];
 
-            // 2. Idempotency: Check if already verified
+            // Idempotency check
             if (verifiedUserIds.includes(userId.toString())) {
-                // Already verified, do nothing
-                return;
+                return; // Already verified
             }
 
-            // 3. User Validation (Active & Premium)
-            // Active: Any member who validates.
-            // Premium: Member who has Telegram Premium
+            // User Validation
             const isPremium = member.user && member.user.is_premium === true;
 
-            // Check if user is "New" for referral purposes (still keeping this per previous request context)
-            const userRef = db.collection('users').doc(userId.toString());
-            const userDoc = await t.get(userRef);
             let isNewUser = false;
-
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 const createdAt = userData.createdAt ? (userData.createdAt.toMillis ? userData.createdAt.toMillis() : Date.parse(userData.createdAt)) : Date.now();
@@ -280,26 +284,22 @@ router.post('/check-purity', async (req, res) => {
                 }
             }
 
-            // 4. Update Channel Stats
+            // 3. EXECUTE ALL WRITES
+            // Update Channel
             t.update(channelRef, {
                 verifiedUserIds: admin.firestore.FieldValue.arrayUnion(userId.toString()),
                 activeUsers: admin.firestore.FieldValue.increment(1),
                 premiumUsers: isPremium ? admin.firestore.FieldValue.increment(1) : admin.firestore.FieldValue.increment(0)
             });
 
-            // 5. Handle Referrals
-            if (referrerId && referrerId !== userId && isNewUser) {
-                const referrerRef = db.collection('users').doc(referrerId.toString());
-                const referrerDoc = await t.get(referrerRef);
-
-                if (referrerDoc.exists) {
-                    t.update(referrerRef, {
-                        referrals: admin.firestore.FieldValue.arrayUnion(userId.toString())
-                    });
-                    t.update(userRef, {
-                        referredBy: referrerId.toString()
-                    });
-                }
+            // Handle Referrals
+            if (referrerDoc && referrerDoc.exists && isNewUser) {
+                t.update(referrerRef, {
+                    referrals: admin.firestore.FieldValue.arrayUnion(userId.toString())
+                });
+                t.update(userRef, {
+                    referredBy: referrerId.toString()
+                });
             }
         });
 
@@ -427,7 +427,6 @@ router.post('/list-later', async (req, res) => {
             status: 'listed', // Distinct from 'pending_verification'
             purityScore: null, // N/A until calculated
             memberCount: memberCount || 0,
-            verifiedCount: 0,
             verificationStartTime: null, // Not started
             verificationMessageId: null
         };

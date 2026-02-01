@@ -134,19 +134,20 @@ function App() {
     const handleClick = () => {
       setClickCount(prev => {
         const newCount = prev + 1;
+        console.log("Interaction Click:", newCount); // DEBUG
         // Check thresholds: 5 clicks
         if (newCount >= 5) {
           const duration = Date.now() - trackingStart.time;
+          console.log("Duration check:", duration); // DEBUG
           // Check duration: 20s (20000ms)
           if (duration >= 20000) {
             // Check Username
-            // User object should have username from Auth
-            const hasUsername = user.username || (user.wallet && user.wallet.address); // Fallback to wallet if needed or strict username?
-            // User Request: "have a valid username" -> Telegram username usually.
-            // Our user object has 'username' if mapped from TG.
+            const hasUsername = user.username || (user.wallet && user.wallet.address);
+            console.log("Username check:", hasUsername); // DEBUG
 
             if (hasUsername) {
               // Mark Pure
+              console.log("Marking Pure..."); // DEBUG
               post('/channels/mark-pure', {
                 channelId: trackingStart.channelId,
                 userId: user.uid || user.id
@@ -156,6 +157,8 @@ function App() {
                   setTrackingStart(null); // Stop tracking
                 })
                 .catch(err => console.error("Mark Pure Failed", err));
+            } else {
+              console.warn("User has no username, cannot mark pure");
             }
           }
         }
