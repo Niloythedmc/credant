@@ -1,9 +1,65 @@
 import React, { useState, useMemo } from 'react';
 import styles from './PostAds.module.css';
 import { useTranslation } from 'react-i18next';
-import { FiChevronLeft, FiImage, FiCheck, FiSearch } from 'react-icons/fi';
+import { FiChevronLeft, FiImage, FiCheck, FiSearch, FiChevronDown } from 'react-icons/fi';
 import { useNotification } from '../context/NotificationContext';
 import { AnimatePresence, motion } from 'framer-motion';
+
+// Reusable Custom Select Component
+const CustomSelect = ({ options, value, onChange, placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = React.useRef(null);
+
+    // Click outside handler
+    React.useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+    const selectedOption = options.find(o => o.id === value);
+
+    return (
+        <div className={styles.selectWrapper} ref={wrapperRef}>
+            <div className={styles.selectInput} onClick={() => setIsOpen(!isOpen)}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: selectedOption ? 1 : 0.5 }}>
+                    {selectedOption && <span>{selectedOption.icon}</span>}
+                    {selectedOption ? selectedOption.label : placeholder}
+                </span>
+                <FiChevronDown style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+            </div>
+
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        className={styles.dropdown}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                    >
+                        {options.map(opt => (
+                            <div
+                                key={opt.id}
+                                className={`${styles.dropdownOption} ${value === opt.id ? styles.selected : ''}`}
+                                onClick={() => {
+                                    onChange(opt.id);
+                                    setIsOpen(false);
+                                }}
+                            >
+                                <span>{opt.icon}</span>
+                                {opt.label}
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
 
 const PostAds = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
@@ -134,18 +190,12 @@ const PostAds = ({ activePage, onNavigate }) => {
             </div>
             <div className={styles.formGroup}>
                 <label className={styles.label}>{t('ads.promotionSubject')}</label>
-                <div className={styles.customSelect}>
-                    {subjectOptions.map(opt => (
-                        <div
-                            key={opt.id}
-                            className={`${styles.selectOption} ${formData.subject === opt.id ? styles.selected : ''}`}
-                            onClick={() => handleChange('subject', opt.id)}
-                        >
-                            <span className={styles.selectIcon}>{opt.icon}</span>
-                            {opt.label}
-                        </div>
-                    ))}
-                </div>
+                <CustomSelect
+                    options={subjectOptions}
+                    value={formData.subject}
+                    onChange={v => handleChange('subject', v)}
+                    placeholder={t('ads.selectSubject')}
+                />
             </div>
         </div>
     );
@@ -495,15 +545,15 @@ const PostAds = ({ activePage, onNavigate }) => {
                         {phase === 4 && renderPhase4()}
                         {phase === 5 && renderPhase5()}
                         {phase === 6 && renderPhase6()}
+
+                        {/* IN-FLOW BUTTON */}
+                        <div className={styles.actionBtnContainer}>
+                            <button className={`${styles.button} ${styles.primaryBtn}`} onClick={phase === 6 ? handlePayAndCreate : handleNext}>
+                                {phase === 6 ? `Pay & Sign Contract` : t('ads.continue')}
+                            </button>
+                        </div>
                     </motion.div>
                 </AnimatePresence>
-            </div>
-
-            {/* Footer */}
-            <div className={styles.footer}>
-                <button className={`${styles.button} ${styles.primaryBtn}`} onClick={phase === 6 ? handlePayAndCreate : handleNext}>
-                    {phase === 6 ? `Pay & Sign Contract` : t('ads.continue')}
-                </button>
             </div>
         </div>
     );
