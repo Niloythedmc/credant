@@ -27,6 +27,7 @@ app.use('/api/feed', feedRoutes);
 app.use('/api/channels', require('./routes/channels'));
 app.use('/api/insights', require('./routes/insights'));
 app.use('/api/inbox', require('./routes/inbox'));
+app.use('/api/telegram-proxy', require('./routes/proxy'));
 
 // Health Check
 app.get('/', (req, res) => {

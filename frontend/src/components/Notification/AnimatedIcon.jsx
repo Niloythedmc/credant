@@ -2,15 +2,18 @@ import React, { useEffect, useState, useRef } from 'react';
 import Lottie from 'lottie-react';
 import pako from 'pako';
 
+import { useAuth } from '../../auth/AuthProvider';
+
 const AnimatedIcon = ({ emojiId, size = 40, loop = false }) => {
+    const { backendUrl } = useAuth();
     const [animationData, setAnimationData] = useState(null);
 
     useEffect(() => {
         const fetchAnimation = async () => {
-            if (!emojiId) return;
+            if (!emojiId || !backendUrl) return;
 
             try {
-                const response = await fetch(`https://renderapi-675689082615.us-central1.run.app/api/telegram-proxy/getFile?custom_emoji_id=${emojiId}`);
+                const response = await fetch(`${backendUrl}/telegram-proxy/getFile?custom_emoji_id=${emojiId}`);
                 if (!response.ok) throw new Error('Failed to fetch emoji');
 
                 const blob = await response.blob();

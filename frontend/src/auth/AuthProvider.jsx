@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     const [userProfile, setUserProfile] = useState(null);
 
     // Production Backend URL
-    const BACKEND_URL = 'https://credant-backend-37550868092.us-central1.run.app/api';
+    const BACKEND_URL = 'https://credant-production.up.railway.app/api';
 
     // Helper to fetch/refresh user profile
     const refreshProfile = async () => {
