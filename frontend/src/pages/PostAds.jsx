@@ -469,18 +469,7 @@ const PostAds = ({ activePage, onNavigate }) => {
 
     return (
         <div className={styles.page} style={style}>
-            {/* Header */}
-            <div className={styles.header}>
-                <button className={styles.backButton} onClick={handleBack}>
-                    <FiChevronLeft />
-                </button>
-                <div className={styles.headerTitle}>
-                    {phase === 6 ? t('ads.payment') : `${t('ads.createCampaign')} ${phase}/6`}
-                </div>
-                <div className={styles.stepIndicator}>
-                    Step {phase}
-                </div>
-            </div>
+            {/* Header Removed as per request */}
 
             {/* Content */}
             <div className={styles.content}>

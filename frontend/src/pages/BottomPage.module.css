@@ -7,7 +7,7 @@
     background: var(--bg-dark);
     /* background-color: #1a1a1a; Removed fallback that breaks light mode */
     /* Fallback */
-    z-index: 1001;
+    z-index: 2000;
     transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     display: flex;
     flex-direction: column;
