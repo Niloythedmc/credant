@@ -104,7 +104,14 @@ const PostAds = ({ activePage, onNavigate }) => {
 
     // --- RENDER HELPERS ---
 
-    // Phase 1: Basic Info
+    // Custom Subject Options
+    const subjectOptions = [
+        { id: 'channel', label: 'Telegram Channel', icon: '📢' },
+        { id: 'bot', label: 'Telegram Bot / MiniApp', icon: '🤖' },
+        { id: 'web3', label: 'Web3 Project', icon: '🌐' },
+        { id: 'website', label: 'External Website', icon: '🔗' },
+    ];
+
     const renderPhase1 = () => (
         <div className={styles.phaseContainer}>
             <div className={styles.formGroup}>
@@ -127,17 +134,18 @@ const PostAds = ({ activePage, onNavigate }) => {
             </div>
             <div className={styles.formGroup}>
                 <label className={styles.label}>{t('ads.promotionSubject')}</label>
-                <select
-                    className={styles.select}
-                    value={formData.subject}
-                    onChange={e => handleChange('subject', e.target.value)}
-                >
-                    <option value="">Select Subject</option>
-                    <option value="channel">Telegram Channel</option>
-                    <option value="bot">Telegram Bot / MiniApp</option>
-                    <option value="web3">Web3 Project</option>
-                    <option value="website">External Website</option>
-                </select>
+                <div className={styles.customSelect}>
+                    {subjectOptions.map(opt => (
+                        <div
+                            key={opt.id}
+                            className={`${styles.selectOption} ${formData.subject === opt.id ? styles.selected : ''}`}
+                            onClick={() => handleChange('subject', opt.id)}
+                        >
+                            <span className={styles.selectIcon}>{opt.icon}</span>
+                            {opt.label}
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
