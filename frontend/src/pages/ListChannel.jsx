@@ -304,6 +304,21 @@ const ListChannel = ({ activePage, onNavigate }) => {
                             ))}
                         </div>
 
+                        {/* Ensure Start Price is provided if skipped from input step */}
+                        {(!startPrice || startPrice === '') && (
+                            <div className={styles.formGroup} style={{ marginTop: '16px' }}>
+                                <label className={styles.label} style={{ color: 'var(--text-main)' }}>{t('profile.startPrice')} (USD)</label>
+                                <input
+                                    className={styles.input}
+                                    type="number"
+                                    placeholder="e.g. 100"
+                                    value={startPrice}
+                                    onChange={(e) => setStartPrice(e.target.value)}
+                                    style={{ background: 'var(--bg-dark)', color: 'var(--text-main)', borderColor: 'var(--primary)' }}
+                                />
+                            </div>
+                        )}
+
                         <div style={{ marginTop: 'auto' }}>
                             <button className={styles.submitButton} onClick={handlePostVerification} disabled={loading}>
                                 {loading ? t('common.loading') : t('listChannel.postVerify')}

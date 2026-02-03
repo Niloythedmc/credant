@@ -382,15 +382,23 @@ const PostAds = ({ activePage, onNavigate }) => {
     };
 
     const highlightText = (text) => {
-        // Basic highlight logic for visual feedback
-        const parts = text.split(/([@#][\w.]+)/g);
+        // Split by whitespace but keep delimiters
+        const parts = text.split(/(\s+)/);
         return (
             <div className={styles.previewText} style={{ marginTop: 8 }}>
-                {parts.map((part, i) => (
-                    <span key={i} className={part.match(/[@#][\w.]+/) ? styles.highlight : ''}>
-                        {part}
-                    </span>
-                ))}
+                {parts.map((part, i) => {
+                    // Check if part is a "word" (not whitespace)
+                    if (part.trim() === '') return <span key={i}>{part}</span>;
+
+                    // Logic: Contains dot OR starts with @/#
+                    const isLinkOrTag = (part.includes('.') || part.startsWith('@') || part.startsWith('#'));
+
+                    return (
+                        <span key={i} className={isLinkOrTag ? styles.highlight : ''}>
+                            {part}
+                        </span>
+                    );
+                })}
             </div>
         );
     };
@@ -401,16 +409,17 @@ const PostAds = ({ activePage, onNavigate }) => {
                 <label className={styles.label}>{t('ads.postText')}</label>
                 <textarea
                     className={styles.textarea}
-                    placeholder="Write your ad copy here. Use @mentions and #tags..."
+                    placeholder="Write your ad copy here. Use @mentions, #tags, or links..."
                     rows={4}
                     value={formData.postText}
                     onChange={e => handleChange('postText', e.target.value)}
                 />
-                {formData.postText && <div>{highlightText(formData.postText)}</div>}
+                {/* Live preview with highlighting */}
+                {formData.postText && <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>{highlightText(formData.postText)}</div>}
             </div>
 
             <div className={styles.formGroup}>
-                <label className={styles.label}>{t('ads.media')} (Max 10s Video or Image)</label>
+                <label className={styles.label}>{t('ads.media')} (Optional)</label>
                 <div
                     onClick={() => document.getElementById('mediaInput').click()}
                     style={{
@@ -430,7 +439,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                     ) : (
                         <>
                             <FiImage size={24} style={{ opacity: 0.5 }} />
-                            <span style={{ fontSize: 12, marginTop: 8, opacity: 0.5 }}>Tap to upload</span>
+                            <span style={{ fontSize: 12, marginTop: 8, opacity: 0.5 }}>Tap to upload (Optional)</span>
                         </>
                     )}
                 </div>
@@ -448,7 +457,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                 <input
                     className={styles.input}
                     placeholder="https://t.me/..."
-                    value={formData.link} // Changed from formData.targetLink which was missing in state init
+                    value={formData.link}
                     onChange={e => handleChange('link', e.target.value)}
                 />
             </div>
@@ -459,21 +468,27 @@ const PostAds = ({ activePage, onNavigate }) => {
     const renderPhase5 = () => (
         <div className={styles.phaseContainer}>
             <h3 style={{ marginBottom: 16 }}>{t('ads.preview')}</h3>
+
+            {/* Meta outside preview card */}
+            <div className={styles.previewMeta}>
+                <div className={styles.previewTitle}>{formData.title || 'Untitled Campaign'}</div>
+                <div className={styles.previewDesc}>{formData.description || 'No description'}</div>
+            </div>
+
             <div className={styles.previewCard}>
                 <div style={{ position: 'relative' }}>
-                    {formData.mediaPreview ? (
+                    {formData.mediaPreview && (
                         <img src={formData.mediaPreview} className={styles.previewImage} alt="Ad Content" />
-                    ) : (
-                        <div className={styles.previewImage} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>NO MEDIA</div>
                     )}
                 </div>
+
                 <div className={styles.previewContent}>
-                    <div className={styles.previewTitle}>{formData.title}</div>
-                    <div className={styles.previewDesc}>{formData.description}</div>
-                    {/* Post Text Preview limited to 3 lines logic could go here, but using simple div for now */}
-                    <div className={styles.previewText} style={{ marginBottom: 16, background: 'none', padding: 0 }}>
-                        {formData.postText}
+                    {/* Post Text Preview with 3-line limit handled by CSS */}
+                    <div className={styles.previewText} style={{ padding: 0 }}>
+                        {formData.postText ? highlightText(formData.postText) : 'No text content'}
                     </div>
+
+                    {/* Optional Button */}
                     {formData.link && (
                         <button className={styles.previewLinkBtn} onClick={() => window.open(formData.link, '_blank')}>
                             Open Link
@@ -481,6 +496,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                     )}
                 </div>
             </div>
+
             <div className={styles.reachCard} style={{ marginTop: 20 }}>
                 <span className={styles.reachLabel}>Estimated Reach</span>
                 <span className={styles.reachValue}>{estimatedReach.toLocaleString()}</span>
