@@ -38,7 +38,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             right: 0,
                             bottom: 0,
                             background: 'rgba(0,0,0,0.6)',
-                            zIndex: 1100, // Above Nav (999), Below TonConnect (100000)
+                            zIndex: 101, // Above Nav (999), Below TonConnect (100000)
                             backdropFilter: 'blur(4px)',
                             overscrollBehavior: 'contain' // Prevent scroll chaining
                         }}

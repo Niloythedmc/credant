@@ -8,7 +8,7 @@
     justify-content: space-around;
     align-items: center;
     padding-bottom: var(--safe-area-bottom);
-    z-index: 999;
+    z-index: 100;
 }
 
 .navButton {
