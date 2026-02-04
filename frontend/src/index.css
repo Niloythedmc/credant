@@ -188,3 +188,12 @@ svg polyline {
   width: 100%;
   height: 100%;
 }
+
+/* Force TonConnect UI to be on top */
+div[class^="tc-root"] {
+  z-index: 100000 !important;
+}
+
+#ton-connect-widget-container {
+  z-index: 100000 !important;
+}

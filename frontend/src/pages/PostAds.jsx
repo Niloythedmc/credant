@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { FiChevronLeft, FiImage, FiCheck, FiSearch, FiChevronDown } from 'react-icons/fi';
 import { useNotification } from '../context/NotificationContext';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
+import { useApi } from '../auth/useApi';
+import { useAuth } from '../auth/AuthProvider';
+import WalletActionModal from '../components/WalletActionModal';
 
 // Reusable Custom Select Component
 const CustomSelect = ({ options, value, onChange, placeholder }) => {
@@ -66,6 +70,7 @@ const PostAds = ({ activePage, onNavigate }) => {
     const { addNotification } = useNotification();
     const isVisible = activePage === 'postAds';
     const [phase, setPhase] = useState(1);
+    const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -141,21 +146,81 @@ const PostAds = ({ activePage, onNavigate }) => {
         }
     };
 
-    const handlePayAndCreate = () => {
-        // Mock API call
-        addNotification('success', t('ads.campaignCreated'));
-        addNotification('info', 'Contract Signed & Paid 50 TON');
+    // TON Connect
+    const [tonConnectUI] = useTonConnectUI();
+    const wallet = useTonWallet();
+    const { post } = useApi(); // Use useApi for backend calls
 
-        // Reset and close
-        setTimeout(() => {
-            setFormData({
-                title: '', description: '', subject: '', promotionTypes: [],
-                duration: 7, budget: '', geo: [], channels: [], ageRange: [18, 40],
-                postText: '', media: null, mediaPreview: null, link: ''
+    const handlePayAndCreate = async () => {
+        if (!wallet) {
+            addNotification('warning', 'Please connect your TON wallet first.');
+            // Ideally trigger wallet connection modal here if possible, or user acts manually
+            tonConnectUI.openModal();
+            return;
+        }
+
+        setLoading(true); // Add loading state (need to declare state if not exists, or use local)
+
+        try {
+            // 1. Prepare Data
+            // Ensure Budget/Duration are numbers
+            const payloadData = {
+                ...formData,
+                budget: parseFloat(formData.budget),
+                duration: parseInt(formData.duration),
+                walletAddress: wallet.account.address
+            };
+
+            // 2. Call Backend to Create Contract / Get Transaction Payload
+            // "The backend will calculate everything" -> returns messages/payload
+            const contractData = await post('/ads/create-contract', payloadData);
+
+            if (!contractData || !contractData.messages) {
+                throw new Error('Invalid contract data received from backend');
+            }
+
+            // 3. Send Transaction via Wallet
+            // "The contract will be signed via the Ads creator inner wallet"
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 600, // 10 min
+                messages: contractData.messages // Backend returns array of messages (Escrow + Fee)
+            };
+
+            const result = await tonConnectUI.sendTransaction(transaction);
+
+            // 4. Confirm & Save
+            // "When the contract created ... save the contract address and all data"
+            // We send the transaction result/boc to backend to verify and save
+            await post('/ads/confirm-contract', {
+                ...payloadData,
+                contractAddress: contractData.contractAddress, // If backend generated a new address
+                boc: result.boc
             });
-            setPhase(1);
-            onNavigate('feed'); // Go back
-        }, 1500);
+
+            addNotification('success', t('ads.campaignCreated'));
+            addNotification('info', 'Contract Deployed & Funded Successfully');
+
+            // Reset and close
+            setTimeout(() => {
+                setFormData({
+                    title: '', description: '', subject: '', promotionTypes: [],
+                    duration: 7, budget: '', geo: [], channels: [], ageRange: [18, 40],
+                    postText: '', media: null, mediaPreview: null, link: ''
+                });
+                setPhase(1);
+                onNavigate('feed'); // Go back
+            }, 1500);
+
+        } catch (error) {
+            console.error('Payment Error:', error);
+            if (error?.message?.includes('User rejected')) {
+                addNotification('info', 'Transaction cancelled by user.');
+            } else {
+                addNotification('error', 'Failed to create campaign: ' + (error.message || 'Unknown error'));
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     // --- RENDER HELPERS ---
@@ -390,11 +455,22 @@ const PostAds = ({ activePage, onNavigate }) => {
                     // Check if part is a "word" (not whitespace)
                     if (part.trim() === '') return <span key={i}>{part}</span>;
 
-                    // Logic: Contains dot OR starts with @/#
-                    const isLinkOrTag = (part.includes('.') || part.startsWith('@') || part.startsWith('#'));
+                    // Logic: 
+                    // 1. Starts with @ or #
+                    // 2. Contains a dot NOT at the start (usually), but simpler: 
+                    //    Check if it has a dot. 
+                    //    If it ends with a dot, it MUST have another dot inside to be blue.
+                    //    e.g. "world." (Black) vs "google.com." (Blue) vs "google.com" (Blue)
+
+                    const hasDot = part.includes('.');
+                    const endsWithDot = part.endsWith('.');
+                    // Is it a link-like token?
+                    const isLink = hasDot && (!endsWithDot || part.slice(0, -1).includes('.'));
+
+                    const shouldHighlight = part.startsWith('@') || part.startsWith('#') || isLink;
 
                     return (
-                        <span key={i} className={isLinkOrTag ? styles.highlight : ''}>
+                        <span key={i} className={shouldHighlight ? styles.highlight : ''}>
                             {part}
                         </span>
                     );
@@ -504,42 +580,76 @@ const PostAds = ({ activePage, onNavigate }) => {
         </div>
     );
 
+    // Auth & Profile
+    const { userProfile, refreshProfile } = useAuth();
+    // Deposit Modal
+    const [isDepositModalOpen, setDepositModalOpen] = useState(false);
+
     // Phase 6: Payment
-    const renderPhase6 = () => (
-        <div className={styles.phaseContainer}>
-            <h3 style={{ marginBottom: 16 }}>{t('ads.confirmPayment')}</h3>
+    const renderPhase6 = () => {
+        const balance = userProfile?.wallet?.balance || 0;
+        const totalCost = (formData.budget * formData.duration * 1.05);
+        const hasBalance = balance >= totalCost;
 
-            <div className={styles.paymentSummary}>
-                <div className={styles.summaryRow}>
-                    <span>Budget / Day</span>
-                    <span>{formData.budget} TON</span>
+        return (
+            <div className={styles.phaseContainer}>
+                <h3 style={{ marginBottom: 16 }}>{t('ads.confirmPayment')}</h3>
+
+                <div className={styles.paymentSummary}>
+                    <div className={styles.summaryRow}>
+                        <span>Budget / Day</span>
+                        <span>{formData.budget} TON</span>
+                    </div>
+                    <div className={styles.summaryRow}>
+                        <span>Duration</span>
+                        <span>{formData.duration} Days</span>
+                    </div>
+                    <div className={styles.summaryRow}>
+                        <span>Platform Fee (5%)</span>
+                        <span>{(formData.budget * formData.duration * 0.05).toFixed(2)} TON</span>
+                    </div>
+                    <div className={`${styles.summaryRow} ${styles.total}`}>
+                        <span>Total Cost</span>
+                        <span>{totalCost.toFixed(2)} TON</span>
+                    </div>
                 </div>
-                <div className={styles.summaryRow}>
-                    <span>Duration</span>
-                    <span>{formData.duration} Days</span>
+
+                <div className={styles.walletBalance} style={{ justifyContent: 'space-between', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        Account Balance
+                    </div>
+                    <b>{balance.toFixed(2)} TON</b>
                 </div>
-                <div className={styles.summaryRow}>
-                    <span>Platform Fee (5%)</span>
-                    <span>{(formData.budget * formData.duration * 0.05).toFixed(2)} TON</span>
-                </div>
-                <div className={`${styles.summaryRow} ${styles.total}`}>
-                    <span>Total Cost</span>
-                    <span>{(formData.budget * formData.duration * 1.05).toFixed(2)} TON</span>
+
+                {!hasBalance && (
+                    <div style={{ color: '#ef4444', fontSize: 13, textAlign: 'center', marginBottom: 10 }}>
+                        Insufficient Balance. Please deposit funds to continue.
+                    </div>
+                )}
+
+                <div style={{ fontSize: 13, opacity: 0.7, textAlign: 'center', marginBottom: 20 }}>
+                    By clicking pay, you agree to the <u style={{ cursor: 'pointer' }}>Terms of Service</u>. A smart contract will be deployed for this campaign.
                 </div>
             </div>
+        );
+    };
 
-            <div className={styles.walletBalance} style={{ justifyContent: 'space-between', marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    Account Balance
-                </div>
-                <b>125.50 TON</b>
-            </div>
+    // Helper for main button action
+    const handleMainAction = () => {
+        if (phase < 6) {
+            handleNext();
+            return;
+        }
 
-            <div style={{ fontSize: 13, opacity: 0.7, textAlign: 'center', marginBottom: 20 }}>
-                By clicking pay, you agree to the <u style={{ cursor: 'pointer' }}>Terms of Service</u>. A smart contract will be deployed for this campaign.
-            </div>
-        </div>
-    );
+        const balance = userProfile?.wallet?.balance || 0;
+        const totalCost = (formData.budget * formData.duration * 1.05);
+
+        if (balance < totalCost) {
+            setDepositModalOpen(true);
+        } else {
+            handlePayAndCreate();
+        }
+    };
 
     return (
         <div className={styles.page} style={style}>
@@ -564,13 +674,38 @@ const PostAds = ({ activePage, onNavigate }) => {
 
                         {/* IN-FLOW BUTTON */}
                         <div className={styles.actionBtnContainer}>
-                            <button className={`${styles.button} ${styles.primaryBtn}`} onClick={phase === 6 ? handlePayAndCreate : handleNext}>
-                                {phase === 6 ? `Pay & Sign Contract` : t('ads.continue')}
+                            <button
+                                className={`${styles.button} ${styles.primaryBtn}`}
+                                onClick={handleMainAction}
+                                disabled={loading}
+                                style={{ opacity: loading ? 0.7 : 1, cursor: loading ? 'wait' : 'pointer' }}
+                            >
+                                {loading ? 'Processing...' : (
+                                    phase === 6
+                                        ? ((userProfile?.wallet?.balance || 0) < (formData.budget * formData.duration * 1.05) ? 'Deposit Funds' : 'Pay & Sign Contract')
+                                        : t('ads.continue')
+                                )}
                             </button>
                         </div>
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            {/* Deposit Modal */}
+            {userProfile?.wallet && (
+                <WalletActionModal
+                    type="deposit"
+                    isOpen={isDepositModalOpen}
+                    onClose={() => setDepositModalOpen(false)}
+                    walletAddress={userProfile.wallet.address}
+                    balance={userProfile.wallet.balance}
+                    onSuccess={() => {
+                        refreshProfile(); // Update balance
+                        // setDepositModalOpen(false); // Handled by onClose usually? check modal code. 
+                        // Modal calls onClose, but we can do extra stuff here.
+                    }}
+                />
+            )}
         </div>
     );
 };

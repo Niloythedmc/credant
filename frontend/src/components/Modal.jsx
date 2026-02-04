@@ -38,7 +38,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             right: 0,
                             bottom: 0,
                             background: 'rgba(0,0,0,0.6)',
-                            zIndex: 9999, // High z-index to be on top of everything
+                            zIndex: 1100, // Above Nav (999), Below TonConnect (100000)
                             backdropFilter: 'blur(4px)',
                             overscrollBehavior: 'contain' // Prevent scroll chaining
                         }}
@@ -67,7 +67,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             borderTopLeftRadius: '24px',
                             borderTopRightRadius: '24px',
                             padding: '24px',
-                            zIndex: 10000,
+                            zIndex: 1101, // Above Nav (999)
                             maxHeight: '85vh',
                             overflowY: 'auto',
                             overscrollBehavior: 'contain',
