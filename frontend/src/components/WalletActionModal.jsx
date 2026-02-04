@@ -134,7 +134,10 @@ const WalletActionModal = ({ type, isOpen, onClose, walletAddress: internalWalle
                             {t('wallet.connectData', { type: type })}
                         </p>
                         <button
-                            onClick={() => tonConnectUI.openModal()}
+                            onClick={() => {
+                                tonConnectUI.openModal();
+                                onClose();
+                            }}
                             style={{
                                 padding: '12px 24px',
                                 background: 'var(--primary)',
