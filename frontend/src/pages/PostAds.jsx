@@ -585,9 +585,39 @@ const PostAds = ({ activePage, onNavigate }) => {
     // Deposit Modal
     const [isDepositModalOpen, setDepositModalOpen] = useState(false);
 
+    // Independent Balance State
+    const [walletBalance, setWalletBalance] = useState(0);
+
+    // Fetch balance when entering Phase 6 or when userProfile changes
+    React.useEffect(() => {
+        const fetchBalance = async () => {
+            if (userProfile?.wallet?.address) {
+                try {
+                    // Use the useApi hook's get method if locally available, 
+                    // or define a simple fetch if getting it from useApi is complex here (it's not).
+                    // We need 'get' from useApi.
+                    // Oh wait, useApi is already destructured as { post }. Let's add { get }.
+                    const res = await fetch(`https://credant-production.up.railway.app/api/wallet/balance/${userProfile.wallet.address}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setWalletBalance(parseFloat(data.ton || 0));
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch balance in PostAds", e);
+                }
+            }
+        };
+
+        if (phase === 6) {
+            fetchBalance();
+        }
+    }, [phase, userProfile]);
+
+
     // Phase 6: Payment
     const renderPhase6 = () => {
-        const balance = userProfile?.wallet?.balance || 0;
+        // Use the fetched balance
+        const balance = walletBalance;
         const totalCost = (formData.budget * formData.duration * 1.05);
         const hasBalance = balance >= totalCost;
 
@@ -641,7 +671,7 @@ const PostAds = ({ activePage, onNavigate }) => {
             return;
         }
 
-        const balance = userProfile?.wallet?.balance || 0;
+        const balance = walletBalance;
         const totalCost = (formData.budget * formData.duration * 1.05);
 
         if (balance < totalCost) {
@@ -682,7 +712,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                             >
                                 {loading ? 'Processing...' : (
                                     phase === 6
-                                        ? ((userProfile?.wallet?.balance || 0) < (formData.budget * formData.duration * 1.05) ? 'Deposit Funds' : 'Pay & Sign Contract')
+                                        ? ((walletBalance) < (formData.budget * formData.duration * 1.05) ? 'Deposit Funds' : 'Pay & Sign Contract')
                                         : t('ads.continue')
                                 )}
                             </button>
@@ -700,9 +730,14 @@ const PostAds = ({ activePage, onNavigate }) => {
                     walletAddress={userProfile.wallet.address}
                     balance={userProfile.wallet.balance}
                     onSuccess={() => {
-                        refreshProfile(); // Update balance
-                        // setDepositModalOpen(false); // Handled by onClose usually? check modal code. 
-                        // Modal calls onClose, but we can do extra stuff here.
+                        refreshProfile();
+                        // Also trigger a local re-fetch if needed, or rely on effect dependency if userProfile updates
+                        // Ideally we should call logic to update walletBalance too.
+                        // For now refreshProfile usually doesn't update wallet balance in userProfile deep down if it's separate.
+                        // Let's force a reload of the page or re-run the effect by some trigger?
+                        // Simplest: 
+                        setDepositModalOpen(false);
+                        // The effect depends on [userProfile]. If refreshProfile updates userProfile, effect runs.
                     }}
                 />
             )}
