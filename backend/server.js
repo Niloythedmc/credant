@@ -28,6 +28,7 @@ app.use('/api/channels', require('./routes/channels'));
 app.use('/api/insights', require('./routes/insights'));
 app.use('/api/inbox', require('./routes/inbox'));
 app.use('/api/telegram-proxy', require('./routes/proxy'));
+app.use('/api/ads', require('./routes/ads'));
 
 // Health Check
 app.get('/', (req, res) => {

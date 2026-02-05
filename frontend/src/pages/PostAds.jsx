@@ -152,53 +152,33 @@ const PostAds = ({ activePage, onNavigate }) => {
     const { post } = useApi(); // Use useApi for backend calls
 
     const handlePayAndCreate = async () => {
-        if (!wallet) {
-            addNotification('warning', 'Please connect your TON wallet first.');
-            // Ideally trigger wallet connection modal here if possible, or user acts manually
-            tonConnectUI.openModal();
-            return;
-        }
+        // Inner Wallet Payment doesn't strictly require connected wallet, 
+        // as long as user is logged in and has balance.
+        // But we might want it for safety? User asked to use Inner Wallet.
 
-        setLoading(true); // Add loading state (need to declare state if not exists, or use local)
+        setLoading(true);
 
         try {
             // 1. Prepare Data
-            // Ensure Budget/Duration are numbers
             const payloadData = {
                 ...formData,
                 budget: parseFloat(formData.budget),
                 duration: parseInt(formData.duration),
-                walletAddress: wallet.account.address
+                // We don't need wallet.account.address for payment source, 
+                // but maybe for record keeping? backend gets uid.
+                walletAddress: userProfile?.wallet?.address
             };
 
-            // 2. Call Backend to Create Contract / Get Transaction Payload
-            // "The backend will calculate everything" -> returns messages/payload
-            const contractData = await post('/ads/create-contract', payloadData);
+            // 2. Call Backend to Pay (Deduct from Inner Wallet) & Create
+            // This endpoint now handles the full transaction on backend.
+            const result = await post('/ads/create-contract', payloadData);
 
-            if (!contractData || !contractData.messages) {
-                throw new Error('Invalid contract data received from backend');
+            if (!result || !result.success) {
+                throw new Error(result?.error || 'Failed to create contract');
             }
 
-            // 3. Send Transaction via Wallet
-            // "The contract will be signed via the Ads creator inner wallet"
-            const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 600, // 10 min
-                messages: contractData.messages // Backend returns array of messages (Escrow + Fee)
-            };
-
-            const result = await tonConnectUI.sendTransaction(transaction);
-
-            // 4. Confirm & Save
-            // "When the contract created ... save the contract address and all data"
-            // We send the transaction result/boc to backend to verify and save
-            await post('/ads/confirm-contract', {
-                ...payloadData,
-                contractAddress: contractData.contractAddress, // If backend generated a new address
-                boc: result.boc
-            });
-
             addNotification('success', t('ads.campaignCreated'));
-            addNotification('info', 'Contract Deployed & Funded Successfully');
+            addNotification('info', `Funds deducted: ${result.totalCost} TON`);
 
             // Reset and close
             setTimeout(() => {
@@ -208,16 +188,12 @@ const PostAds = ({ activePage, onNavigate }) => {
                     postText: '', media: null, mediaPreview: null, link: ''
                 });
                 setPhase(1);
-                onNavigate('feed'); // Go back
+                onNavigate('feed');
             }, 1500);
 
         } catch (error) {
             console.error('Payment Error:', error);
-            if (error?.message?.includes('User rejected')) {
-                addNotification('info', 'Transaction cancelled by user.');
-            } else {
-                addNotification('error', 'Failed to create campaign: ' + (error.message || 'Unknown error'));
-            }
+            addNotification('error', 'Failed to create campaign: ' + (error.message || 'Unknown error'));
         } finally {
             setLoading(false);
         }
