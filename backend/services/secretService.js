@@ -1,9 +1,18 @@
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
-const client = new SecretManagerServiceClient();
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const { serviceAccount } = require('../config');
 
-// Project ID for Secret Manager (Must use rwa-exchange as it has billing enabled)
-const projectId = "rwa-exchange";
+// Initialize with explicit credentials from config
+const client = new SecretManagerServiceClient({
+    credentials: {
+        client_email: serviceAccount.client_email,
+        private_key: serviceAccount.private_key,
+    },
+    projectId: serviceAccount.project_id
+});
+
+// Use the project ID from the service account config
+const projectId = serviceAccount.project_id;
 
 const saveSecret = async (secretId, payload) => {
     try {

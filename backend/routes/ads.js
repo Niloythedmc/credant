@@ -3,8 +3,8 @@ const router = express.Router();
 const admin = require('firebase-admin');
 const { getSecret } = require('../services/secretService');
 const { transferTon } = require('../services/tonService');
-// Placeholder Platform Wallet (Replace with real one)
-const PLATFORM_WALLET_ADDRESS = 'EQD__________________________________________0vo';
+// Placeholder Platform Wallet (Valid Format Required for Parsing)
+const PLATFORM_WALLET_ADDRESS = 'UQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixDn7cacWi80qM';
 
 // Helper to verify auth
 const verifyAuth = async (req) => {
@@ -93,7 +93,7 @@ router.post('/create-contract', async (req, res) => {
     } catch (error) {
         console.error("Create Contract Error:", error);
         if (error.message === 'Unauthorized') return res.status(401).json({ error: "Unauthorized" });
-        return res.status(500).json({ error: "Internal Server Error" });
+        return res.status(500).json({ error: "Internal Error: " + error.message });
     }
 });
 

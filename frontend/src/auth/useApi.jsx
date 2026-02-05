@@ -1,12 +1,18 @@
 import { useAuth } from './AuthProvider';
+import { auth } from '../firebase'; // Direct auth access for fresh token
 
 export const useApi = () => {
-    const { token, backendUrl } = useAuth();
+    const { backendUrl } = useAuth(); // We don't rely on stale 'token' from context
 
     const request = async (endpoint, options = {}) => {
+        let freshToken = null;
+        if (auth.currentUser) {
+            freshToken = await auth.currentUser.getIdToken();
+        }
+
         const headers = {
             'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(freshToken ? { 'Authorization': `Bearer ${freshToken}` } : {}),
             ...options.headers
         };
 
