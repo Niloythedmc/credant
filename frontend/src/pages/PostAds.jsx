@@ -9,7 +9,58 @@ import { useApi } from '../auth/useApi';
 import { useAuth } from '../auth/AuthProvider';
 import WalletActionModal from '../components/WalletActionModal';
 
-// Reusable Custom Select Component
+const TelegramFetcher = ({ link, onResolved, subject }) => {
+    const { post } = useApi();
+    const [status, setStatus] = useState('idle'); // idle, loading, success, error
+    const [data, setData] = useState(null);
+    const lastResolvedLink = React.useRef(""); // Track last resolved link to prevent duplicate calls
+
+    React.useEffect(() => {
+        const timeoutId = setTimeout(async () => {
+            // Basic validation
+            if (!link.includes('t.me') && !link.startsWith('@')) return;
+            // Prevent re-fetching same link if data exists
+            if (link === lastResolvedLink.current) return;
+
+            setStatus('loading');
+            try {
+                const res = await post('/ads/resolve-link', { link });
+                if (res && res.id) {
+                    setData(res);
+                    setStatus('success');
+                    lastResolvedLink.current = link; // Update ref
+                    onResolved(res);
+                } else {
+                    // Only set error if we really tried and failed
+                    // Don't clear data immediately to avoid flickering if typing fast, but here we probably should reset
+                    setStatus('error');
+                }
+            } catch (e) {
+                console.error("Fetch failed", e);
+                setStatus('error');
+            }
+        }, 800); // 800ms debounce
+
+        return () => clearTimeout(timeoutId);
+    }, [link]); // Effect only depends on link
+
+    if (status === 'idle') return null;
+    if (status === 'loading') return <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Checking Telegram...</div>;
+    // Hide error after a while or just keep it small
+    if (status === 'error') return <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>Could not resolve Telegram link</div>;
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+            {data?.photoUrl && <img src={data.photoUrl} alt="Channel" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
+            <div>
+                <div style={{ fontSize: 13, fontWeight: 'bold' }}>{data?.title}</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>@{data?.username} • {data?.type}</div>
+            </div>
+            <div style={{ marginLeft: 'auto', color: '#10b981' }}><FiCheck /></div>
+        </div>
+    );
+};
+
 const CustomSelect = ({ options, value, onChange, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = React.useRef(null);
@@ -533,52 +584,6 @@ const PostAds = ({ activePage, onNavigate }) => {
             </div>
         </div>
     );
-
-    // --- NEW COMPONENT FOR FETCHER ---
-    const TelegramFetcher = ({ link, onResolved, subject }) => {
-        const { post } = useApi();
-        const [status, setStatus] = useState('idle'); // idle, loading, success, error
-        const [data, setData] = useState(null);
-
-        React.useEffect(() => {
-            const timeoutId = setTimeout(async () => {
-                // Basic validation before call
-                if (!link.includes('t.me') && !link.startsWith('@')) return;
-
-                setStatus('loading');
-                try {
-                    const res = await post('/ads/resolve-link', { link });
-                    if (res && res.id) {
-                        setData(res);
-                        setStatus('success');
-                        onResolved(res);
-                    } else {
-                        setStatus('error');
-                    }
-                } catch (e) {
-                    console.error("Fetch failed", e);
-                    setStatus('error');
-                }
-            }, 800); // 800ms debounce
-
-            return () => clearTimeout(timeoutId);
-        }, [link]);
-
-        if (status === 'idle') return null;
-        if (status === 'loading') return <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Checking Telegram...</div>;
-        if (status === 'error') return <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>Could not resolve Telegram link</div>;
-
-        return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
-                {data.photoUrl && <img src={data.photoUrl} alt="Channel" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
-                <div>
-                    <div style={{ fontSize: 13, fontWeight: 'bold' }}>{data.title}</div>
-                    <div style={{ fontSize: 11, opacity: 0.7 }}>@{data.username} • {data.type}</div>
-                </div>
-                <div style={{ marginLeft: 'auto', color: '#10b981' }}><FiCheck /></div>
-            </div>
-        );
-    };
 
     // Phase 5: Preview
     const renderPhase5 = () => (

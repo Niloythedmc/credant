@@ -10,21 +10,33 @@ router.post('/resolve-link', async (req, res) => {
     const { link } = req.body;
     if (!link) return res.status(400).json({ error: "Link is required" });
 
+    console.log(`[Resolve Link] Request for: ${link}`);
+
     try {
         // Extract username
-        // Regex handles: t.me/username, @username, t.me/username/123, t.me/bot?start=...
-        const match = link.match(/(?:t\.me\/|@)([\w_]+)/);
-        if (!match) return res.status(400).json({ error: "Invalid Telegram link or username" });
+        // Regex logic:
+        // 1. Match t.me/ or telegram.me/ or @
+        // 2. Capture username: alpha-numeric-underscore, min 5 chars (to avoid 'c' or 's' private links)
+        // 3. Stop at / or ? or end of string
+        // Note: Telegram usernames are min 5 chars.
+        const match = link.match(/(?:t\.me\/|telegram\.me\/|@)([\w_]{5,})/);
+
+        if (!match) {
+            console.log(`[Resolve Link] Regex failed for: ${link}`);
+            return res.status(400).json({ error: "Invalid Telegram link or username (must be public channel/bot)" });
+        }
 
         const username = match[1];
+        console.log(`[Resolve Link] Extracted username: ${username}`);
+
         const chat = await getChat(`@${username}`);
+        console.log(`[Resolve Link] Chat found: ${chat.id} (${chat.title})`);
 
         let photoUrl = null;
         if (chat.photo && chat.photo.big_file_id) {
             photoUrl = await getFileLink(chat.photo.big_file_id);
         }
 
-        // Try fetch member count if it's a channel/supergroup
         let memberCount = 0;
         try {
             memberCount = await getChatMemberCount(chat.id);
@@ -32,9 +44,9 @@ router.post('/resolve-link', async (req, res) => {
 
         const result = {
             id: chat.id,
-            title: chat.title || chat.first_name, // Bots might have first_name
+            title: chat.title || chat.first_name,
             username: chat.username,
-            description: chat.description || chat.bio, // Bots use bio often
+            description: chat.description || chat.bio,
             photoUrl,
             type: chat.type,
             memberCount
@@ -43,8 +55,12 @@ router.post('/resolve-link', async (req, res) => {
         return res.json(result);
 
     } catch (error) {
-        console.error("Resolve Link Error:", error.message);
-        return res.status(404).json({ error: "Could not resolve link. Bot might not have access or invalid user." });
+        console.error("[Resolve Link] Error:", error.message);
+        // Specialized error message
+        if (error.message.includes('chat not found')) {
+            return res.status(404).json({ error: "Channel/Bot not found. Make sure the link is correct and public." });
+        }
+        return res.status(500).json({ error: "Could not resolve link: " + error.message });
     }
 });
 const { getSecret, saveSecret } = require('../services/secretService');
