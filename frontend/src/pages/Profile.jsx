@@ -139,7 +139,7 @@ const Profile = ({ activePage, onNavigate }) => {
     };
 
     // Content Section Component
-    const ContentSection = ({ title, items, emptyText, actionText, styles, onAction, hasPriceIcon, isClientOffer, onAdd }) => {
+    const ContentSection = ({ title, items, emptyText, actionText, styles, onAction, hasPriceIcon, isClientOffer, onAdd, type }) => {
         const [isExpanded, setIsExpanded] = useState(false);
         const hasItems = items && items.length > 0;
 
@@ -153,7 +153,7 @@ const Profile = ({ activePage, onNavigate }) => {
                         {title}
                         {hasItems && hasPriceIcon && <span className={styles.priceIcon}>💲</span>}
                     </div>
-                    {/* Add Icon if items exist and onAdd provided */}
+                    {/* Add Icon for Channels */}
                     {hasItems && onAdd && (
                         <div onClick={onAdd} style={{
                             cursor: 'pointer',
@@ -175,13 +175,63 @@ const Profile = ({ activePage, onNavigate }) => {
                 {hasItems ? (
                     <div className={styles.sectionList}>
                         {displayItems.map((item, i) => {
-                            // Calculate stats per item if it's a channel
-                            const stats = item.startedAt ? getChannelStats(item.startedAt) : null;
 
+                            // --- AD ITEMS RENDER LOGIC ---
+                            if (type === 'ads') {
+                                return (
+                                    <div key={i} className={styles.itemCard}
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            border: '1px solid rgba(255,255,255,0.05)',
+                                            padding: '12px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '8px'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '15px', fontWeight: '600' }}>{item.title}</h4>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                background: item.status === 'active' ? 'rgba(74, 222, 128, 0.1)' : '#333',
+                                                color: item.status === 'active' ? '#4ade80' : '#888',
+                                                padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold'
+                                            }}>
+                                                {item.status}
+                                            </div>
+                                        </div>
+
+                                        {item.description && (
+                                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                                {item.description}
+                                            </p>
+                                        )}
+
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                            {item.subject && (
+                                                <span style={{ fontSize: '11px', background: 'var(--bg-card)', padding: '4px 8px', borderRadius: '6px', color: '#a0a0a0' }}>
+                                                    {item.subject}
+                                                </span>
+                                            )}
+                                            <span style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '6px', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                ⚡ {item.budget} TON
+                                            </span>
+                                            {item.duration && (
+                                                <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', color: '#ddd' }}>
+                                                    🕒 {item.duration} Days
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // --- CHANNEL/DEFAULT RENDER LOGIC ---
+                            const stats = item.startedAt ? getChannelStats(item.startedAt) : null;
                             return (
                                 <div key={i} className={styles.itemCard}
                                     style={{ background: 'rgba(128,128,128,0.1)', cursor: onAdd ? 'pointer' : 'default' }}
-                                    onClick={() => onAdd && setSelectedChannel(item)} // Only channels clickable for now
+                                    onClick={() => onAdd && setSelectedChannel(item)}
                                 >
                                     {item.image && (
                                         <img src={item.image} alt="" className={styles.itemImage} onError={(e) => e.target.style.display = 'none'} />
@@ -190,7 +240,6 @@ const Profile = ({ activePage, onNavigate }) => {
                                         <div className={styles.itemTitle} style={{ color: 'var(--text-main)' }}>{item.title}</div>
                                         {item.username ? `@${item.username}` : (item.sub ? item.sub : "Private")} • {item.subscribers ? `${item.subscribers} subs` : (item.memberCount ? `${item.memberCount} mem` : '')}
                                     </div>
-                                    {/* Time Left Display */}
                                     {stats && stats.timeLeft && (
                                         <div style={{ fontSize: '11px', color: stats.isReady ? '#4ade80' : 'var(--primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -346,6 +395,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     styles={styles}
                     onAction={() => onNavigate('postAds')}
                     hasPriceIcon={true}
+                    type="ads"
                 />
 
                 <ContentSection

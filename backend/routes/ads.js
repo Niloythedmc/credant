@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
-const { getSecret } = require('../services/secretService');
-const { transferTon } = require('../services/tonService');
-// Placeholder Platform Wallet (Valid Format Required for Parsing)
-const PLATFORM_WALLET_ADDRESS = 'UQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixDn7cacWi80qM';
+const { getSecret, saveSecret } = require('../services/secretService');
+const { transferTon, createWallet, getBalance } = require('../services/tonService'); // Import getBalance from updated service
+
+// Platform/Escrow Wallet Address (Where fees eventually go)
+const PLATFORM_WALLET_ADDRESS = 'UQAw9i_A6CvyXjGTWVwuJxZz_MgnxLTMUlxzCRxVi3IQv9jD';
 
 // Helper to verify auth
 const verifyAuth = async (req) => {
@@ -15,8 +16,49 @@ const verifyAuth = async (req) => {
     return await admin.auth().verifyIdToken(idToken);
 };
 
-// POST /api/ads/create-contract
-// Handles payment via Inner Wallet and creates ad
+// Background Poller: Checks Escrow Balance and Sends Fee
+const monitorAndDeductFee = async (escrowAddress, escrowMnemonic, platformFeeAmount, maxRetries = 24) => {
+    // Poll every 5 seconds for 2 minutes (24 * 5 = 120s)
+    let attempts = 0;
+    const feeStr = platformFeeAmount.toFixed(9);
+
+    console.log(`[FeeMonitor] Starting monitor for ${escrowAddress}. Target Fee: ${feeStr} TON`);
+
+    const checkLoop = setInterval(async () => {
+        attempts++;
+        try {
+            const balanceBigInt = await getBalance(escrowAddress);
+            const balanceTon = Number(balanceBigInt) / 1e9;
+
+            console.log(`[FeeMonitor] ${escrowAddress} Balance: ${balanceTon} TON (Attempt ${attempts}/${maxRetries})`);
+
+            // Check if we have enough funds (Fee + minimal gas ~0.05)
+            // Just checking if balance >= fee isn't enough, we need gas. 
+            // Current budget logic: Cost = Budget + 5%. 
+            // So Balance should be >= Budget + 5%.
+            // We want to extract only the 5% Fee.
+
+            if (balanceTon >= platformFeeAmount) {
+                console.log(`[FeeMonitor] Funds detected! Sending ${feeStr} TON fee to Platform...`);
+                clearInterval(checkLoop);
+
+                try {
+                    await transferTon(escrowMnemonic, PLATFORM_WALLET_ADDRESS, feeStr);
+                    console.log(`[FeeMonitor] Fee deduction success!`);
+                } catch (err) {
+                    console.error(`[FeeMonitor] Failed to send fee:`, err);
+                }
+            } else if (attempts >= maxRetries) {
+                console.log(`[FeeMonitor] Timeout waiting for funds.`);
+                clearInterval(checkLoop);
+            }
+        } catch (err) {
+            console.error(`[FeeMonitor] Error checking balance:`, err);
+        }
+    }, 5000);
+};
+
+
 router.post('/create-contract', async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
@@ -30,31 +72,46 @@ router.post('/create-contract', async (req, res) => {
             return res.status(400).json({ error: "Invalid budget or duration" });
         }
 
-        // Platform Fee 5%
-        const totalCost = (budget * duration * 1.05);
-        const amountStr = totalCost.toFixed(9); // Ensure safe string for TON
+        // Fee Calculation Logic
+        // Budget = 0.1
+        // Platform Fee = 5% of Budget = 0.005
+        // Total User Pays = Budget + Fee = 0.105
+
+        const platformFee = (budget * 0.05);
+        // Note: User says "sum of 105%... extract 5% means the 0.005".
+        // If Budget is 100, Total is 105. Fee is 5. Correct.
+
+        const totalCost = (budget * duration * 1.05); // Total amount to fund
+        const totalFee = (budget * duration * 0.05); // Total Fee to extract
+
+        const amountStr = totalCost.toFixed(9);
 
         // 2. Get User Wallet
         const userDoc = await admin.firestore().collection('users').doc(uid).get();
         if (!userDoc.exists || !userDoc.data().wallet) {
             return res.status(400).json({ error: "No inner wallet found" });
         }
+        const userSecretId = userDoc.data().wallet.secretId;
 
-        const secretId = userDoc.data().wallet.secretId;
+        // 3. Generate Escrow
+        const escrowWallet = await createWallet();
+        const escrowSecretId = `escrow-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+        await saveSecret(escrowSecretId, escrowWallet.mnemonic);
 
-        // 3. Load Mnemonic
-        const mnemonic = await getSecret(secretId);
+        // 4. Fund Escrow (User -> Escrow)
+        const userMnemonic = await getSecret(userSecretId);
+        console.log(`Funding Escrow ${escrowWallet.address} with ${amountStr} TON`);
 
-        // 4. Execute Transfer (Platform/Escrow)
-        // Uses the service to send TON from inner wallet to Platform Wallet
-        console.log(`Processing payment of ${amountStr} TON from user ${uid}`);
+        // Background: Start monitoring for funds to deduct fee
+        // We pass the mnemonic so it can sign the transfer once funds arrive
+        monitorAndDeductFee(escrowWallet.address, escrowWallet.mnemonic, totalFee);
 
         let seqno;
         try {
-            seqno = await transferTon(mnemonic, PLATFORM_WALLET_ADDRESS, amountStr);
+            seqno = await transferTon(userMnemonic, escrowWallet.address, amountStr);
         } catch (txError) {
-            console.error("Transfer failed:", txError);
-            return res.status(500).json({ error: "Payment transaction failed: " + txError.message });
+            console.error("Funding failed:", txError);
+            return res.status(500).json({ error: "Funding transaction failed: " + txError.message });
         }
 
         // 5. Create Ad Record
@@ -62,6 +119,11 @@ router.post('/create-contract', async (req, res) => {
             ...payload,
             userId: uid,
             status: 'active',
+            contractAddress: escrowWallet.address,
+            budget: budget,
+            duration: duration,
+            platformFee: totalFee,
+            escrowSecretId: escrowSecretId,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             payment: {
                 amount: totalCost,
@@ -72,20 +134,22 @@ router.post('/create-contract', async (req, res) => {
         };
 
         const adRef = await admin.firestore().collection('ads').add(adData);
-
-        // 6. Update User Profile (Add to myAds)
         await admin.firestore().collection('users').doc(uid).update({
             ads: admin.firestore.FieldValue.arrayUnion({
                 id: adRef.id,
                 title: payload.title,
+                description: payload.description, // Added for UI
                 status: 'active',
-                budget: payload.budget
+                budget: payload.budget,
+                duration: duration, // Added for UI
+                subject: payload.subject, // Added for UI
+                currency: 'TON'
             })
         });
 
         return res.status(200).json({
             success: true,
-            contractAddress: PLATFORM_WALLET_ADDRESS, // Mock contract address
+            contractAddress: escrowWallet.address,
             adId: adRef.id,
             totalCost
         });
@@ -97,15 +161,7 @@ router.post('/create-contract', async (req, res) => {
     }
 });
 
-// POST /api/ads/confirm-contract
-// (Legacy/Optional) verification endpoint if external wallet used
-// But for this flow, create-contract handles everything.
-// We'll keep it as a stub or handle saving if external wallet flow passes data here.
 router.post('/confirm-contract', async (req, res) => {
-    // If logic moves to frontend calling "confirm" after "create" returns messages...
-    // But we are doing direct processing.
-    // We can just return success or save duplicate if needed.
-    // For now, let's assume create-contract does the work for Inner Wallet mode.
     return res.status(200).json({ success: true });
 });
 

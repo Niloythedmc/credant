@@ -87,4 +87,12 @@ const transferTon = async (mnemonic, toAddress, amount) => {
     return seqno;
 };
 
-module.exports = { createWallet, transferTon };
+const getBalance = async (address) => {
+    const client = new TonClient({
+        endpoint: tonApiUrl,
+        apiKey: tonApiKey
+    });
+    return await withRetry(() => client.getBalance(address));
+};
+
+module.exports = { createWallet, transferTon, getBalance };
