@@ -3,6 +3,8 @@ import PageContainer from '../components/PageContainer';
 import { useApi } from '../auth/useApi';
 import styles from './Ads.module.css';
 import { useTranslation } from 'react-i18next';
+import AdCard from '../components/AdCard';
+import Modal from '../components/Modal'; import { useTranslation } from 'react-i18next';
 
 const Ads = ({ activePage }) => {
     const { t } = useTranslation();
@@ -10,6 +12,7 @@ const Ads = ({ activePage }) => {
     const { get } = useApi();
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedAd, setSelectedAd] = useState(null);
 
     useEffect(() => {
         const fetchAds = async () => {
@@ -73,59 +76,74 @@ const Ads = ({ activePage }) => {
                 <h2 className={styles.activityTitle}>{t('ads.recent')}</h2>
                 <div className={styles.campaignList}>
                     {loading && <div className={styles.loading}>{t('ads.loading')}</div>}
-
                     {!loading && campaigns.length === 0 && <div className={styles.emptyState}>{t('ads.empty')}</div>}
 
-                    {campaigns.map(camp => {
-                        // Subject Icon Logic inline (simplified from MyAds)
-                        const subject = (camp.subject || '').toUpperCase();
-                        let icon = "📢";
-                        let iconBg = "#f59e0b";
-                        if (subject.includes('WEBSITE')) { icon = "🌐"; iconBg = "#3b82f6"; }
-                        if (subject.includes('BOT')) { icon = "🤖"; iconBg = "#a855f7"; }
-                        if (subject.includes('CHANNEL')) { icon = "💬"; iconBg = "#10b981"; }
+                    {campaigns.map(camp => (
+                        <AdCard
+                            key={camp.id}
+                            ad={camp}
+                            variant="public"
+                            isExpanded={selectedAd?.id === camp.id}
+                            onToggle={() => setSelectedAd(selectedAd?.id === camp.id ? null : camp)}
+                        />
+                    ))}
+                </div>
 
-                        return (
-                            <div key={camp.id} className={`glass ${styles.campaignCard}`}>
-                                <div className={styles.imageWrapper}>
-                                    {/* Use Icon instead of Image since ads don't have images yet */}
-                                    <div style={{
-                                        width: '100%', height: '100%',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '40px',
-                                        background: `linear-gradient(135deg, ${iconBg}20, ${iconBg}05)`,
-                                        color: iconBg
-                                    }}>
-                                        {icon}
-                                    </div>
-
-                                    <div className={styles.statusDotWrapper}>
-                                        <div className={styles.statusDot} style={{
-                                            background: getStatusColor(camp.status),
-                                            boxShadow: `0 0 6px ${getStatusColor(camp.status)}`
-                                        }} />
-                                    </div>
+                {/* Ad Details Modal */}
+                <Modal
+                    isOpen={!!selectedAd}
+                    onClose={() => setSelectedAd(null)}
+                    title={selectedAd?.title || 'Ad Details'}
+                >
+                    {selectedAd && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {/* Large Featured Image */}
+                            {selectedAd.mediaPreview ? (
+                                <img src={selectedAd.mediaPreview} style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '12px' }} />
+                            ) : (
+                                <div style={{ width: '100%', height: '100px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' }}>
+                                    📢
                                 </div>
+                            )}
 
-                                <div className={styles.content}>
-                                    <div className={styles.campHeader}>
-                                        <h3 className={styles.campId}>{camp.title}</h3>
-                                        <span className={styles.statusBadge} style={{
-                                            color: getStatusColor(camp.status),
-                                            background: `${getStatusColor(camp.status)}20`,
-                                        }}>
-                                            {getStatusText(camp.status)}
-                                        </span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                        <p className={styles.amount}>{t('ads.amount')}: {camp.budget} TON</p>
-                                        <span style={{ fontSize: '12px', color: '#888' }}>{camp.duration} days</span>
+                            {/* Description */}
+                            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px' }}>
+                                <h3 style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '8px', marginTop: 0 }}>Description</h3>
+                                <p style={{ color: 'white', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
+                                    {selectedAd.description || 'No description provided.'}
+                                </p>
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Duration</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{selectedAd.duration} Days</div>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Total Budget</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#4ade80' }}>
+                                        {selectedAd.budget} TON
                                     </div>
                                 </div>
                             </div>
-                        )
-                    })}
-                </div>
+
+                            {/* Link */}
+                            {selectedAd.link && (
+                                <button
+                                    style={{
+                                        width: '100%', padding: '14px', borderRadius: '12px',
+                                        background: 'linear-gradient(90deg, #3b82f6, #9333ea)', border: 'none', color: 'white',
+                                        fontWeight: '600', cursor: 'pointer', marginTop: '8px'
+                                    }}
+                                    onClick={() => window.open(selectedAd.link, '_blank')}
+                                >
+                                    Visit Link
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </Modal>
             </div>
         </PageContainer>
     );

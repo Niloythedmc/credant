@@ -728,7 +728,26 @@ const PostAds = ({ activePage, onNavigate }) => {
 
     return (
         <div className={styles.page} style={style}>
-            {/* Header Removed as per request */}
+            <header style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px',
+                position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(10px)',
+                borderBottom: '1px solid rgba(255,255,255,0.05)'
+            }}>
+                <button
+                    onClick={handleBack}
+                    style={{
+                        background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white',
+                        width: 36, height: 36, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <FiChevronLeft size={20} />
+                </button>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+                    {phase === 1 ? 'New Campaign' : `Step ${phase} of 6`}
+                </h2>
+            </header>
 
             {/* Content */}
             <div className={styles.content}>
@@ -762,31 +781,33 @@ const PostAds = ({ activePage, onNavigate }) => {
                                 )}
                             </button>
                         </div>
-                    </motion.div>
-                </AnimatePresence>
-            </div>
+                    </motion.div >
+                </AnimatePresence >
+            </div >
 
             {/* Deposit Modal */}
-            {userProfile?.wallet && (
-                <WalletActionModal
-                    type="deposit"
-                    isOpen={isDepositModalOpen}
-                    onClose={() => setDepositModalOpen(false)}
-                    walletAddress={userProfile.wallet.address}
-                    balance={userProfile.wallet.balance}
-                    onSuccess={() => {
-                        refreshProfile();
-                        // Also trigger a local re-fetch if needed, or rely on effect dependency if userProfile updates
-                        // Ideally we should call logic to update walletBalance too.
-                        // For now refreshProfile usually doesn't update wallet balance in userProfile deep down if it's separate.
-                        // Let's force a reload of the page or re-run the effect by some trigger?
-                        // Simplest: 
-                        setDepositModalOpen(false);
-                        // The effect depends on [userProfile]. If refreshProfile updates userProfile, effect runs.
-                    }}
-                />
-            )}
-        </div>
+            {
+                userProfile?.wallet && (
+                    <WalletActionModal
+                        type="deposit"
+                        isOpen={isDepositModalOpen}
+                        onClose={() => setDepositModalOpen(false)}
+                        walletAddress={userProfile.wallet.address}
+                        balance={userProfile.wallet.balance}
+                        onSuccess={() => {
+                            refreshProfile();
+                            // Also trigger a local re-fetch if needed, or rely on effect dependency if userProfile updates
+                            // Ideally we should call logic to update walletBalance too.
+                            // For now refreshProfile usually doesn't update wallet balance in userProfile deep down if it's separate.
+                            // Let's force a reload of the page or re-run the effect by some trigger?
+                            // Simplest: 
+                            setDepositModalOpen(false);
+                            // The effect depends on [userProfile]. If refreshProfile updates userProfile, effect runs.
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 
