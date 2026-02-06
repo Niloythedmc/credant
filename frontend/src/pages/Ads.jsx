@@ -127,7 +127,7 @@ const Ads = ({ activePage }) => {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                 {/* Large Featured Image */}
-                                {selectedAd.mediaPreview ? (
+                                {selectedAd.mediaPreview && !selectedAd.mediaPreview.startsWith('blob:') ? (
                                     <div style={{ borderRadius: '20px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                                         <img src={selectedAd.mediaPreview} style={{ width: '100%', height: 'auto', maxHeight: '300px', objectFit: 'cover' }} />
                                     </div>

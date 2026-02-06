@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiActivity, FiClock, FiDollarSign, FiBarChart2, FiGlobe, FiCpu, FiMessageCircle, FiMonitor } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import AdCard from '../AdCard';
 
 const MyAds = ({ ads, onNavigate, onRefresh }) => {
     const { t } = useTranslation();
@@ -93,9 +94,6 @@ const MyAds = ({ ads, onNavigate, onRefresh }) => {
     );
 };
 
-// AdCard imported from separate file
-import AdCard from '../AdCard'; // Adjust path if needed
 
-// ... (No local AdCard definition needed)
 
 export default MyAds;

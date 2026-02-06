@@ -48,6 +48,8 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
     const statusColor = isActive ? '#4ade80' : (isCompleted ? '#9ca3af' : '#facc15');
     const statusLabel = isActive ? 'Active' : (isCompleted ? 'Completed' : 'Pending');
 
+    const hasValidImage = ad.mediaPreview && !ad.mediaPreview.startsWith('blob:');
+
     return (
         <motion.div
             layout
@@ -88,7 +90,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
                         boxShadow: `0 4px 12px ${subjectConfig.color}20`,
                         overflow: 'hidden'
                     }}>
-                        {ad.mediaPreview ? (
+                        {hasValidImage ? (
                             <img src={ad.mediaPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                             <SubjectIcon />

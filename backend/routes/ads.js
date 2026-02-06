@@ -30,6 +30,7 @@ router.post('/resolve-link', async (req, res) => {
         console.log(`[Resolve Link] Extracted username: ${username}`);
 
         // ... existing getChat logic ...
+        // ... existing getChat logic ...
         let chat;
         try {
             chat = await getChat(`@${username}`);
@@ -40,11 +41,29 @@ router.post('/resolve-link', async (req, res) => {
 
         if (chat) {
             let photoUrl = null;
-            if (chat.photo && chat.photo.big_file_id) {
-                photoUrl = await getFileLink(chat.photo.big_file_id);
+            let memberCount = 0;
+
+            // 1. Try to get STABLE photo from scraping t.me (CDN Link)
+            // API getFileLink expires after 1h, so it's bad for database storage.
+            try {
+                const scrapeUrl = `https://t.me/${username}`;
+                const { data: html } = await require('axios').get(scrapeUrl);
+                const regex = new RegExp(`<meta property="og:image" content="([^"]+)"`);
+                const match = html.match(regex);
+                if (match && match[1]) {
+                    photoUrl = match[1];
+                    console.log(`[Resolve Link] Got stable CDN photo for @${username}`);
+                }
+            } catch (scrapeErr) {
+                console.warn(`[Resolve Link] Scrape for stable photo failed: ${scrapeErr.message}`);
             }
 
-            let memberCount = 0;
+            // 2. Fallback to API Link if scrape failed (link expires in 1h, but better than nothing)
+            if (!photoUrl && chat.photo && chat.photo.big_file_id) {
+                photoUrl = await getFileLink(chat.photo.big_file_id);
+                console.log(`[Resolve Link] Using temporary API photo for @${username}`);
+            }
+
             try {
                 memberCount = await getChatMemberCount(chat.id);
             } catch (e) { }
