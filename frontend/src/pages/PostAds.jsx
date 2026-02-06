@@ -215,6 +215,11 @@ const PostAds = ({ activePage, onNavigate }) => {
                 ...formData,
                 budget: parseFloat(formData.budget),
                 duration: parseInt(formData.duration),
+                // Sanitize mediaPreview: If it's a blob (local file), we can't save it to DB yet.
+                // Only allow http/https URLs (from Telegram).
+                mediaPreview: (formData.mediaPreview && formData.mediaPreview.startsWith('blob:'))
+                    ? null
+                    : formData.mediaPreview,
                 // We don't need wallet.account.address for payment source, 
                 // but maybe for record keeping? backend gets uid.
                 walletAddress: userProfile?.wallet?.address
