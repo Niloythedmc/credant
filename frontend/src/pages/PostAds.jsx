@@ -25,14 +25,14 @@ const TelegramFetcher = ({ link, onResolved, subject }) => {
             setStatus('loading');
             try {
                 const res = await post('/ads/resolve-link', { link });
-                if (res && res.id) {
+                // Accept result if it has an ID OR a username (for scraped bots)
+                if (res && (res.id || res.username)) {
                     setData(res);
                     setStatus('success');
                     lastResolvedLink.current = link; // Update ref
                     onResolved(res);
                 } else {
                     // Only set error if we really tried and failed
-                    // Don't clear data immediately to avoid flickering if typing fast, but here we probably should reset
                     setStatus('error');
                 }
             } catch (e) {
@@ -575,7 +575,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                                 ...prev,
                                 title: prev.title || data.title,
                                 description: prev.description || data.description || '',
-                                targetId: data.id, // Store ID
+                                targetId: data.id || data.username, // Store ID or Username if ID missing
                                 mediaPreview: prev.mediaPreview || data.photoUrl // Optional: use profile pic as media? Maybe nice.
                             }));
                         }}

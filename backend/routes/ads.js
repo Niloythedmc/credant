@@ -29,30 +29,73 @@ router.post('/resolve-link', async (req, res) => {
         const username = match[1];
         console.log(`[Resolve Link] Extracted username: ${username}`);
 
-        const chat = await getChat(`@${username}`);
-        console.log(`[Resolve Link] Chat found: ${chat.id} (${chat.title})`);
-
-        let photoUrl = null;
-        if (chat.photo && chat.photo.big_file_id) {
-            photoUrl = await getFileLink(chat.photo.big_file_id);
+        // ... existing getChat logic ...
+        let chat;
+        try {
+            chat = await getChat(`@${username}`);
+            console.log(`[Resolve Link] Chat found: ${chat.id} (${chat.title})`);
+        } catch (e) {
+            console.warn(`[Resolve Link] getChat failed for @${username}. Trying fallback scrape...`);
         }
 
-        let memberCount = 0;
+        if (chat) {
+            let photoUrl = null;
+            if (chat.photo && chat.photo.big_file_id) {
+                photoUrl = await getFileLink(chat.photo.big_file_id);
+            }
+
+            let memberCount = 0;
+            try {
+                memberCount = await getChatMemberCount(chat.id);
+            } catch (e) { }
+
+            return res.json({
+                id: chat.id,
+                title: chat.title || chat.first_name,
+                username: chat.username,
+                description: chat.description || chat.bio,
+                photoUrl,
+                type: chat.type,
+                memberCount
+            });
+        }
+
+        // FALLBACK: Scrape t.me/username for Bots/Users where getChat fails
         try {
-            memberCount = await getChatMemberCount(chat.id);
-        } catch (e) { }
+            const scrapeUrl = `https://t.me/${username}`;
+            const { data: html } = await require('axios').get(scrapeUrl);
 
-        const result = {
-            id: chat.id,
-            title: chat.title || chat.first_name,
-            username: chat.username,
-            description: chat.description || chat.bio,
-            photoUrl,
-            type: chat.type,
-            memberCount
-        };
+            // Regex Extraction
+            const getMeta = (prop) => {
+                const regex = new RegExp(`<meta property="${prop}" content="([^"]+)"`);
+                const match = html.match(regex);
+                return match ? match[1] : null;
+            };
 
-        return res.json(result);
+            const titleRaw = getMeta('og:title') || '';
+            const title = titleRaw.replace(/^Telegram: Contact @/, '').replace(/^Telegram: Join Group Chat/, '').trim();
+            const description = getMeta('og:description');
+            const photoUrl = getMeta('og:image');
+
+            if (!title) throw new Error("No title found in scrape");
+
+            console.log(`[Resolve Link] Scraped Success: ${title}`);
+
+            return res.json({
+                id: null, // ID is unknown via scrape
+                title: title,
+                username: username,
+                description: description,
+                photoUrl: photoUrl,
+                type: 'bot_or_user', // Assumed
+                memberCount: 0
+            });
+
+        } catch (scrapeError) {
+            console.error("[Resolve Link] Scrape failed:", scrapeError.message);
+            // Re-throw original if scrape failed too, or return specific error
+            return res.status(404).json({ error: "Channel/Bot not found (API & Scrape failed)." });
+        }
 
     } catch (error) {
         console.error("[Resolve Link] Error:", error.message);
