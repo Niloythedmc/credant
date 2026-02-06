@@ -196,49 +196,136 @@ const Profile = ({ activePage, onNavigate }) => {
 
                             // --- AD ITEMS RENDER LOGIC ---
                             if (type === 'ads') {
+                                // Dynamic Calculations
+                                const now = Date.now();
+
+                                // Parse createdAt (Firestore Timestamp handling)
+                                let createdAtMs = now;
+                                if (item.createdAt) {
+                                    createdAtMs = typeof item.createdAt === 'number'
+                                        ? item.createdAt
+                                        : (item.createdAt.toMillis ? item.createdAt.toMillis() : new Date(item.createdAt).getTime());
+                                }
+
+                                const durationDays = parseInt(item.duration) || 0;
+                                const durationMs = durationDays * 24 * 60 * 60 * 1000;
+                                const expiryMs = createdAtMs + durationMs;
+
+                                const msLeft = Math.max(0, expiryMs - now);
+                                const daysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
+
+                                // Progress %
+                                const elapsedMs = now - createdAtMs;
+                                let progressPercent = 0;
+                                if (durationMs > 0) {
+                                    progressPercent = Math.min(100, Math.max(0, (elapsedMs / durationMs) * 100));
+                                }
+
+                                const budgetTon = parseFloat(item.budget) || 0;
+                                const estUsd = (budgetTon * 5.5).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); // Mock Rate 1 TON = $5.5
+
+                                // Subject Badge Logic
+                                let SubjectIcon = FiArrowUpRight; // Default
+                                let subjectLabel = item.subject || 'CAMPAIGN';
+                                let badgeColor = '#60a5fa'; // Blue
+
+                                if (subjectLabel.toUpperCase() === 'WEBSITE') { SubjectIcon = () => <span>🌐</span>; badgeColor = '#60a5fa'; }
+                                if (subjectLabel.toUpperCase().includes('BOT')) { SubjectIcon = () => <span>🤖</span>; badgeColor = '#a78bfa'; } // Purple
+                                if (subjectLabel.toUpperCase().includes('CHANNEL')) { SubjectIcon = () => <span>📢</span>; badgeColor = '#34d399'; } // Green
+
+                                const statusColor = item.status === 'active' ? '#4ade80' : (item.status === 'completed' ? '#f87171' : '#fbbf24');
+                                const statusLabel = item.status === 'active' ? 'LIVE' : (item.status === 'completed' ? 'COMPLETED' : 'PENDING');
+
                                 return (
                                     <div key={i} className={styles.itemCard}
                                         style={{
-                                            background: 'rgba(255, 255, 255, 0.03)',
-                                            border: '1px solid rgba(255,255,255,0.05)',
-                                            padding: '12px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '8px'
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            border: '1px solid rgba(255,255,255,0.08)',
+                                            borderRadius: '16px',
+                                            padding: '16px',
+                                            marginBottom: '12px',
+                                            cursor: 'default'
                                         }}
                                     >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '15px', fontWeight: '600' }}>{item.title}</h4>
+                                        {/* Header: Icon, Title, Status */}
+                                        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                                            {/* Icon Box */}
+                                            <div style={{
+                                                width: '40px', height: '40px',
+                                                borderRadius: '10px',
+                                                background: 'rgba(255,255,255,0.1)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: '20px'
+                                            }}>
+                                                <SubjectIcon />
+                                            </div>
+
+                                            {/* Title & Badge */}
+                                            <div style={{ flex: 1 }}>
+                                                <h4 style={{ margin: '0 0 4px 0', color: 'white', fontSize: '16px', fontWeight: 'bold' }}>{item.title}</h4>
+                                                <span style={{
+                                                    fontSize: '10px',
+                                                    background: badgeColor,
+                                                    color: '#fff',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '4px',
+                                                    fontWeight: 'bold',
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {subjectLabel}
+                                                </span>
+                                            </div>
+
+                                            {/* Status Badge */}
                                             <div style={{
                                                 fontSize: '11px',
-                                                background: item.status === 'active' ? 'rgba(74, 222, 128, 0.1)' : '#333',
-                                                color: item.status === 'active' ? '#4ade80' : '#888',
-                                                padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold'
+                                                background: statusColor,
+                                                color: '#000',
+                                                padding: '4px 8px',
+                                                borderRadius: '12px',
+                                                height: 'fit-content',
+                                                fontWeight: 'bold'
                                             }}>
-                                                {item.status}
+                                                {statusLabel}
                                             </div>
                                         </div>
 
-                                        {item.description && (
-                                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                                                {item.description}
-                                            </p>
-                                        )}
+                                        {/* Details Matrix */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#ccc' }}>
+                                                <span>Budget: <span style={{ color: 'white' }}>{budgetTon} TON</span> <span style={{ color: '#888' }}>(${estUsd} USD)</span></span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#ccc' }}>
+                                                <span>Duration: <span style={{ color: 'white' }}>{durationDays} Days</span> <span style={{ color: '#888' }}>({daysLeft} days left)</span></span>
+                                                <span style={{ fontWeight: 'bold' }}>{Math.round(progressPercent)}%</span>
+                                            </div>
+                                        </div>
 
-                                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
-                                            {item.subject && (
-                                                <span style={{ fontSize: '11px', background: 'var(--bg-card)', padding: '4px 8px', borderRadius: '6px', color: '#a0a0a0' }}>
-                                                    {item.subject}
-                                                </span>
-                                            )}
-                                            <span style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '6px', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                ⚡ {item.budget} TON
-                                            </span>
-                                            {item.duration && (
-                                                <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', color: '#ddd' }}>
-                                                    🕒 {item.duration} Days
-                                                </span>
-                                            )}
+                                        {/* Progress Bar */}
+                                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginBottom: '16px' }}>
+                                            <div style={{ width: `${progressPercent}%`, height: '100%', background: badgeColor, transition: 'width 0.5s' }}></div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button style={{
+                                                flex: 1, padding: '8px', borderRadius: '12px', border: 'none',
+                                                background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', cursor: 'pointer'
+                                            }}>
+                                                View Stats
+                                            </button>
+                                            <button style={{
+                                                flex: 1, padding: '8px', borderRadius: '12px', border: 'none',
+                                                background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', cursor: 'pointer'
+                                            }}>
+                                                Edit Campaign
+                                            </button>
+                                            <button style={{
+                                                flex: 1, padding: '8px', borderRadius: '12px', border: 'none',
+                                                background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', cursor: 'pointer'
+                                            }}>
+                                                View Results
+                                            </button>
                                         </div>
                                     </div>
                                 );

@@ -173,12 +173,19 @@ router.get('/my-ads', async (req, res) => {
 
         const snapshot = await admin.firestore().collection('ads')
             .where('userId', '==', uid)
-            .orderBy('createdAt', 'desc')
+            // .orderBy('createdAt', 'desc') // Removed to avoid Index Error
             .get();
 
         const ads = [];
         snapshot.forEach(doc => {
             ads.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Manual Sort (Desc Date)
+        ads.sort((a, b) => {
+            const tA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            const tB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return tB - tA;
         });
 
         return res.status(200).json(ads);
