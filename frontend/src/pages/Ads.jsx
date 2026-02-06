@@ -4,7 +4,7 @@ import { useApi } from '../auth/useApi';
 import styles from './Ads.module.css';
 import { useTranslation } from 'react-i18next';
 import AdCard from '../components/AdCard';
-import Modal from '../components/Modal'; import { useTranslation } from 'react-i18next';
+import Modal from '../components/Modal';
 
 const Ads = ({ activePage }) => {
     const { t } = useTranslation();
