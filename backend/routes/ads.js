@@ -165,4 +165,27 @@ router.post('/confirm-contract', async (req, res) => {
     return res.status(200).json({ success: true });
 });
 
+// GET /api/ads/my-ads
+router.get('/my-ads', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+
+        const snapshot = await admin.firestore().collection('ads')
+            .where('userId', '==', uid)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        const ads = [];
+        snapshot.forEach(doc => {
+            ads.push({ id: doc.id, ...doc.data() });
+        });
+
+        return res.status(200).json(ads);
+    } catch (error) {
+        if (error.message === 'Unauthorized') return res.status(401).json({ error: "Unauthorized" });
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

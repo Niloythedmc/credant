@@ -58,6 +58,7 @@ const Profile = ({ activePage, onNavigate }) => {
     const toggleRefresh = async () => {
         // Immediate refresh
         await refreshProfile();
+        fetchAds(); // Fetch full ads details
 
         const fetchBal = async () => {
             if (userProfile?.wallet?.address) {
@@ -78,6 +79,23 @@ const Profile = ({ activePage, onNavigate }) => {
             if (attempts >= 10) clearInterval(interval);
         }, 3000);
     };
+
+    // Fetch Ads Data Directly from Collection (for full details)
+    const [fullAds, setFullAds] = useState([]);
+    const fetchAds = async () => {
+        try {
+            const res = await get('/ads/my-ads');
+            if (Array.isArray(res)) {
+                setFullAds(res);
+            }
+        } catch (e) {
+            console.error("Failed to fetch ads", e);
+        }
+    };
+
+    useEffect(() => {
+        fetchAds();
+    }, [user]);
 
     // Derived Display Data
     const tgFullName = tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : null;
@@ -389,7 +407,7 @@ const Profile = ({ activePage, onNavigate }) => {
 
                 <ContentSection
                     title={t('profile.ads')}
-                    items={userProfile?.ads || []}
+                    items={fullAds.length > 0 ? fullAds : (userProfile?.ads || [])}
                     emptyText={t('profile.noAds')}
                     actionText={t('profile.postAds')}
                     styles={styles}
