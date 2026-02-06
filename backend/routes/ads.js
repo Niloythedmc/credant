@@ -1,6 +1,52 @@
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
+const { getChat, getFileLink, getChatMemberCount } = require('../services/botService'); // Import bot services
+
+// ... existing code ...
+
+// POST /api/ads/resolve-link
+router.post('/resolve-link', async (req, res) => {
+    const { link } = req.body;
+    if (!link) return res.status(400).json({ error: "Link is required" });
+
+    try {
+        // Extract username
+        // Regex handles: t.me/username, @username, t.me/username/123, t.me/bot?start=...
+        const match = link.match(/(?:t\.me\/|@)([\w_]+)/);
+        if (!match) return res.status(400).json({ error: "Invalid Telegram link or username" });
+
+        const username = match[1];
+        const chat = await getChat(`@${username}`);
+
+        let photoUrl = null;
+        if (chat.photo && chat.photo.big_file_id) {
+            photoUrl = await getFileLink(chat.photo.big_file_id);
+        }
+
+        // Try fetch member count if it's a channel/supergroup
+        let memberCount = 0;
+        try {
+            memberCount = await getChatMemberCount(chat.id);
+        } catch (e) { }
+
+        const result = {
+            id: chat.id,
+            title: chat.title || chat.first_name, // Bots might have first_name
+            username: chat.username,
+            description: chat.description || chat.bio, // Bots use bio often
+            photoUrl,
+            type: chat.type,
+            memberCount
+        };
+
+        return res.json(result);
+
+    } catch (error) {
+        console.error("Resolve Link Error:", error.message);
+        return res.status(404).json({ error: "Could not resolve link. Bot might not have access or invalid user." });
+    }
+});
 const { getSecret, saveSecret } = require('../services/secretService');
 const { transferTon, createWallet, getBalance } = require('../services/tonService'); // Import getBalance from updated service
 

@@ -512,9 +512,73 @@ const PostAds = ({ activePage, onNavigate }) => {
                     value={formData.link}
                     onChange={e => handleChange('link', e.target.value)}
                 />
+                {/* Telegram Auto-Fetch Preview */}
+                {(formData.subject === 'channel' || formData.subject === 'bot') && formData.link && (
+                    <TelegramFetcher
+                        link={formData.link}
+                        subject={formData.subject}
+                        onResolved={(data) => {
+                            console.log("Telegram Resolved Data:", data); // Log as requested
+                            // Auto-fill title/desc if empty
+                            setFormData(prev => ({
+                                ...prev,
+                                title: prev.title || data.title,
+                                description: prev.description || data.description || '',
+                                targetId: data.id, // Store ID
+                                mediaPreview: prev.mediaPreview || data.photoUrl // Optional: use profile pic as media? Maybe nice.
+                            }));
+                        }}
+                    />
+                )}
             </div>
         </div>
     );
+
+    // --- NEW COMPONENT FOR FETCHER ---
+    const TelegramFetcher = ({ link, onResolved, subject }) => {
+        const { post } = useApi();
+        const [status, setStatus] = useState('idle'); // idle, loading, success, error
+        const [data, setData] = useState(null);
+
+        React.useEffect(() => {
+            const timeoutId = setTimeout(async () => {
+                // Basic validation before call
+                if (!link.includes('t.me') && !link.startsWith('@')) return;
+
+                setStatus('loading');
+                try {
+                    const res = await post('/ads/resolve-link', { link });
+                    if (res && res.id) {
+                        setData(res);
+                        setStatus('success');
+                        onResolved(res);
+                    } else {
+                        setStatus('error');
+                    }
+                } catch (e) {
+                    console.error("Fetch failed", e);
+                    setStatus('error');
+                }
+            }, 800); // 800ms debounce
+
+            return () => clearTimeout(timeoutId);
+        }, [link]);
+
+        if (status === 'idle') return null;
+        if (status === 'loading') return <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Checking Telegram...</div>;
+        if (status === 'error') return <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>Could not resolve Telegram link</div>;
+
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+                {data.photoUrl && <img src={data.photoUrl} alt="Channel" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
+                <div>
+                    <div style={{ fontSize: 13, fontWeight: 'bold' }}>{data.title}</div>
+                    <div style={{ fontSize: 11, opacity: 0.7 }}>@{data.username} • {data.type}</div>
+                </div>
+                <div style={{ marginLeft: 'auto', color: '#10b981' }}><FiCheck /></div>
+            </div>
+        );
+    };
 
     // Phase 5: Preview
     const renderPhase5 = () => (
