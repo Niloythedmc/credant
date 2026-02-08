@@ -210,22 +210,45 @@ const PostAds = ({ activePage, onNavigate }) => {
         setLoading(true);
 
         try {
-            // 1. Prepare Data
+            // 1. Upload Media if exists
+            let mediaUrl = formData.mediaPreview;
+
+            if (formData.media) {
+                try {
+                    const uploadData = new FormData();
+                    uploadData.append('file', formData.media);
+
+                    // Use raw fetch to bypass JSON content-type of useApi
+                    const uploadRes = await fetch(`${backendUrl}/upload`, {
+                        method: 'POST',
+                        body: uploadData
+                        // Content-Type is set automatically by browser with boundary
+                    });
+
+                    if (!uploadRes.ok) {
+                        const errText = await uploadRes.text();
+                        throw new Error(errText || 'Upload failed');
+                    }
+
+                    const uploadJson = await uploadRes.json();
+                    mediaUrl = uploadJson.url;
+
+                } catch (uploadError) {
+                    console.error('Upload failed:', uploadError);
+                    throw new Error('Failed to upload image. Please try again.');
+                }
+            }
+
+            // 2. Prepare Data
             const payloadData = {
                 ...formData,
                 budget: parseFloat(formData.budget),
                 duration: parseInt(formData.duration),
-                // Sanitize mediaPreview: If it's a blob (local file), we can't save it to DB yet.
-                // Only allow http/https URLs (from Telegram).
-                mediaPreview: (formData.mediaPreview && formData.mediaPreview.startsWith('blob:'))
-                    ? null
-                    : formData.mediaPreview,
-                // We don't need wallet.account.address for payment source, 
-                // but maybe for record keeping? backend gets uid.
+                mediaPreview: mediaUrl, // Use the uploaded URL (or existing remote URL)
                 walletAddress: userProfile?.wallet?.address
             };
 
-            // 2. Call Backend to Pay (Deduct from Inner Wallet) & Create
+            // 3. Call Backend to Pay (Deduct from Inner Wallet) & Create
             // This endpoint now handles the full transaction on backend.
             const result = await post('/ads/create-contract', payloadData);
 
@@ -631,7 +654,7 @@ const PostAds = ({ activePage, onNavigate }) => {
     );
 
     // Auth & Profile
-    const { userProfile, refreshProfile } = useAuth();
+    const { userProfile, refreshProfile, backendUrl } = useAuth();
     // Deposit Modal
     const [isDepositModalOpen, setDepositModalOpen] = useState(false);
 

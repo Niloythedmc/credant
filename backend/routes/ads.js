@@ -267,6 +267,7 @@ router.post('/create-contract', async (req, res) => {
                 budget: payload.budget,
                 duration: duration, // Added for UI
                 subject: payload.subject, // Added for UI
+                mediaPreview: payload.mediaPreview, // Added for UI Consistency
                 currency: 'TON'
             })
         });

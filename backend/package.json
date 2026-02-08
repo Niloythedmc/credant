@@ -11,16 +11,18 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "firebase-admin": "^11.8.0",
+    "@google-cloud/secret-manager": "^5.0.1",
+    "axios": "^1.6.0",
+    "cloudinary": "^2.9.0",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
-    "ton": "^13.9.0",
-    "ton-crypto": "^3.2.0",
-    "ton-core": "^0.49.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.8.0",
+    "multer": "^2.0.2",
     "node-telegram-bot-api": "^0.63.0",
-    "axios": "^1.6.0",
-    "@google-cloud/secret-manager": "^5.0.1",
-    "dotenv": "^16.3.1"
+    "ton": "^13.9.0",
+    "ton-core": "^0.49.0",
+    "ton-crypto": "^3.2.0"
   }
 }

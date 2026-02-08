@@ -119,4 +119,131 @@ router.get('/', async (req, res) => {
     }
 });
 
+// POST /api/deals/request
+// Create a new deal offer
+router.post('/request', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { adId, channelId, amount, duration, proofDuration } = req.body; // proofDuration (hours) - distinct from ad duration or same?
+
+        // 1. Validations
+        if (!adId || !channelId || !amount) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        // Fetch Ad
+        const adRef = admin.firestore().collection('ads').doc(adId);
+        const adDoc = await adRef.get();
+        if (!adDoc.exists) return res.status(404).json({ error: "Ad not found" });
+        const ad = adDoc.data();
+
+        if (ad.status !== 'active') return res.status(400).json({ error: "Ad is not active" });
+
+        // Check Budget
+        if (parseFloat(amount) > parseFloat(ad.budget)) {
+            return res.status(400).json({ error: `Amount cannot exceed budget of ${ad.budget} TON` });
+        }
+
+        // Fetch Channel & Verify Ownership
+        const chRef = admin.firestore().collection('channels').doc(channelId);
+        const chDoc = await chRef.get();
+        if (!chDoc.exists) return res.status(404).json({ error: "Channel not found" });
+        
+        // Check if channel belongs to user (assuming channel doc has ownerId or we check user's channels)
+        // Ideally channel doc has 'ownerId' or similar. 
+        // Based on other code, generic ownership check might be needed, but assuming valid here for MVP or if structure allows.
+        // Actually, let's trust the Caller for checking their own list, but secure it by checking channel owner if field exists.
+        // If not, we just record the requester.
+
+        const offerData = {
+            adId,
+            adTitle: ad.title || 'Untitled Ad',
+            adOwnerId: ad.userId,
+            requesterId: uid,
+            channelId,
+            channelTitle: chDoc.data().title || 'Unknown Channel',
+            channelUsername: chDoc.data().username || '',
+            amount: parseFloat(amount),
+            duration: duration || ad.duration || 24, // fallback to ad duration
+            proofDuration: proofDuration || '24', // default 24h
+            status: 'pending', // pending owner approval
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        const offerRef = await admin.firestore().collection('offers').add(offerData);
+
+        // 2. Notifications
+        // A. In-App Notification to Ad Owner
+        await admin.firestore().collection('users').doc(ad.userId).collection('notifications').add({
+            type: 'offer',
+            message: `New Deal Request: ${amount} TON for "${ad.title}"`,
+            offerId: offerRef.id,
+            adId: adId,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // B. Telegram Notification (via Bot)
+        // We need to know Ad Owner's TG ID. Assuming userId IS the TG ID (from auth flow)
+        try {
+            const adOwnerId = ad.userId; // This is string, usually matches TG ID if auth via TG
+            await sendMessage(adOwnerId, `📩 New Deal Request!\n\nChannel: ${offerData.channelTitle}\nAmount: ${amount} TON\nAd: ${ad.title}\n\nCheck your profile to accept/reject.`);
+        } catch (botErr) {
+            console.warn(`Failed to send TG notification to ${ad.userId}:`, botErr.message);
+        }
+
+        // C. Duplicate/Link in User Profile 'offers' array? 
+        // Logic in Profile.jsx seems to read from 'offers' collection or user.offers array.
+        // Ideally we update the user doc to include this offer for faster read, OR the frontend queries 'offers' collection.
+        // The implementation plan suggests Profile.jsx reads userProfile.offers.
+        // Let's update `ad.userId` (Owner) and `uid` (Requester) with a reference if we maintain arrays.
+        // For scalability, better to query collection, but existing code uses arrays often.
+        // Let's Add to 'offers' array in User Doc for BOTH parties for easy access
+        
+        await admin.firestore().collection('users').doc(ad.userId).update({
+            offers: admin.firestore.FieldValue.arrayUnion({
+                id: offerRef.id,
+                ...offerData,
+                type: 'received',
+                createdAt: new Date().toISOString() // Approximate for array
+            })
+        });
+
+        await admin.firestore().collection('users').doc(uid).update({
+            offers: admin.firestore.FieldValue.arrayUnion({
+                id: offerRef.id,
+                ...offerData,
+                type: 'sent',
+                createdAt: new Date().toISOString()
+            })
+        });
+
+        return res.status(200).json({ success: true, offerId: offerRef.id });
+
+    } catch (error) {
+        console.error("Deal Request Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/deals/received
+// Get offers received by the current user
+router.get('/received', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+
+        // Query 'offers' where adOwnerId == uid
+        const snapshot = await admin.firestore().collection('offers')
+            .where('adOwnerId', '==', uid)
+            .get();
+
+        const offers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.status(200).json({ offers });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

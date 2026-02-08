@@ -2,7 +2,10 @@ import React from 'react';
 import { FiActivity, FiClock, FiDollarSign, FiBarChart2, FiGlobe, FiCpu, FiMessageCircle, FiMonitor } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { useApi } from '../auth/useApi';
+
 const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
+    const { post } = useApi();
     // Dynamic Calculations
     const now = Date.now();
     let createdAtMs = now;
@@ -48,7 +51,40 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
     const statusColor = isActive ? '#4ade80' : (isCompleted ? '#9ca3af' : '#facc15');
     const statusLabel = isActive ? 'Active' : (isCompleted ? 'Completed' : 'Pending');
 
-    const hasValidImage = ad.mediaPreview && !ad.mediaPreview.startsWith('blob:');
+    // Real-time Repair Logic: If image is missing/blob, try to fetch it.
+    const [imageSrc, setImageSrc] = React.useState(ad.mediaPreview);
+
+    // Initial check
+    const isValid = (url) => url && !url.startsWith('blob:');
+
+    React.useEffect(() => {
+        // Update local state if prop changes (and is valid)
+        if (isValid(ad.mediaPreview)) {
+            setImageSrc(ad.mediaPreview);
+        } else {
+            // Prop is invalid/missing. Try to fetch?
+            if (ad.link || ad.username) {
+                const fetchImage = async () => {
+                    try {
+                        // Construct link if missing but username exists
+                        const targetLink = ad.link || `https://t.me/${ad.username}`;
+                        // Avoid fetching if it looks like a generic website that isn't telegram? 
+                        // But resolve-link handles validation.
+
+                        const res = await post('/ads/resolve-link', { link: targetLink });
+                        if (res && res.photoUrl) {
+                            setImageSrc(res.photoUrl);
+                        }
+                    } catch (e) {
+                        // Silent fail
+                    }
+                };
+                fetchImage();
+            }
+        }
+    }, [ad.mediaPreview, ad.link, ad.username]); // Re-run if identity changes
+
+    const hasValidImage = isValid(imageSrc);
 
     return (
         <motion.div
@@ -91,7 +127,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
                         overflow: 'hidden'
                     }}>
                         {hasValidImage ? (
-                            <img src={ad.mediaPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                             <SubjectIcon />
                         )}
