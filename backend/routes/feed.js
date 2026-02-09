@@ -68,4 +68,44 @@ router.post('/like', async (req, res) => {
     }
 });
 
+// POST /api/feed
+// Create a new post
+router.post('/', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { content, mediaUrl } = req.body;
+
+        if (!content && !mediaUrl) {
+            return res.status(400).json({ error: "Content or Media is required" });
+        }
+
+        const userDoc = await admin.firestore().collection('users').doc(uid).get();
+        const userData = userDoc.exists ? userDoc.data() : { username: 'Unknown' };
+
+        // Determine if it mentions anyone (for notification logic later)
+        // ...
+
+        const newPost = {
+            userId: uid,
+            username: userData.username || 'User',
+            name: userData.displayName || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'User'),
+            userPhoto: userData.photoUrl || userData.photoURL || null,
+            content: content || '',
+            mediaUrl: mediaUrl || null,
+            likesCount: 0,
+            commentsCount: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            type: 'thought' // Distinguish from ads if needed
+        };
+
+        const docRef = await admin.firestore().collection('posts').add(newPost);
+        return res.status(200).json({ success: true, id: docRef.id });
+
+    } catch (error) {
+        console.error("Create Post Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

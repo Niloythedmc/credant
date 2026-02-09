@@ -1,0 +1,22 @@
+.textBody {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-main);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.link {
+    color: #3b82f6;
+    /* Blue-500 */
+    text-decoration: none;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+
+.hashtag {
+    color: #3b82f6;
+    font-weight: 500;
+}

@@ -1,0 +1,8 @@
+[31m✗[39m Build failed in 6.20s
+[31merror during build:
+[31mCould not resolve "../../auth/useApi" from "src/components/HoverPreview.jsx"[31m
+file: [36mE:/projects/Credant/frontend/src/components/HoverPreview.jsx[31m
+    at getRollupError (file:///E:/projects/Credant/frontend/node_modules/rollup/dist/es/shared/parseAst.js:400:41)
+    at error (file:///E:/projects/Credant/frontend/node_modules/rollup/dist/es/shared/parseAst.js:396:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///E:/projects/Credant/frontend/node_modules/rollup/dist/es/shared/node-entry.js:21666:24)
+    at file:///E:/projects/Credant/frontend/node_modules/rollup/dist/es/shared/node-entry.js:21626:26[39m

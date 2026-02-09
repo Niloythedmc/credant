@@ -30,6 +30,8 @@ app.use('/api/inbox', require('./routes/inbox'));
 app.use('/api/telegram-proxy', require('./routes/proxy'));
 app.use('/api/ads', require('./routes/ads'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/users', require('./routes/users'));
 
 // Health Check
 app.get('/', (req, res) => {

@@ -1,0 +1,132 @@
+.loading,
+.error {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}
+
+.error {
+    color: #ef4444;
+}
+
+.profileContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.header {
+    margin-bottom: 20px;
+}
+
+.avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: 12px;
+    border: 3px solid var(--primary);
+    object-fit: cover;
+}
+
+.nameBlock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.name {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+.verifiedIcon {
+    width: 20px;
+    height: 20px;
+    fill: #3b82f6;
+}
+
+.username {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin: 4px 0 0 0;
+}
+
+.botTag {
+    background: #3b82f6;
+    color: white;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.bioSection {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 16px;
+    border-radius: 12px;
+    color: var(--text-main);
+    font-size: 14px;
+    line-height: 1.5;
+    width: 100%;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.statsGrid {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    margin-bottom: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 0;
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.statValue {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.statLabel {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.actions {
+    width: 100%;
+}
+
+.functionButton {
+    width: 100%;
+    padding: 14px;
+    border-radius: 16px;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: opacity 0.2s;
+}
+
+.functionButton:active {
+    opacity: 0.9;
+}

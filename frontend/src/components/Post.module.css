@@ -1,0 +1,90 @@
+.postCard {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--glass-border);
+}
+
+.postHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.postUser {
+    display: flex;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.postAvatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.postUserInfo {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.postName {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-right: 4px;
+}
+
+.postTime {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+}
+
+.genreBadge {
+    background: var(--badge-blue-bg);
+    color: var(--badge-blue-text);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.postContent {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-main);
+    margin-bottom: 16px;
+}
+
+.postActions {
+    display: flex;
+    gap: 12px;
+}
+
+.likeButton {
+    background: none;
+    border: none;
+    color: var(--badge-yellow-text);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.verifiedIcon {
+    margin-left: 4px;
+    width: 14px;
+    height: 14px;
+    fill: #3b82f6;
+}
