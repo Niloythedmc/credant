@@ -62,8 +62,47 @@ const HoverPreview = ({ username, position, onClose }) => {
 
     if (error || !data) return null; // Or show error state?
 
+    // Calculate adjusted position to keep in viewport
+    // Default: centered above the mention
+    // We assume 200px width (from CSS) + padding/border ~ 220px
+    const cardWidth = 220;
+    const windowWidth = window.innerWidth;
+
+    // Initial left position (centered)
+    let leftPos = position.x;
+
+    // Check right edge
+    if (leftPos + cardWidth / 2 > windowWidth - 10) {
+        leftPos = windowWidth - cardWidth / 2 - 10;
+    }
+
+    // Check left edge
+    if (leftPos - cardWidth / 2 < 10) {
+        leftPos = cardWidth / 2 + 10;
+    }
+
+    // Apply transform in CSS matches logic, but we need to pass style
+    // The CSS has `transform: translateY(-100%)` which handles the vertical.
+    // We just need to ensure `left` doesn't push it off screen.
+    // But `left: position.x` sets the center anchor? 
+    // No, standard `left` sets the left edge unless we translate.
+    // The CSS is: .popover { ... top: position.y; left: position.x; transform: translateY(-100%); ... }
+    // It seems the current implementation treats `position.x` as the left edge or expected anchor.
+    // If `position.x` is the mouse/element center, we typically want to center the popover.
+    // Let's assume we want to center it. We should probably translate X too.
+    // But failing that, let's just clamp the `left` value so the *box* (starting at `left`) + width < window.
+    // Wait, if we don't have translateX(-50%), then `left` IS the left edge.
+    // If the mention is at right side of screen, position.x is large. card draws to the right -> overflow.
+
+    // Let's define the style more explicitly.
+
+    const style = {
+        top: position.y,
+        left: Math.min(Math.max(position.x, 10), window.innerWidth - 210), // Clamp left edge
+    };
+
     return (
-        <div className={styles.popover} style={{ top: position.y, left: position.x }}>
+        <div className={styles.popover} style={style}>
             <div className={styles.header}>
                 <img
                     src={data.photoUrl || "https://i.pravatar.cc/150?u=fake"}
@@ -84,18 +123,6 @@ const HoverPreview = ({ username, position, onClose }) => {
                 </div>
             </div>
 
-            {data.bio && <p className={styles.bio}>{data.bio}</p>}
-
-            {/* Stats based on type */}
-            <div className={styles.stats}>
-                {data.type === 'channel' && (
-                    <div className={styles.statItem}>
-                        <span className={styles.statValue}>{data.subscribers}</span>
-                        <span className={styles.statLabel}>subscribers</span>
-                    </div>
-                )}
-                {/* Add more stats if available for users */}
-            </div>
         </div>
     );
 };

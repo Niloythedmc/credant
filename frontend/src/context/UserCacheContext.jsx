@@ -48,11 +48,13 @@ export const UserCacheProvider = ({ children }) => {
         // 3. Fetch
         const promise = (async () => {
             try {
+                console.log(`[UserCache] Fetching for ${identifier}`);
                 const res = await get(`/users/resolve/${identifier}`);
+                console.log(`[UserCache] Fetched for ${identifier}:`, res);
                 updateCache(res);
                 return res;
             } catch (err) {
-                console.error(`Failed to resolve user ${identifier}`, err);
+                console.error(`[UserCache] Failed to resolve user ${identifier}`, err);
                 // We might want to cache the failure/null to avoid retry loops, but for now just return null
                 return null;
             } finally {

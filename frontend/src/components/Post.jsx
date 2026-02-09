@@ -5,28 +5,46 @@ import { useUserCache } from '../context/UserCacheContext';
 
 const Post = ({ post, onLike, onProfileClick }) => {
     const { resolveUser, getCachedUser } = useUserCache();
-    const [userData, setUserData] = useState(null);
-    const [loadingUser, setLoadingUser] = useState(false);
+
+    // Initialize with cached data if available
+    const cachedInitial = post.userId ? getCachedUser(post.userId) : null;
+    const [userData, setUserData] = useState(cachedInitial);
+
+    // If we have userId but no data, we are loading.
+    const [loadingUser, setLoadingUser] = useState(!cachedInitial && !!post.userId);
 
     // Fetch user data if userId is present
     useEffect(() => {
         let isMounted = true;
+
+        // If we already have initial data from cache, we don't need to do anything 
+        // unless we want to re-validate? For now, assume cache is good.
+        if (userData) {
+            // console.log(`[Post] Already have userData for ${post.userId}`, userData);
+            return;
+        }
+
         const fetchUser = async () => {
             if (post.userId) {
-
-                // Check cache first (sync)
+                console.log(`[Post] Fetching user ${post.userId} for post ${post.id}`);
+                // Double check cache in effect (in case it updated between render and effect?)
+                // Actually, if we initialized with it, we are good.
+                // But just in case we didn't have it at init but do now:
                 const cached = getCachedUser(post.userId);
                 if (cached) {
                     if (isMounted) {
+                        console.log(`[Post] Found in cache inside effect for ${post.userId}`, cached);
                         setUserData(cached);
+                        setLoadingUser(false);
                     }
                     return;
                 }
 
-                setLoadingUser(true);
+                setLoadingUser(true); // Ensure loading is true
                 try {
                     // Use resolveUser from context
                     const res = await resolveUser(post.userId);
+                    console.log(`[Post] Resolved user ${post.userId}:`, res);
                     if (isMounted) {
                         setUserData(res);
                     }
@@ -35,28 +53,32 @@ const Post = ({ post, onLike, onProfileClick }) => {
                 } finally {
                     if (isMounted) setLoadingUser(false);
                 }
+            } else {
+                console.warn(`[Post] No userId for post ${post.id}`, post);
             }
         };
 
-        // Only fetch if we don't have rich data or if we want to ensure freshness
-        // The post object from feed might have stale name/avatar
         fetchUser();
 
         return () => { isMounted = false; };
-    }, [post.userId, resolveUser, getCachedUser]);
+    }, [post.userId, resolveUser, getCachedUser, userData]);
 
     // Use fetched data or fallback to post data
-    const resolvedName = userData?.name || userData?.title;
-    // Fallback priority: Resolved Name -> Post Name -> Post Username -> "User"
-    const displayName = (resolvedName && resolvedName !== 'User' && resolvedName !== 'Unknown')
-        ? resolvedName
+    // Use fetched data or fallback to post data
+    const resolvedName = userData?.name || userData?.title || userData?.username;
+
+    // If userData is available, use it (even if it is 'User' or generic).
+    // Only use post data if userData is not yet loaded.
+    const displayName = userData
+        ? (resolvedName || 'Unknown')
         : (post.name || post.username || 'User');
 
-    const displayAvatar = userData?.photoUrl
-        ? userData.photoUrl
+    // If userData is available, use its photo (or default). NEVER use post.userPhoto if userData is present.
+    const displayAvatar = userData
+        ? (userData.photoUrl || `https://i.pravatar.cc/150?u=${post.userId}`)
         : (post.userPhoto || post.avatar || `https://i.pravatar.cc/150?u=${post.userId}`);
 
-    const isVerified = userData ? userData.verified : (post.verified || false);
+    const isVerified = userData ? (userData.verified || false) : (post.verified || false);
     const username = userData ? userData.username : (post.username || null); // To pass to profile click
 
     // Format time (assuming firestore timestamp or iso string)
@@ -95,24 +117,34 @@ const Post = ({ post, onLike, onProfileClick }) => {
     return (
         <div className={styles.postCard}>
             <div className={styles.postHeader}>
-                <div className={styles.postUser} onClick={handleProfileClick}>
-                    <img
-                        src={displayAvatar}
-                        alt={displayName}
-                        className={styles.postAvatar}
-                    />
-                    <div>
-                        <div className={styles.postUserInfo}>
-                            <h3 className={styles.postName}>{displayName}</h3>
-                            {isVerified && (
-                                <svg className={styles.verifiedIcon} viewBox="0 0 24 24">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                </svg>
-                            )}
+                {loadingUser ? (
+                    <div className={styles.postUser}>
+                        <div className={`${styles.skeleton} ${styles.skeletonAvatar}`} />
+                        <div style={{ marginLeft: '10px' }}>
+                            <div className={`${styles.skeleton} ${styles.skeletonText}`} style={{ width: '100px' }} />
+                            <div className={`${styles.skeleton} ${styles.skeletonText} ${styles.short}`} />
                         </div>
-                        <span className={styles.postTime}>{formatTime(post.createdAt)}</span>
                     </div>
-                </div>
+                ) : (
+                    <div className={styles.postUser} onClick={handleProfileClick}>
+                        <img
+                            src={displayAvatar}
+                            alt={displayName}
+                            className={styles.postAvatar}
+                        />
+                        <div>
+                            <div className={styles.postUserInfo}>
+                                <h3 className={styles.postName}>{displayName}</h3>
+                                {isVerified && (
+                                    <svg className={styles.verifiedIcon} viewBox="0 0 24 24">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                    </svg>
+                                )}
+                            </div>
+                            <span className={styles.postTime}>{formatTime(post.createdAt)}</span>
+                        </div>
+                    </div>
+                )}
                 {post.genre && (
                     <span className={styles.genreBadge}>
                         <span style={{ fontSize: '12px' }}>⚡</span> {post.genre}
