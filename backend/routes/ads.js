@@ -290,35 +290,6 @@ router.post('/confirm-contract', async (req, res) => {
     return res.status(200).json({ success: true });
 });
 
-// GET /api/ads (Public - All Active Ads)
-router.get('/', async (req, res) => {
-    try {
-        const snapshot = await admin.firestore().collection('ads')
-            .where('status', '==', 'active')
-            // .orderBy('createdAt', 'desc') // Ensure index exists if using this
-            .get();
-
-        const ads = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            // Optional: Filter out sensitive data if needed, but for now budget/title is fine
-            ads.push({ id: doc.id, ...data });
-        });
-
-        // Manual Sort (Desc Date)
-        ads.sort((a, b) => {
-            const tA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-            const tB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
-            return tB - tA;
-        });
-
-        return res.status(200).json(ads);
-    } catch (error) {
-        console.error("Fetch Ads Error:", error);
-        return res.status(500).json({ error: error.message });
-    }
-});
-
 // GET /api/ads/my-ads
 router.get('/my-ads', async (req, res) => {
     try {
@@ -348,5 +319,52 @@ router.get('/my-ads', async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
+
+// GET /api/ads/:id (Public - Single Ad Details)
+router.get('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const doc = await admin.firestore().collection('ads').doc(id).get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ error: "Ad not found" });
+        }
+
+        return res.status(200).json({ id: doc.id, ...doc.data() });
+    } catch (error) {
+        console.error("Fetch Ad Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/ads (Public - All Active Ads)
+router.get('/', async (req, res) => {
+    try {
+        const snapshot = await admin.firestore().collection('ads')
+            .where('status', '==', 'active')
+            // .orderBy('createdAt', 'desc') // Ensure index exists if using this
+            .get();
+
+        const ads = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // Optional: Filter out sensitive data if needed, but for now budget/title is fine
+            ads.push({ id: doc.id, ...data });
+        });
+
+        // Manual Sort (Desc Date)
+        ads.sort((a, b) => {
+            const tA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            const tB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return tB - tA;
+        });
+
+        return res.status(200).json(ads);
+    } catch (error) {
+        console.error("Fetch Ads Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 
 module.exports = router;

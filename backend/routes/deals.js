@@ -125,7 +125,7 @@ router.post('/request', async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
         const uid = decodedToken.uid;
-        const { adId, channelId, amount, duration, proofDuration } = req.body; // proofDuration (hours) - distinct from ad duration or same?
+        const { adId, channelId, amount, duration, proofDuration, modifiedContent } = req.body; // proofDuration (hours) - distinct from ad duration or same?
 
         // 1. Validations
         if (!adId || !channelId || !amount) {
@@ -149,7 +149,7 @@ router.post('/request', async (req, res) => {
         const chRef = admin.firestore().collection('channels').doc(channelId);
         const chDoc = await chRef.get();
         if (!chDoc.exists) return res.status(404).json({ error: "Channel not found" });
-        
+
         // Check if channel belongs to user (assuming channel doc has ownerId or we check user's channels)
         // Ideally channel doc has 'ownerId' or similar. 
         // Based on other code, generic ownership check might be needed, but assuming valid here for MVP or if structure allows.
@@ -168,6 +168,7 @@ router.post('/request', async (req, res) => {
             duration: duration || ad.duration || 24, // fallback to ad duration
             proofDuration: proofDuration || '24', // default 24h
             status: 'pending', // pending owner approval
+            modifiedContent: modifiedContent || null, // Store if exists
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
 
@@ -200,7 +201,7 @@ router.post('/request', async (req, res) => {
         // Let's update `ad.userId` (Owner) and `uid` (Requester) with a reference if we maintain arrays.
         // For scalability, better to query collection, but existing code uses arrays often.
         // Let's Add to 'offers' array in User Doc for BOTH parties for easy access
-        
+
         await admin.firestore().collection('users').doc(ad.userId).update({
             offers: admin.firestore.FieldValue.arrayUnion({
                 id: offerRef.id,
@@ -235,9 +236,14 @@ router.get('/received', async (req, res) => {
         const uid = decodedToken.uid;
 
         // Query 'offers' where adOwnerId == uid
-        const snapshot = await admin.firestore().collection('offers')
-            .where('adOwnerId', '==', uid)
-            .get();
+        let query = admin.firestore().collection('offers').where('adOwnerId', '==', uid);
+
+        // Optional: Filter by specific Ad
+        if (req.query.adId) {
+            query = query.where('adId', '==', req.query.adId);
+        }
+
+        const snapshot = await query.get();
 
         const offers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return res.status(200).json({ offers });

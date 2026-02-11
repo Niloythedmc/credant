@@ -1,0 +1,176 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.loading,
+.empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 20px;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.offerItem {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.offerHeader {
+    display: flex;
+    justify-content: rejection;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.offerChannel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.channelAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.channelName {
+    font-weight: 600;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.verifiedBadge {
+    color: #3b82f6;
+    font-size: 12px;
+}
+
+.senderInfo {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.senderName {
+    color: var(--primary);
+}
+
+.offerStatus {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.offerStatus[data-status="pending"] {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.offerStatus[data-status="approved"] {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.offerStatus[data-status="rejected"] {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.offerDetails {
+    display: flex;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.detailItem {
+    display: flex;
+    flex-direction: column;
+}
+
+.detailLabel {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.detailValue {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.offerActions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.acceptButton,
+.rejectButton {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.acceptButton {
+    background: var(--primary);
+    color: white;
+}
+
+.rejectButton {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+/* Skeleton */
+.offerItemSkeleton {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+    align-items: center;
+}
+
+.skeletonAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.skeletonContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skeletonLine {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}

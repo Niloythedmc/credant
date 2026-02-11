@@ -6,34 +6,35 @@ import { useUserCache } from '../context/UserCacheContext';
 const Post = ({ post, onLike, onProfileClick }) => {
     const { resolveUser, getCachedUser } = useUserCache();
 
+    // Determine author ID: Channel takes precedence
+    const authorId = post.channelId || post.userId;
+
     // Initialize with cached data if available
-    const cachedInitial = post.userId ? getCachedUser(post.userId) : null;
+    const cachedInitial = authorId ? getCachedUser(authorId) : null;
     const [userData, setUserData] = useState(cachedInitial);
 
-    // If we have userId but no data, we are loading.
-    const [loadingUser, setLoadingUser] = useState(!cachedInitial && !!post.userId);
+    // If we have an authorId but no data, we are loading.
+    const [loadingUser, setLoadingUser] = useState(!cachedInitial && !!authorId);
 
-    // Fetch user data if userId is present
+    // Fetch user/channel data if authorId is present
     useEffect(() => {
         let isMounted = true;
 
         // If we already have initial data from cache, we don't need to do anything 
         // unless we want to re-validate? For now, assume cache is good.
         if (userData) {
-            // console.log(`[Post] Already have userData for ${post.userId}`, userData);
+            // console.log(`[Post] Already have userData for ${authorId}`, userData);
             return;
         }
 
         const fetchUser = async () => {
-            if (post.userId) {
-                console.log(`[Post] Fetching user ${post.userId} for post ${post.id}`);
-                // Double check cache in effect (in case it updated between render and effect?)
-                // Actually, if we initialized with it, we are good.
-                // But just in case we didn't have it at init but do now:
-                const cached = getCachedUser(post.userId);
+            if (authorId) {
+                console.log(`[Post] Fetching author ${authorId} for post ${post.id}`);
+                // Double check cache in effect
+                const cached = getCachedUser(authorId);
                 if (cached) {
                     if (isMounted) {
-                        console.log(`[Post] Found in cache inside effect for ${post.userId}`, cached);
+                        console.log(`[Post] Found in cache inside effect for ${authorId}`, cached);
                         setUserData(cached);
                         setLoadingUser(false);
                     }
@@ -43,25 +44,25 @@ const Post = ({ post, onLike, onProfileClick }) => {
                 setLoadingUser(true); // Ensure loading is true
                 try {
                     // Use resolveUser from context
-                    const res = await resolveUser(post.userId);
-                    console.log(`[Post] Resolved user ${post.userId}:`, res);
+                    const res = await resolveUser(authorId);
+                    console.log(`[Post] Resolved author ${authorId}:`, res);
                     if (isMounted) {
                         setUserData(res);
                     }
                 } catch (e) {
-                    console.error("Failed to fetch post user", e);
+                    console.error("Failed to fetch post author", e);
                 } finally {
                     if (isMounted) setLoadingUser(false);
                 }
             } else {
-                console.warn(`[Post] No userId for post ${post.id}`, post);
+                console.warn(`[Post] No authorId for post ${post.id}`, post);
             }
         };
 
         fetchUser();
 
         return () => { isMounted = false; };
-    }, [post.userId, resolveUser, getCachedUser, userData]);
+    }, [authorId, resolveUser, getCachedUser, userData, post.id]);
 
     // Use fetched data or fallback to post data
     // Use fetched data or fallback to post data
@@ -75,8 +76,8 @@ const Post = ({ post, onLike, onProfileClick }) => {
 
     // If userData is available, use its photo (or default). NEVER use post.userPhoto if userData is present.
     const displayAvatar = userData
-        ? (userData.photoUrl || `https://i.pravatar.cc/150?u=${post.userId}`)
-        : (post.userPhoto || post.avatar || `https://i.pravatar.cc/150?u=${post.userId}`);
+        ? (userData.photoUrl || `https://i.pravatar.cc/150?u=${authorId}`)
+        : (post.userPhoto || post.avatar || `https://i.pravatar.cc/150?u=${authorId}`);
 
     const isVerified = userData ? (userData.verified || false) : (post.verified || false);
     const username = userData ? userData.username : (post.username || null); // To pass to profile click
@@ -108,9 +109,9 @@ const Post = ({ post, onLike, onProfileClick }) => {
 
     const handleProfileClick = (e) => {
         e.stopPropagation();
-        // Prefer username if available, else userId
+        // Prefer username if available, else authorId
         if (onProfileClick) {
-            onProfileClick(username || post.userId);
+            onProfileClick(username || authorId);
         }
     };
 

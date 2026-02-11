@@ -140,6 +140,7 @@ const PostAds = ({ activePage, onNavigate }) => {
         media: null,
         mediaPreview: null,
         link: '',
+        buttonText: '', // New Field
     });
 
     const style = {
@@ -264,7 +265,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                 setFormData({
                     title: '', description: '', subject: '', promotionTypes: [],
                     duration: 7, budget: '', geo: [], channels: [], ageRange: [18, 40],
-                    postText: '', media: null, mediaPreview: null, link: ''
+                    postText: '', media: null, mediaPreview: null, link: '', buttonText: ''
                 });
                 setPhase(1);
                 onNavigate('feed');
@@ -510,17 +511,10 @@ const PostAds = ({ activePage, onNavigate }) => {
                     // Check if part is a "word" (not whitespace)
                     if (part.trim() === '') return <span key={i}>{part}</span>;
 
-                    // Logic: 
-                    // 1. Starts with @ or #
-                    // 2. Contains a dot NOT at the start (usually), but simpler: 
-                    //    Check if it has a dot. 
-                    //    If it ends with a dot, it MUST have another dot inside to be blue.
-                    //    e.g. "world." (Black) vs "google.com." (Blue) vs "google.com" (Blue)
-
                     const hasDot = part.includes('.');
                     const endsWithDot = part.endsWith('.');
                     // Is it a link-like token?
-                    const isLink = hasDot && (!endsWithDot || part.slice(0, -1).includes('.'));
+                    const isLink = part.startsWith('http') || (hasDot && (!endsWithDot || part.slice(0, -1).includes('.')));
 
                     const shouldHighlight = part.startsWith('@') || part.startsWith('#') || isLink;
 
@@ -585,12 +579,22 @@ const PostAds = ({ activePage, onNavigate }) => {
 
             <div className={styles.formGroup}>
                 <label className={styles.label}>{t('ads.buttonLink')} (Optional)</label>
-                <input
-                    className={styles.input}
-                    placeholder="https://t.me/..."
-                    value={formData.link}
-                    onChange={e => handleChange('link', e.target.value)}
-                />
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                        className={styles.input}
+                        placeholder="Button Text"
+                        value={formData.buttonText}
+                        onChange={e => handleChange('buttonText', e.target.value)}
+                        style={{ flex: 1 }}
+                    />
+                    <input
+                        className={styles.input}
+                        placeholder="https://t.me/..."
+                        value={formData.link}
+                        onChange={e => handleChange('link', e.target.value)}
+                        style={{ flex: 2 }}
+                    />
+                </div>
                 {/* Telegram Auto-Fetch Preview */}
                 {(formData.subject === 'channel' || formData.subject === 'bot') && formData.link && (
                     <TelegramFetcher
@@ -640,7 +644,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                     {/* Optional Button */}
                     {formData.link && (
                         <button className={styles.previewLinkBtn} onClick={() => window.open(formData.link, '_blank')}>
-                            Open Link
+                            {formData.buttonText || 'Open Link'}
                         </button>
                     )}
                 </div>

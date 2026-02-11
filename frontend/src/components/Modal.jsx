@@ -57,13 +57,15 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                         initial={{ y: "100%" }}
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
-                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
                         style={{
                             position: 'fixed',
                             bottom: 0,
                             left: 0,
                             right: 0,
-                            background: 'var(--bg-card)', // Changed from hardcoded #1a1b1e
+                            background: '#fff1',
+                            backdropFilter: 'blur(30px)',
+                            border: '1px solid #fff2',
                             borderTopLeftRadius: '24px',
                             borderTopRightRadius: '24px',
                             padding: '24px',

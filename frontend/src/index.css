@@ -1,45 +1,53 @@
 :root {
-  /* Dark Mode (Default) */
-  --bg-dark: #0f0f13;
-  --bg-card: rgba(30, 30, 35, 0.7);
-  --bg-nav: rgba(20, 20, 25, 0.85);
+  /* Dark Mode (Default) - Deep Glass Theme */
+  --bg-dark: #050505;
+  /* Deep black/blue base */
+  --bg-card: rgba(20, 20, 25, 0.4);
+  /* More transparent for glass */
+  --bg-nav: rgba(10, 10, 12, 0.65);
+  /* More transparent nav */
   --primary: #6366f1;
   --accent: #8b5cf6;
   --text-main: #f3f4f6;
   --text-muted: #9ca3af;
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  /* Subtle glass border */
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+  /* Top highlight for depth */
+  --backdrop-blur: 20px;
   --nav-height: 80px;
   --safe-area-bottom: env(safe-area-inset-bottom, 20px);
   --app-max-width: 100%;
+
   /* New Feed UI Colors */
   --badge-yellow-bg: rgba(253, 224, 71, 0.15);
   --badge-yellow-text: #facc15;
   --badge-blue-bg: rgba(96, 165, 250, 0.15);
   --badge-blue-text: #60a5fa;
-  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+  --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  /* Glass shadow */
   --icon-verified: #3b82f6;
   --notif-bg: rgba(255, 255, 255, 0.07);
-  /* Dark theme #fff1 */
 }
 
 [data-theme="light"] {
   --bg-dark: #f0f2f5;
-  --bg-card: #ffffff;
-  --bg-nav: rgba(255, 255, 255, 0.95);
+  --bg-card: rgba(255, 255, 255, 0.6);
+  --bg-nav: rgba(255, 255, 255, 0.8);
   --primary: #4f46e5;
   --accent: #7c3aed;
   --text-main: #111827;
   --text-muted: #6b7280;
-  --glass-border: rgba(0, 0, 0, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-highlight: rgba(255, 255, 255, 0.8);
   --notif-bg: rgba(255, 255, 255, 0.2);
-  /* Light theme #fff3 - stronger opacity needed for visibility against light bg? User said #fff3 which is white... 20% white on white card is invisible. Wait. #fff3 is 20% white. On light gray background it might show. But notifications are usually white text? Let's check item text color. The item text is `var(--text-main)` in my previous view. */
 
   /* Feed UI Light Mode Overrides */
   --badge-yellow-bg: #fef9c3;
   --badge-yellow-text: #854d0e;
   --badge-blue-bg: #dbeafe;
   --badge-blue-text: #1e40af;
-  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
 }
 
 * {
@@ -62,6 +70,11 @@
 
 body {
   background-color: var(--bg-dark);
+  /* Deep Mesh Gradient Background */
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.15), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.15), transparent 25%);
+  background-attachment: fixed;
   color: var(--text-main);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow: hidden;
@@ -110,17 +123,21 @@ body {
 /* Glassmorphism Utilities */
 .glass {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
   border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-highlight);
+  /* Highlight for depth */
+  box-shadow: var(--card-shadow);
   transition: background 1s ease, border-color 1s ease;
 }
 
 .glass-nav {
   background: var(--bg-nav);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
   border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.1);
   transition: background 1s ease, border-color 1s ease;
 }
 

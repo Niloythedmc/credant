@@ -8,7 +8,8 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 8px;
-    width: 200px;
+    width: fit-content;
+    max-width: 220px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     z-index: 9999;
     pointer-events: none;
@@ -71,6 +72,9 @@
     color: var(--text-muted);
     font-size: 10px;
     display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .verifiedIcon {

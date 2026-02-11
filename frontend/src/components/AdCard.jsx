@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { useApi } from '../auth/useApi';
 
-const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
+const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) => {
     const { post } = useApi();
     // Dynamic Calculations
     const now = Date.now();
@@ -101,7 +101,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
                 backdropFilter: 'blur(10px)',
                 cursor: 'pointer'
             }}
-            onClick={onToggle}
+            onClick={ad.onClick || onToggle}
         >
             {/* Background Glow */}
             <div style={{
@@ -167,6 +167,37 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
                 </div>
             </div>
 
+            {/* Red Dot Alert */}
+            {ad.hasAlert && (
+                <div style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px', // Adjust depending on layout, maybe next to status?
+                    // Actually, let's put it on the top right corner of the card or the icon?
+                    // Let's put it overlapping the top right or near the status.
+                    // For visibility, let's place it absolutely on the top right of the card, pulsing.
+                    width: '10px', height: '10px',
+                    borderRadius: '50%',
+                    background: '#ef4444',
+                    boxShadow: '0 0 8px #ef4444',
+                    zIndex: 10
+                }}>
+                    <div style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        borderRadius: '50%', background: '#ef4444',
+                        animation: 'pulse 2s infinite',
+                        opacity: 0.5
+                    }} />
+                    <style>{`
+                        @keyframes pulse {
+                            0% { transform: scale(1); opacity: 0.5; }
+                            70% { transform: scale(2); opacity: 0; }
+                            100% { transform: scale(1); opacity: 0; }
+                        }
+                    `}</style>
+                </div>
+            )}
+
             {/* Main Stats Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
                 <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '12px' }}>
@@ -230,13 +261,33 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner' }) => {
                                     }}>
                                         <FiBarChart2 /> Stats
                                     </button>
-                                    <button style={{
-                                        flex: 1, height: '40px', borderRadius: '12px', border: 'none',
-                                        background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', fontWeight: '500', cursor: 'not-allowed',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                                    }}>
-                                        <FiActivity /> Results
-                                    </button>
+                                    {/* See Offers Button */}
+                                    {/* This button appears ONLY if onShowOffers is passed (which happens in MyAds) */}
+                                    {/* We replace the dummy 'Results' button or add next to it. Let's replace 'Results' for now or add as 3rd? 3 buttons might cramp. */}
+                                    {/* Let's keep Stats and replace Results with Offers if available, or just add Offers. */}
+                                    {/* Actually, let's make it conditional: If onShowOffers exists, show it. */}
+                                    {ad.onShowOffers || (ad.offersCount !== undefined) || true ? ( // Hack: We pass onShowOffers to the component, not ad object.
+                                        // Wait, onShowOffers is a prop to AdCard, not on ad object.
+                                        // But wait, the prop `onToggle` expands. Inside, we have buttons.
+                                        // We need `onShowOffers` passed to AdCard.
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onShowOffers && onShowOffers(ad); }}
+                                            style={{
+                                                flex: 1, height: '40px', borderRadius: '12px', border: 'none',
+                                                background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                                            }}>
+                                            <FiActivity /> Offers
+                                        </button>
+                                    ) : (
+                                        <button style={{
+                                            flex: 1, height: '40px', borderRadius: '12px', border: 'none',
+                                            background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', fontWeight: '500', cursor: 'not-allowed',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                                        }}>
+                                            <FiActivity /> Results
+                                        </button>
+                                    )}
                                 </>
                             ) : (
                                 <button style={{

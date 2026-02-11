@@ -10,7 +10,7 @@ import { useAuth } from '../auth/AuthProvider';
 import Modal from '../components/Modal';
 import { useNotification } from '../context/NotificationContext';
 
-const Ads = ({ activePage }) => {
+const Ads = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
     const index = 1;
     const { get, post } = useApi();
@@ -20,59 +20,21 @@ const Ads = ({ activePage }) => {
     const [loading, setLoading] = useState(true);
     const [selectedAd, setSelectedAd] = useState(null);
 
-    // Deal Request State
-    const [isDealModalOpen, setIsDealModalOpen] = useState(false);
-    const [selectedChannelForDeal, setSelectedChannelForDeal] = useState(null);
-    const [dealAmount, setDealAmount] = useState('');
-    const [dealDuration, setDealDuration] = useState('24'); // Default 24h
-    const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
+    // Deal Request State - REMOVED (Moved to RequestDeal.jsx)
 
     const handleOpenDealModal = () => {
         if (!userProfile?.channels || userProfile.channels.length === 0) {
             addNotification('warning', 'Please connect a channel in Profile first.');
             return;
         }
-        setIsDealModalOpen(true);
-        // Default to first channel
-        if (!selectedChannelForDeal) {
-            setSelectedChannelForDeal(userProfile.channels[0]);
-        }
+
+        // Store selected ad ID for the next page to pick up
+        sessionStorage.setItem('selectedAdId', selectedAd.id);
+
+        // Navigate to Request Deal Page
+        onNavigate('requestDeal');
     };
 
-    const handleSubmitDeal = async () => {
-        if (!selectedChannelForDeal || !dealAmount) {
-            addNotification('error', 'Please select a channel and enter amount');
-            return;
-        }
-        if (parseFloat(dealAmount) > parseFloat(selectedAd.budget)) {
-            addNotification('error', `Amount cannot exceed budget of ${selectedAd.budget}`);
-            return;
-        }
-
-        setIsSubmittingDeal(true);
-        try {
-            const res = await post('/deals/request', {
-                adId: selectedAd.id,
-                channelId: selectedChannelForDeal.id, // Ensure ID is correct from channel object
-                amount: dealAmount,
-                duration: dealDuration, // This is proof duration
-                proofDuration: dealDuration
-            });
-
-            if (res.success) {
-                addNotification('success', 'Deal Requested Successfully!');
-                setIsDealModalOpen(false);
-                setSelectedAd(null); // Close ad details too? Maybe keep open.
-                // Reset form
-                setDealAmount('');
-            }
-        } catch (error) {
-            console.error(error);
-            addNotification('error', error.response?.data?.error || 'Failed to request deal');
-        } finally {
-            setIsSubmittingDeal(false);
-        }
-    };
 
     useEffect(() => {
         const fetchAds = async () => {
@@ -159,50 +121,47 @@ const Ads = ({ activePage }) => {
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 style={{
                                     position: 'fixed',
-                                    top: 0, left: 0, right: 0, bottom: 0,
-                                    background: '#000',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    background: 'var(--bg-dark)',
                                     zIndex: 1001, // Higher than Nav (100)
                                     display: 'flex',
                                     flexDirection: 'column',
                                     overflow: 'hidden' // Important for sticky header
                                 }}
                             >
-                                {/* Sticky Header */}
+                                {/* Back Button (Replaces Header) */}
                                 <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 16,
-                                    padding: '16px 20px',
-                                    background: 'rgba(0,0,0,0.6)',
-                                    backdropFilter: 'blur(12px)',
-                                    position: 'sticky', top: 0, zIndex: 10,
-                                    borderBottom: '1px solid rgba(255,255,255,0.08)'
+                                    position: 'absolute',
+                                    top: '24px',
+                                    left: '20px',
+                                    zIndex: 10
                                 }}>
                                     <button
                                         onClick={() => setSelectedAd(null)}
                                         style={{
-                                            background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white',
-                                            width: 40, height: 40, borderRadius: '50%',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            cursor: 'pointer', transition: '0.2s'
+                                            background: 'rgba(255,255,255,0.1)',
+                                            border: 'none',
+                                            color: 'white',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer'
                                         }}
                                     >
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="15 18 9 12 15 6"></polyline>
                                         </svg>
                                     </button>
-                                    <div style={{ overflow: 'hidden' }}>
-                                        <h2 style={{ margin: 0, fontSize: 18, fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {selectedAd.title}
-                                        </h2>
-                                        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            {selectedAd.type === 'bot' ? '🤖 Bot' : '📢 Channel'}
-                                            <span>•</span>
-                                            <span style={{ color: getStatusColor(selectedAd.status) }}>{getStatusText(selectedAd.status)}</span>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 {/* Scrollable Content */}
-                                <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '100px' }}>
+                                <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingTop: '80px', paddingBottom: '100px' }}>
 
                                     {/* 1. Post Image (Hero) */}
                                     {selectedAd.mediaPreview && !selectedAd.mediaPreview.startsWith('blob:') ? (
@@ -418,107 +377,7 @@ const Ads = ({ activePage }) => {
                 )}
             </div>
 
-            {/* Deal Request Modal */}
-            <Modal
-                isOpen={isDealModalOpen}
-                onClose={() => setIsDealModalOpen(false)}
-                title="Request Deal"
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-                    {/* Channel Selector */}
-                    <div>
-                        <label style={{ display: 'block', fontSize: '13px', color: '#aaa', marginBottom: '8px' }}>Select Your Channel</label>
-                        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-                            {userProfile?.channels?.map(ch => (
-                                <div
-                                    key={ch.id}
-                                    onClick={() => setSelectedChannelForDeal(ch)}
-                                    style={{
-                                        minWidth: '100px',
-                                        padding: '10px',
-                                        borderRadius: '12px',
-                                        background: selectedChannelForDeal?.id === ch.id ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
-                                        border: selectedChannelForDeal?.id === ch.id ? '1px solid #3b82f6' : '1px solid transparent',
-                                        cursor: 'pointer',
-                                        textAlign: 'center'
-                                    }}
-                                >
-                                    <div style={{ fontSize: '18px', marginBottom: '4px' }}>📢</div>
-                                    <div style={{ fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {ch.title || ch.username}
-                                    </div>
-                                    <div style={{ fontSize: '10px', color: '#aaa' }}>{ch.subscribers} subs</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Amount Input */}
-                    <div>
-                        <label style={{ display: 'block', fontSize: '13px', color: '#aaa', marginBottom: '8px' }}>Offer Amount (TON)</label>
-                        <input
-                            type="number"
-                            placeholder={`Max: ${selectedAd?.budget}`}
-                            value={dealAmount}
-                            onChange={(e) => setDealAmount(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '14px',
-                                borderRadius: '12px',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                color: 'white',
-                                fontSize: '16px'
-                            }}
-                        />
-                    </div>
-
-                    {/* Duration Input */}
-                    <div>
-                        <label style={{ display: 'block', fontSize: '13px', color: '#aaa', marginBottom: '8px' }}>Proof Duration (Hours)</label>
-                        <select
-                            value={dealDuration}
-                            onChange={(e) => setDealDuration(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '14px',
-                                borderRadius: '12px',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                color: 'white',
-                                fontSize: '16px'
-                            }}
-                        >
-                            <option value="12">12 Hours</option>
-                            <option value="24">24 Hours</option>
-                            <option value="48">48 Hours</option>
-                            <option value="72">72 Hours</option>
-                        </select>
-                    </div>
-
-                    <button
-                        onClick={handleSubmitDeal}
-                        disabled={isSubmittingDeal}
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            borderRadius: '16px',
-                            background: isSubmittingDeal ? '#555' : 'linear-gradient(90deg, #3b82f6, #9333ea)',
-                            color: 'white',
-                            border: 'none',
-                            fontWeight: 'bold',
-                            fontSize: '16px',
-                            cursor: isSubmittingDeal ? 'not-allowed' : 'pointer',
-                            marginTop: '10px'
-                        }}
-                    >
-                        {isSubmittingDeal ? 'Sending Offer...' : 'Send Offer'}
-                    </button>
-
-                </div>
-            </Modal>
-        </PageContainer>
+        </PageContainer >
     );
 };
 export default Ads;

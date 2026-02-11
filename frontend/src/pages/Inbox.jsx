@@ -68,7 +68,7 @@ const Inbox = ({ activePage }) => {
         height: '100%',
         zIndex: 2001, // Ensure above Bottom Nav
         transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
-        background: 'var(--bg-main)',
+        background: 'var(--bg-dark)',
     };
 
     return (

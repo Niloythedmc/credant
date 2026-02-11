@@ -64,22 +64,22 @@ const HoverPreview = ({ username, position, onClose }) => {
 
     // Calculate adjusted position to keep in viewport
     // Default: centered above the mention
-    // We assume 200px width (from CSS) + padding/border ~ 220px
-    const cardWidth = 220;
+    // We assume max 220px width (from CSS) + padding/border ~ 240px safe buffer
+    const cardWidth = 240;
     const windowWidth = window.innerWidth;
 
     // Initial left position (centered)
-    let leftPos = position.x;
+    // const leftPos = position.x; // We just use position.x as anchor
 
     // Check right edge
-    if (leftPos + cardWidth / 2 > windowWidth - 10) {
-        leftPos = windowWidth - cardWidth / 2 - 10;
-    }
+    // if (leftPos + cardWidth / 2 > windowWidth - 10) {
+    //     leftPos = windowWidth - cardWidth / 2 - 10;
+    // }
 
     // Check left edge
-    if (leftPos - cardWidth / 2 < 10) {
-        leftPos = cardWidth / 2 + 10;
-    }
+    // if (leftPos - cardWidth / 2 < 10) {
+    //     leftPos = cardWidth / 2 + 10;
+    // }
 
     // Apply transform in CSS matches logic, but we need to pass style
     // The CSS has `transform: translateY(-100%)` which handles the vertical.
@@ -95,10 +95,11 @@ const HoverPreview = ({ username, position, onClose }) => {
     // If the mention is at right side of screen, position.x is large. card draws to the right -> overflow.
 
     // Let's define the style more explicitly.
+    // Clamp left edge so that left + 240 <= windowWidth
 
     const style = {
         top: position.y,
-        left: Math.min(Math.max(position.x, 10), window.innerWidth - 210), // Clamp left edge
+        left: Math.min(Math.max(position.x, 10), window.innerWidth - 230), // Clamp left edge
     };
 
     return (

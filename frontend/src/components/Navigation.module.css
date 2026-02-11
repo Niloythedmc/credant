@@ -3,6 +3,11 @@
     bottom: 0;
     left: 0;
     width: 100%;
+    background: var(--bg-nav);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border-top: 1px solid var(--glass-border);
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.1);
     height: var(--nav-height);
     display: flex;
     justify-content: space-around;

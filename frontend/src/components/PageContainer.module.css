@@ -11,6 +11,7 @@
     background-color: var(--bg-dark);
     scrollbar-width: none;
     padding-top: 80px;
+    /* Force 80px top padding for Nav/Telegram headers */
     /* User Constraint: Account for TG button/status */
 }
 

@@ -1,12 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiActivity, FiClock, FiDollarSign, FiBarChart2, FiGlobe, FiCpu, FiMessageCircle, FiMonitor } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdCard from '../AdCard';
+import AdDetailModal from './AdDetailModal';
+import { useApi } from '../../auth/useApi';
 
 const MyAds = ({ ads, onNavigate, onRefresh }) => {
     const { t } = useTranslation();
+    const { get } = useApi();
     const [expandedId, setExpandedId] = useState(null);
+    const [selectedAd, setSelectedAd] = useState(null);
+    const [offersMap, setOffersMap] = useState({}); // adId -> [offers]
+
+    // Fetch offers on mount to determine Red Dots
+    useEffect(() => {
+        let isMounted = true;
+        const fetchOffers = async () => {
+            try {
+                const res = await get('/deals/received'); // Get ALL received offers
+                if (isMounted && res && res.offers) {
+                    const map = {};
+                    res.offers.forEach(offer => {
+                        if (!map[offer.adId]) map[offer.adId] = [];
+                        map[offer.adId].push(offer);
+                    });
+                    setOffersMap(map);
+                }
+            } catch (e) {
+                console.error("Failed to fetch offers overview", e);
+            }
+        };
+        fetchOffers();
+        return () => { isMounted = false; };
+    }, [get]);
+
+    const handleAdClick = (ad) => {
+        setSelectedAd(ad);
+    };
 
     if (!ads || ads.length === 0) {
         return (
@@ -86,14 +117,32 @@ const MyAds = ({ ads, onNavigate, onRefresh }) => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {ads.map((ad, i) => (
-                    <AdCard key={ad.id || i} ad={ad} isExpanded={expandedId === ad.id} onToggle={() => setExpandedId(expandedId === ad.id ? null : ad.id)} />
-                ))}
+                {ads.map((ad, i) => {
+                    const adOffers = offersMap[ad.id] || [];
+                    const hasPendingOffers = adOffers.some(o => o.status === 'pending');
+                    const adWithAlert = { ...ad, hasAlert: hasPendingOffers, onClick: () => handleAdClick(ad) };
+
+                    return (
+                        <AdCard
+                            key={ad.id || i}
+                            ad={adWithAlert}
+                            isExpanded={expandedId === ad.id}
+                            onToggle={() => setExpandedId(expandedId === ad.id ? null : ad.id)}
+                        // onShowOffers is no longer needed as onClick handles selection
+                        />
+                    );
+                })}
             </div>
+
+            {/* Ad Detail Modal with Tabs */}
+            <AdDetailModal
+                isOpen={!!selectedAd}
+                onClose={() => setSelectedAd(null)}
+                ad={selectedAd}
+                initialOffers={offersMap[selectedAd?.id] || []}
+            />
         </div>
     );
 };
-
-
 
 export default MyAds;
