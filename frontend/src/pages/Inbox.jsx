@@ -60,34 +60,21 @@ const Inbox = ({ activePage }) => {
 
     // Calculate dynamic transform based on activePage
     const style = {
-        transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
+        transform: isVisible ? 'translateX(0)' : 'translateX(-100%)', // Slide from Left
         position: 'fixed',
         top: 0,
-        right: 0,
+        left: 0, // Ensure left alignment
         width: '100%',
         height: '100%',
         zIndex: 2001, // Ensure above Bottom Nav
         transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
         background: 'var(--bg-dark)',
+        paddingTop: '80px', // Added padding
     };
 
     return (
         <div className={styles.overlayPage} style={style}>
-            <div className={styles.header}>
-                <button
-                    className={styles.closeButton}
-                    onClick={() => window.history.back()}
-                >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-                <h2 className={styles.title}>{t('inbox.title')}</h2>
-                <button className={styles.markRead} onClick={markAllRead}>
-                    {t('inbox.markRead')}
-                </button>
-            </div>
+            {/* Header Removed */}
 
             <div className={styles.list}>
                 {loading && <div className={styles.emptyState}>{t('common.loading')}</div>}

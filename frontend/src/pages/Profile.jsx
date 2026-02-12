@@ -442,14 +442,7 @@ const Profile = ({ activePage, onNavigate }) => {
                 </div>
 
                 {/* Content Sections */}
-                <ContentSection
-                    title={t('profile.thoughts')}
-                    items={userProfile?.thoughts || []}
-                    emptyText={t('profile.noThoughts')}
-                    actionText={t('profile.shareThoughts')}
-                    styles={styles}
-                    onAction={() => onNavigate('shareThought')}
-                />
+
 
                 <ContentSection
                     title={t('profile.channels')}

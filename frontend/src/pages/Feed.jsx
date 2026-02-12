@@ -152,20 +152,7 @@ const Feed = ({ activePage, onNavigate }) => {
                     <h1 className={styles.headerTitle}>{t('feed.title')}</h1>
                 </header>
 
-                {/* Share Thought Trigger */}
-                <div
-                    className={styles.shareThoughtTrigger}
-                    onClick={() => onNavigate('shareThought')}
-                >
-                    <img
-                        src={tgUser?.photo_url || user?.photoURL || "https://i.pravatar.cc/150?u=99"}
-                        alt="Me"
-                        className={styles.triggerAvatar}
-                    />
-                    <div className={styles.triggerInput}>
-                        {t('feed.shareThoughtPlaceholder', "What's on your mind?")}
-                    </div>
-                </div>
+
 
                 {/* Stories Bar (Channels) */}
                 {channels.length > 0 && (

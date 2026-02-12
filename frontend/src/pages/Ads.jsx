@@ -9,16 +9,31 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../auth/AuthProvider';
 import Modal from '../components/Modal';
 import { useNotification } from '../context/NotificationContext';
+import WebApp from '@twa-dev/sdk';
 
 const Ads = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
     const index = 1;
+
     const { get, post } = useApi();
     const { userProfile } = useAuth();
     const { addNotification } = useNotification();
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedAd, setSelectedAd] = useState(null);
+
+    // TWA Back Button Logic
+    useEffect(() => {
+        if (selectedAd) {
+            WebApp.BackButton.show();
+            const handleBack = () => setSelectedAd(null);
+            WebApp.BackButton.onClick(handleBack);
+            return () => {
+                WebApp.BackButton.offClick(handleBack);
+                WebApp.BackButton.hide();
+            };
+        }
+    }, [selectedAd]);
 
     // Deal Request State - REMOVED (Moved to RequestDeal.jsx)
 

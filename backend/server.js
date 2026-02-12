@@ -20,10 +20,12 @@ const walletRoutes = require('./routes/wallet');
 const dealRoutes = require('./routes/deals');
 const feedRoutes = require('./routes/feed');
 
+
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/deals', dealRoutes);
 app.use('/api/feed', feedRoutes);
+
 app.use('/api/channels', require('./routes/channels'));
 app.use('/api/insights', require('./routes/insights'));
 app.use('/api/inbox', require('./routes/inbox'));
@@ -32,6 +34,8 @@ app.use('/api/ads', require('./routes/ads'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/drafts', require('./routes/drafts'));
+app.use('/api/telegram-webhook', require('./routes/telegramWebhook'));
 
 // Health Check
 app.get('/', (req, res) => {

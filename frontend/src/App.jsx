@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
 import GenericPage from './pages/GenericPage';
 import Feed from './pages/Feed';
+
 import Profile from './pages/Profile';
 import Channels from './pages/Channels';
 import Ads from './pages/Ads';
-import Insights from './pages/Insights';
+
 
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import NotificationContainer from './components/Notification/NotificationContainer';
 import Inbox from './pages/Inbox';
 import Setting from './pages/Setting';
-import ShareThought from './pages/ShareThought';
+
 import ListChannel from './pages/ListChannel';
 import PostAds from './pages/PostAds';
 import RequestDeal from './pages/RequestDeal';
@@ -38,8 +39,8 @@ function App() {
   };
 
   // List of all pages
-  const navPages = ['feed', 'ads', 'insights', 'channels', 'profile'];
-  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox', 'shareThought', 'listChannel', 'postAds', 'requestDeal'];
+  const navPages = ['feed', 'ads', 'channels', 'profile'];
+  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox', 'listChannel', 'postAds', 'requestDeal'];
   const allPages = [...navPages, ...secondaryPages];
 
   // Helper to handle navigation
@@ -233,13 +234,15 @@ function App() {
     const relevantActivePage = navPages.includes(id) ? activeNavPage : overlayPage;
 
     if (id === 'feed') return <Feed key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+
+
     if (id === 'ads') return <Ads key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
-    if (id === 'insights') return <Insights key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+
     if (id === 'profile') return <Profile key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'channels') return <Channels key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'inbox') return <Inbox key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'setting') return <Setting key={id} activePage={relevantActivePage} onNavigate={handleNavigate} theme={theme} toggleTheme={toggleTheme} />;
-    if (id === 'shareThought') return <ShareThought key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+
     if (id === 'listChannel') return <ListChannel key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'postAds') return <PostAds key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'requestDeal') return <RequestDeal key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;

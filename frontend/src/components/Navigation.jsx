@@ -22,13 +22,7 @@ const NavIcon = ({ name, active }) => {
                 <line x1="8" y1="23" x2="16" y2="23"></line>
             </svg>
         ),
-        insights: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-        ),
+
         channels: (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
@@ -48,7 +42,7 @@ const NavIcon = ({ name, active }) => {
 
 const Navigation = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
-    const navItems = ['feed', 'ads', 'insights', 'channels', 'profile'];
+    const navItems = ['feed', 'ads', 'channels', 'profile'];
 
     return (
         <nav className={`${styles.nav} glass-nav`}>

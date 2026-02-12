@@ -13,28 +13,93 @@ router.post('/resolve-link', async (req, res) => {
     console.log(`[Resolve Link] Request for: ${link}`);
 
     try {
-        // Extract username
-        // Regex logic:
-        // 1. Match t.me/ or telegram.me/ or @
-        // 2. Capture username: alpha-numeric-underscore, min 5 chars (to avoid 'c' or 's' private links)
-        // 3. Stop at / or ? or end of string
-        // Note: Telegram usernames are min 5 chars.
+        // 1. Check if it's a specific POST link (t.me/username/123)
+        const postMatch = link.match(/(?:t\.me\/|telegram\.me\/)([\w_]{5,})\/([0-9]+)/);
+
+        if (postMatch) {
+            const username = postMatch[1];
+            const postId = postMatch[2];
+            console.log(`[Resolve Link] Detected Post: @${username}/${postId}`);
+
+            try {
+                const scrapeUrl = `https://t.me/${username}/${postId}?embed=1`;
+                const { data: html } = await require('axios').get(scrapeUrl);
+
+                // Helper to extract meta content
+                const getMeta = (prop) => {
+                    const regex = new RegExp(`<meta property="${prop}" content="([^"]+)"`);
+                    const match = html.match(regex);
+                    return match ? match[1] : null;
+                };
+
+                // Helper to extract content inside specific classes (simple regex)
+                const getClassContent = (className) => {
+                    const regex = new RegExp(`class="${className}"[^>]*>([^<]+)<`);
+                    const match = html.match(regex);
+                    return match ? match[1] : null;
+                };
+
+                // Extract Data
+                const channelTitle = getMeta('og:title') || username;
+
+                // Text often in ".tgme_widget_message_text"
+                let text = "";
+                const textMatch = html.match(/class="tgme_widget_message_text[^"]*">([\s\S]*?)<\/div>/);
+                if (textMatch) {
+                    text = textMatch[1].replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").trim(); // simple strip tags
+                }
+
+                // Image/Video
+                let photoUrl = getMeta('og:image');
+                // Check for video thumb if og:image is default or missing
+                if (!photoUrl || photoUrl.includes('telegram.org/img/t_logo.png')) {
+                    // Try to find video thumb in background-image style
+                    const styleMatch = html.match(/background-image:url\('([^']+)'\)/);
+                    if (styleMatch) photoUrl = styleMatch[1];
+                }
+
+                // Views
+                const viewsMatch = html.match(/class="tgme_widget_message_views"[^>]*>([^<]+)/);
+                const views = viewsMatch ? viewsMatch[1] : "0";
+
+                console.log(`[Resolve Link] Post Scraped: ${username}/${postId} - ${views} views`);
+
+                return res.json({
+                    id: null,
+                    title: channelTitle,
+                    username: username,
+                    description: `Post from ${username}`,
+                    photoUrl: photoUrl,
+                    type: 'post',
+                    isPost: true,
+                    postId: postId,
+                    views: views,
+                    text: text || ""
+                });
+
+            } catch (postErr) {
+                console.error(`[Resolve Link] Post scrape failed:`, postErr.message);
+                // Fallback to channel resolution if post fails?
+                // No, distinct intent.
+                return res.status(404).json({ error: "Could not fetch post details." });
+            }
+        }
+
+        // 2. Normal Channel/User Resolution (Existing Logic)
         const match = link.match(/(?:t\.me\/|telegram\.me\/|@)([\w_]{5,})/);
 
         if (!match) {
             console.log(`[Resolve Link] Regex failed for: ${link}`);
-            return res.status(400).json({ error: "Invalid Telegram link or username (must be public channel/bot)" });
+            return res.status(400).json({ error: "Invalid Telegram link or username" });
         }
 
         const username = match[1];
         console.log(`[Resolve Link] Extracted username: ${username}`);
 
         // ... existing getChat logic ...
-        // ... existing getChat logic ...
         let chat;
         try {
             chat = await getChat(`@${username}`);
-            console.log(`[Resolve Link] Chat found: ${chat.id} (${chat.title})`);
         } catch (e) {
             console.warn(`[Resolve Link] getChat failed for @${username}. Trying fallback scrape...`);
         }
@@ -44,7 +109,6 @@ router.post('/resolve-link', async (req, res) => {
             let memberCount = 0;
 
             // 1. Try to get STABLE photo from scraping t.me (CDN Link)
-            // API getFileLink expires after 1h, so it's bad for database storage.
             try {
                 const scrapeUrl = `https://t.me/${username}`;
                 const { data: html } = await require('axios').get(scrapeUrl);
@@ -52,16 +116,12 @@ router.post('/resolve-link', async (req, res) => {
                 const match = html.match(regex);
                 if (match && match[1]) {
                     photoUrl = match[1];
-                    console.log(`[Resolve Link] Got stable CDN photo for @${username}`);
                 }
-            } catch (scrapeErr) {
-                console.warn(`[Resolve Link] Scrape for stable photo failed: ${scrapeErr.message}`);
-            }
+            } catch (scrapeErr) { }
 
-            // 2. Fallback to API Link if scrape failed (link expires in 1h, but better than nothing)
+            // 2. Fallback to API Link
             if (!photoUrl && chat.photo && chat.photo.big_file_id) {
                 photoUrl = await getFileLink(chat.photo.big_file_id);
-                console.log(`[Resolve Link] Using temporary API photo for @${username}`);
             }
 
             try {
@@ -79,12 +139,11 @@ router.post('/resolve-link', async (req, res) => {
             });
         }
 
-        // FALLBACK: Scrape t.me/username for Bots/Users where getChat fails
+        // FALLBACK: Scrape t.me/username
         try {
             const scrapeUrl = `https://t.me/${username}`;
             const { data: html } = await require('axios').get(scrapeUrl);
 
-            // Regex Extraction
             const getMeta = (prop) => {
                 const regex = new RegExp(`<meta property="${prop}" content="([^"]+)"`);
                 const match = html.match(regex);
@@ -98,30 +157,23 @@ router.post('/resolve-link', async (req, res) => {
 
             if (!title) throw new Error("No title found in scrape");
 
-            console.log(`[Resolve Link] Scraped Success: ${title}`);
-
             return res.json({
-                id: null, // ID is unknown via scrape
+                id: null,
                 title: title,
                 username: username,
                 description: description,
                 photoUrl: photoUrl,
-                type: 'bot_or_user', // Assumed
+                type: 'bot_or_user',
                 memberCount: 0
             });
 
         } catch (scrapeError) {
             console.error("[Resolve Link] Scrape failed:", scrapeError.message);
-            // Re-throw original if scrape failed too, or return specific error
-            return res.status(404).json({ error: "Channel/Bot not found (API & Scrape failed)." });
+            return res.status(404).json({ error: "Channel/Bot not found." });
         }
 
     } catch (error) {
         console.error("[Resolve Link] Error:", error.message);
-        // Specialized error message
-        if (error.message.includes('chat not found')) {
-            return res.status(404).json({ error: "Channel/Bot not found. Make sure the link is correct and public." });
-        }
         return res.status(500).json({ error: "Could not resolve link: " + error.message });
     }
 });

@@ -17,8 +17,8 @@ const RequestDeal = ({ activePage, onNavigate }) => {
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 50,
-        background: 'var(--bg-color)',
+        zIndex: 2000,
+        background: 'var(--bg-dark)',
         transition: 'transform 0.3s ease-out',
         overflowY: 'auto'
     };
@@ -167,7 +167,14 @@ const RequestDeal = ({ activePage, onNavigate }) => {
     };
 
     if (loading) return <div className={styles.page} style={style}>Loading...</div>;
-    if (!ad) return <div className={styles.page} style={style}>Ad not found</div>;
+    if (!ad) return (
+        <div className={styles.page} style={{ ...style, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontSize: '18px', marginBottom: '16px', color: 'var(--text-muted)' }}>Ad not found or removed</div>
+            <button className={styles.backBtn} onClick={() => navigate('ads')} style={{ position: 'static', transform: 'none' }}>
+                <FiChevronLeft size={24} /> Back to Ads
+            </button>
+        </div>
+    );
 
     return (
         <div className={styles.page} style={style}>

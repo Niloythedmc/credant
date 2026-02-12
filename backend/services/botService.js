@@ -77,4 +77,56 @@ const getBotId = () => {
     return parseInt(botToken.split(':')[0]);
 }
 
+// Listen for Drafts
+bot.on('message', async (msg) => {
+    // Basic Draft Storage for User
+    // We store the draft keyed by Telegram User ID
+    // Frontend will poll based on linked Telegram ID
+
+    // Ignore commands like /start
+    if (msg.text && msg.text.startsWith('/')) return;
+
+    try {
+        const userId = msg.from.id.toString();
+        const admin = require('firebase-admin');
+        const db = admin.firestore();
+
+        console.log(`[Bot] Received draft from ${userId}`);
+
+        let text = msg.text || msg.caption || '';
+        let photo = null;
+        if (msg.photo) {
+            // Get largest photo
+            photo = msg.photo[msg.photo.length - 1].file_id;
+        }
+
+        // Check for Reply Markup (Inline Buttons)
+        let buttons = null;
+        if (msg.reply_markup && msg.reply_markup.inline_keyboard) {
+            // We just store the structure to replicate it or ask frontend to edit it
+            // For now, let's just flag it or store raw
+            buttons = msg.reply_markup.inline_keyboard;
+        }
+
+        const draftData = {
+            telegramUserId: userId,
+            text: text,
+            photoFileId: photo, // We need to resolve this to URL later or send File ID
+            buttons: buttons,
+            entities: msg.entities || msg.caption_entities || [],
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Upsert draft
+        await db.collection('drafts').doc(userId).set(draftData);
+        console.log(`[Bot] Saved draft for ${userId}`);
+
+        // Acknowledge
+        await bot.sendMessage(userId, "Draft saved! Check the Credant App to finalize.");
+
+    } catch (error) {
+        console.error("[Bot] Draft Error:", error);
+    }
+});
+
 module.exports = { sendMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId, botInstance: bot };

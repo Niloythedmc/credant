@@ -1,15 +1,19 @@
 :root {
-  /* Dark Mode (Default) - Deep Glass Theme */
-  --bg-dark: #050505;
-  /* Deep black/blue base */
-  --bg-card: rgba(20, 20, 25, 0.4);
-  /* More transparent for glass */
-  --bg-nav: rgba(10, 10, 12, 0.65);
-  /* More transparent nav */
-  --primary: #6366f1;
-  --accent: #8b5cf6;
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
+  /* Dark Mode (Default) - Deep Slate Theme */
+  --bg-dark: #0b1121;
+  /* Deep dark navy/slate */
+  --bg-card: #1e293b;
+  /* Slate-800 */
+  --bg-nav: #0f172a;
+  /* Slate-900 */
+  --primary: #3b82f6;
+  /* Blue-500 */
+  --accent: #60a5fa;
+  /* Blue-400 */
+  --text-main: #f8fafc;
+  /* Slate-50 */
+  --text-muted: #94a3b8;
+  /* Slate-400 */
   --glass-border: rgba(255, 255, 255, 0.08);
   /* Subtle glass border */
   --glass-highlight: rgba(255, 255, 255, 0.05);
@@ -24,10 +28,10 @@
   --badge-yellow-text: #facc15;
   --badge-blue-bg: rgba(96, 165, 250, 0.15);
   --badge-blue-text: #60a5fa;
-  --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  /* Glass shadow */
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  /* Clean shadow */
   --icon-verified: #3b82f6;
-  --notif-bg: rgba(255, 255, 255, 0.07);
+  --notif-bg: #334155;
 }
 
 [data-theme="light"] {
@@ -70,10 +74,8 @@
 
 body {
   background-color: var(--bg-dark);
-  /* Deep Mesh Gradient Background */
-  background-image:
-    radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.15), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.15), transparent 25%);
+  /* Deep Slate Background */
+  background-image: none;
   background-attachment: fixed;
   color: var(--text-main);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;

@@ -12,37 +12,9 @@
     overflow: hidden;
 }
 
+/* Header removed, but if present logic */
 .header {
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(255, 255, 255, 0.02);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--glass-border);
-}
-
-.backButton {
-    background: none;
-    border: none;
-    color: var(--text-main);
-    font-size: 24px;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.headerTitle {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-main);
-}
-
-.stepIndicator {
-    font-size: 14px;
-    color: var(--text-secondary);
+    display: none;
 }
 
 .content {
@@ -120,24 +92,32 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    margin-top: 8px;
 }
 
 .tagChip {
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--glass-border);
-    color: var(--text-secondary);
-    font-size: 14px;
+    background: rgba(var(--primary-rgb), 0.1);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    font-size: 13px;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.tagChip.selected {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+.tagChip:hover {
+    background: rgba(var(--primary-rgb), 0.2);
+}
+
+.tagChip .remove {
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
 }
 
 /* Range Slider */
@@ -187,12 +167,13 @@
     margin-top: 30px;
     margin-bottom: 20px;
     display: flex;
+    gap: 12px;
     justify-content: center;
+    align-items: center;
 }
 
 .button {
-    width: 90%;
-    /* requested 90% width */
+    flex: 1;
     padding: 14px;
     border-radius: 12px;
     font-size: 16px;
@@ -205,7 +186,19 @@
     border: none;
 }
 
-/* ... existing button :active ... */
+.backBtn {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    width: 48px;
+    /* Circular back button if just icon, or widen if text */
+    flex: 0 0 50px;
+}
+
+.primaryBtn {
+    background: var(--primary);
+    color: white;
+    flex: 1;
+}
 
 /* Preview Card in Phase 5 */
 .previewCard {
@@ -327,18 +320,11 @@
     cursor: pointer;
 }
 
-.channelItem.selected {
-    border: 1px solid var(--primary);
-    background: rgba(var(--primary-rgb), 0.1);
+.channelItem:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
-/* Actions Flow */
-.actionBtnContainer {
-    margin-top: 30px;
-    margin-bottom: 20px;
-}
-
-/* Custom Input Select */
+/* Custom Select - Promotion Subject */
 .selectWrapper {
     position: relative;
     width: 100%;
@@ -346,49 +332,198 @@
 
 .selectInput {
     width: 100%;
-    padding: 12px 16px;
-    border-radius: 12px;
-    border: 1px solid var(--glass-border);
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
     color: var(--text-main);
     font-size: 16px;
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
+.selectInput:hover,
+.selectInput:focus,
+.selectInput.active {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Dropdown Styling */
 .dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     left: 0;
     width: 100%;
-    background: var(--bg-card);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    margin-top: 8px;
-    z-index: 100;
-    overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    animation: fadeIn 0.1s ease-out;
+    /* #ffffff22 = rgba(255, 255, 255, 0.133) */
+    background: #fff1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    z-index: 1000;
+    overflow-y: auto;
+    max-height: 280px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(30px);
+    padding: 8px;
+    animation: fadeInDropdown 0.2s ease-out forwards;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    /* Space between options */
+}
+
+@keyframes fadeInDropdown {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .dropdownOption {
     padding: 12px 16px;
+    border-radius: 10px;
+    /* 10-30px radius as requested */
     cursor: pointer;
     color: var(--text-main);
     display: flex;
     align-items: center;
-    gap: 10px;
-    transition: background 0.2s;
+    gap: 12px;
+    transition: all 0.2s;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    /* Slight BG for visibility */
+    border: 1px solid transparent;
 }
 
 .dropdownOption:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(2px);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .dropdownOption.selected {
     background: rgba(var(--primary-rgb), 0.2);
     color: var(--primary);
+    border-color: rgba(var(--primary-rgb), 0.4);
 }
+
+/* MultiSelectInput - Promotion Type & Geo */
+.multiSelectWrapper {
+    position: relative;
+    width: 100%;
+}
+
+.multiSelectInput {
+    min-height: 56px;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
+    color: var(--text-main);
+    font-size: 16px;
+    cursor: text;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.multiSelectInput:hover,
+.multiSelectInput.active {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary);
+}
+
+.tagChip {
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    min-height: 36px;
+}
+
+.tagChip:hover {
+    background: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px -2px rgba(var(--primary-rgb), 0.2);
+    padding-right: 36px;
+    /* Expand to reveal icon */
+}
+
+.tagChip .remove {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%) scale(0);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tagChip:hover .remove {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+    cursor: pointer;
+}
+
+.tagChip .remove:hover {
+    background: rgba(255, 255, 255, 0.4);
+    color: #fff;
+}
+
+/* Geo Special Styling (Global Tag) */
+.tagChip.global {
+    background: linear-gradient(135deg, #10b98133, #05966933);
+    /* Green theme */
+    border-color: #10b981;
+    color: #34d399;
+}
+
+.tagChip.global:hover {
+    background: linear-gradient(135deg, #10b98155, #05966955);
+    border-color: #34d399;
+}
+
+.tagChip.global .remove {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.tagChip.global .remove:hover {
+    background: rgba(16, 185, 129, 0.4);
+    color: #fff;
+}
+/* ... New Styles ... */
+.postMethodToggle { display: flex; gap: 12px; margin-bottom: 24px; background: #ffffff0a; padding: 4px; border-radius: 12px; } .toggleBtn { flex: 1; background: transparent; border: none; padding: 10px; color: var(--text-muted); font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease; } .toggleBtn.active { background: var(--bg-card); color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.2); } .botDraftSection { background: #ffffff05; border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 24px; } .waitingForBot { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text-muted); } .waitingForBot h3 { color: var(--text-main); margin: 0; } .pulseIcon { font-size: 32px; color: var(--primary); animation: pulse 2s infinite; } .botLinkBtn { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(59, 130, 246, 0.1); color: var(--primary); border-radius: 20px; text-decoration: none; font-size: 14px; transition: all 0.2s; } .botLinkBtn:hover { background: rgba(59, 130, 246, 0.2); } .draftHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); } .clearDraftBtn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 4px; } .clearDraftBtn:hover { color: #ef4444; } @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
