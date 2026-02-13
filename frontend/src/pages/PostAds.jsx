@@ -263,7 +263,8 @@ const PostAds = ({ activePage, onNavigate }) => {
         title: '', description: '', subject: '',
         promotionTypes: [], duration: 7, budget: '',
         geo: [], channels: [], ageRange: [18, 40],
-        postText: '', media: null, mediaPreview: null, link: '', buttonText: '', entities: []
+        postText: '', media: null, mediaPreview: null, link: '', buttonText: '', entities: [], hasDraftButton: false, views: '', channelPhoto: null,
+        mediaFileId: null, buttons: [] // Added for Preview
     });
 
     const [postMethod, setPostMethod] = useState('new'); // 'new' | 'forward'
@@ -290,7 +291,10 @@ const PostAds = ({ activePage, onNavigate }) => {
                                 // Parse buttons if needed, e.g. d.buttons[0][0].url
                                 link: d.buttons?.[0]?.[0]?.url || prev.link,
                                 buttonText: d.buttons?.[0]?.[0]?.text || prev.buttonText,
-                                entities: d.entities || []
+                                entities: d.entities || [],
+                                hasDraftButton: !!(d.buttons && d.buttons.length > 0),
+                                mediaFileId: d.photoFileId, // Store file_id
+                                buttons: d.buttons // Store raw buttons
                             }));
                             lastDraftId.current = ts;
                         }
@@ -316,8 +320,56 @@ const PostAds = ({ activePage, onNavigate }) => {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (validatePhase()) {
+            // Trigger Preview on Phase 4 -> 5
+            if (phase === 4) {
+                // Determine payload
+                let payload = {
+                    method: postMethod,
+                    text: formData.postText,
+                    entities: formData.entities
+                };
+
+                if (postMethod === 'forward') {
+                    payload.link = formData.link;
+                    // For forward, we rely on link. 
+                    // But if fallback needed, we send media/text too?
+                    // Backend handles fallback if we send them?
+                    // Currently backend uses scraped data for fallback IF we add that logic, 
+                    // but presently backend "Forward failed" just logs. 
+                    // Let's send what we have just in case we enhance backend later.
+                } else {
+                    // Method New
+                    payload.media = formData.mediaFileId || formData.mediaPreview; // Prefer FileID
+                    // If media is a File object (uploaded manually), we can't send it here easily without upload.
+                    // But 'New Post' via Bot means we mostly use Drafts.
+                    // If user manually uploaded in UI (Phase 4 top), we have `formData.media` (File).
+                    // This implementation focuses on Bot Drafts.
+                    // If manual upload, we might need to upload to server first? 
+                    // For now, let's assume Bot Draft or URL. 
+                    // If manual file, we skip preview or just send text?
+
+                    if (formData.buttons && formData.buttons.length > 0) {
+                        payload.buttons = formData.buttons;
+                    } else if (formData.link && formData.buttonText) {
+                        // Construct button from manual input
+                        payload.buttons = [[{ text: formData.buttonText, url: formData.link }]];
+                    }
+                }
+
+                setLoading(true);
+                try {
+                    await post('/ads/send-preview', payload);
+                    addNotification('success', "Check your Telegram Bot for preview!");
+                } catch (e) {
+                    console.error("Preview failed", e);
+                    // We still proceed? Or warn?
+                    // Proceeding allows user to continue even if bot fails (e.g. user blocked bot)
+                }
+                setLoading(false);
+            }
+
             setDirection(1);
             setPhase(p => p + 1);
         }
@@ -342,8 +394,9 @@ const PostAds = ({ activePage, onNavigate }) => {
                     return false;
                 } return true;
             case 4:
-                if (!formData.postText || !formData.media) {
-                    addNotification('warning', t('ads.addTextAndMedia'));
+                // Allow if text present AND (media object OR mediaPreview string present)
+                if (!formData.postText || (!formData.media && !formData.mediaPreview)) {
+                    addNotification('warning', t('ads.addTextAndMedia') || "Please add text and media (or wait for preview to load)");
                     return false;
                 } return true;
             default: return true;
@@ -498,42 +551,72 @@ const PostAds = ({ activePage, onNavigate }) => {
     const renderStyledText = (text, entities) => {
         if (!entities || entities.length === 0) return highlightText(text);
 
-        const result = [];
-        let lastIndex = 0;
-        // Sort entities by offset
-        const sortedEntities = [...entities].sort((a, b) => a.offset - b.offset);
-
-        sortedEntities.forEach((entity, index) => {
-            if (entity.offset > lastIndex) {
-                result.push(text.slice(lastIndex, entity.offset));
-            }
-
-            const chunk = text.slice(entity.offset, entity.offset + entity.length);
-
-            if (entity.type === 'custom_emoji') {
-                result.push(
-                    <span key={index} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
-                        <AnimatedIcon emojiId={entity.custom_emoji_id} size={20} loop={true} />
-                    </span>
-                );
-            } else if (entity.type === 'bold') {
-                result.push(<strong key={index}>{chunk}</strong>);
-            } else if (entity.type === 'italic') {
-                result.push(<em key={index}>{chunk}</em>);
-            } else if (entity.type === 'text_link') {
-                result.push(<a key={index} href={entity.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>{chunk}</a>);
-            } else {
-                result.push(chunk);
-            }
-
-            lastIndex = entity.offset + entity.length;
+        // 1. Collect all boundaries
+        const boundaries = new Set([0, text.length]);
+        entities.forEach(e => {
+            boundaries.add(e.offset);
+            boundaries.add(e.offset + e.length);
         });
 
-        if (lastIndex < text.length) {
-            result.push(text.slice(lastIndex));
+        // 2. Sort boundaries
+        const sortedPoints = Array.from(boundaries).sort((a, b) => a - b);
+        const result = [];
+
+        // 3. Iterate segments
+        for (let i = 0; i < sortedPoints.length - 1; i++) {
+            const start = sortedPoints[i];
+            const end = sortedPoints[i + 1];
+            if (start >= end) continue;
+
+            let content = text.slice(start, end);
+
+            // Find active entities for this segment
+            const activeEntities = entities.filter(e => start >= e.offset && end <= (e.offset + e.length));
+
+            // Prioritize: Emoji replaces content
+            const emojiEntity = activeEntities.find(e => e.type === 'custom_emoji');
+            if (emojiEntity) {
+                content = (
+                    <span key={`emoji-${i}`} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
+                        <AnimatedIcon emojiId={emojiEntity.custom_emoji_id} size={20} loop={true} />
+                    </span>
+                );
+            }
+
+            // Apply styles (wrapping)
+            let wrapped = content;
+
+            // Bold
+            if (activeEntities.some(e => e.type === 'bold')) {
+                wrapped = <strong key={`bold-${i}`}>{wrapped}</strong>;
+            }
+
+            // Italic
+            if (activeEntities.some(e => e.type === 'italic')) {
+                wrapped = <em key={`italic-${i}`}>{wrapped}</em>;
+            }
+
+            // Link
+            const linkEntity = activeEntities.find(e => e.type === 'text_link' || e.type === 'url');
+            if (linkEntity) {
+                wrapped = (
+                    <a
+                        key={`link-${i}`}
+                        href={linkEntity.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#60a5fa', textDecoration: 'underline' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {wrapped}
+                    </a>
+                );
+            }
+
+            result.push(<React.Fragment key={i}>{wrapped}</React.Fragment>);
         }
 
-        return <div className={styles.previewText} style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{result}</div>;
+        return <div className={styles.previewText} style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{result}</div>;
     };
 
     // Highlight Text Helper (Keep as fallback)
@@ -595,14 +678,15 @@ const PostAds = ({ activePage, onNavigate }) => {
                                 if (data.isPost) {
                                     newDat.title = newDat.title || `Ad for ${data.title}`;
                                     newDat.description = newDat.description || `Promoting post from ${data.title}`;
-                                    newDat.postText = data.text || ""; // Fix: Assign text directly
+                                    newDat.postText = data.text || "";
                                     newDat.mediaPreview = data.photoUrl || null;
-                                    newDat.entities = []; // clear entities as scraping doesn't provide them
+                                    newDat.entities = data.entities || [];
+                                    newDat.views = data.views || "";
+                                    newDat.channelPhoto = data.channelPhotoUrl || null;
                                 } else {
-                                    // Fallback if just channel link
                                     newDat.title = newDat.title || data.title;
                                     newDat.mediaPreview = newDat.mediaPreview || data.photoUrl;
-                                    newDat.description = newDat.description || data.description; // use description if available
+                                    newDat.description = newDat.description || data.description;
                                 }
                                 return newDat;
                             });
@@ -627,79 +711,138 @@ const PostAds = ({ activePage, onNavigate }) => {
                                 <span>Captured from Bot</span>
                                 <button onClick={() => setFormData(prev => ({ ...prev, postText: '', mediaPreview: null, link: '', buttonText: '', entities: [] }))} className={styles.clearDraftBtn}><FiX /> Clear</button>
                             </div>
-                            {/* Content shown in fields below */}
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Editable Fields (Visible only when content exists) */}
-            {(formData.postText || formData.mediaPreview || formData.media) && (
+            {/* Content Display */}
+            {postMethod === 'forward' ? (
                 <>
-                    <div className={styles.formGroup}>
-                        <label className={styles.label}>{t('ads.postText')}</label>
-                        <textarea
-                            className={styles.textarea}
-                            placeholder="Write your ad copy here..."
-                            rows={4}
-                            value={formData.postText}
-                            onChange={e => handleChange('postText', e.target.value)}
-                            readOnly={postMethod === 'forward'}
-                            style={{ opacity: postMethod === 'forward' ? 0.7 : 1 }}
-                        />
-                        {formData.postText && <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>{renderStyledText(formData.postText, formData.entities)}</div>}
-                    </div>
-                    <div className={styles.formGroup}>
-                        <label className={styles.label}>{t('ads.media')} (Optional)</label>
-                        <div
-                            onClick={() => postMethod !== 'forward' && document.getElementById('mediaInput').click()}
-                            style={{
-                                border: '2px dashed var(--glass-border)',
-                                borderRadius: 12,
-                                height: 120,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: postMethod === 'forward' ? 'default' : 'pointer',
-                                background: 'rgba(255,255,255,0.02)',
-                                overflow: 'hidden',
-                                opacity: postMethod === 'forward' ? 0.8 : 1
-                            }}
-                        >
-                            {formData.mediaPreview ? <img src={formData.mediaPreview} alt="Preview" style={{ height: '100%', width: '100%', objectFit: 'cover', borderRadius: 8 }} /> : (
-                                <>
-                                    <FiImage size={24} style={{ opacity: 0.5 }} />
-                                    <span style={{ fontSize: 12, marginTop: 8, opacity: 0.5 }}>{postMethod === 'forward' ? 'No Media' : 'Tap to upload (Optional)'}</span>
-                                </>
-                            )}
-                        </div>
-                        <input id="mediaInput" type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleFileChange} disabled={postMethod === 'forward'} />
-                    </div>
-                    {(postMethod === 'new' || formData.link || formData.buttonText) && (
-                        <div className={styles.formGroup}>
-                            <label className={styles.label}>{t('ads.buttonLink')} (Optional)</label>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <input
-                                    className={styles.input}
-                                    placeholder="Button Text"
-                                    value={formData.buttonText}
-                                    onChange={e => handleChange('buttonText', e.target.value)}
-                                    style={{ flex: 1, opacity: postMethod === 'forward' ? 0.7 : 1 }}
-                                    readOnly={postMethod === 'forward'}
-                                />
-                                <input
-                                    className={styles.input}
-                                    placeholder="https://t.me/..."
-                                    value={formData.link}
-                                    onChange={e => handleChange('link', e.target.value)}
-                                    style={{ flex: 2, opacity: postMethod === 'forward' ? 0.7 : 1 }}
-                                    readOnly={postMethod === 'forward'}
-                                />
+                    <div className={styles.channelPreview} style={{ borderRadius: 12, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1c1c1e', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: '#333' }}>
+                                <img src={formData.channelPhoto || "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/2048px-Telegram_logo.svg.png"} alt="Channel" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 600, color: '#fff' }}>{formData.title}</div>
+                                <div style={{ fontSize: 13, color: '#aaa' }}>@{formData.link ? formData.link.split('/').slice(-2)[0] : 'channel'} • post</div>
                             </div>
                         </div>
-                    )}
+                    </div>
+
+                    <div style={{
+                        background: '#212121',
+                        borderRadius: 16,
+                        overflow: 'hidden',
+                        maxWidth: 400,
+                        margin: '0 auto',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                        fontFamily: 'Inter, sans-serif'
+                    }}>
+                        {formData.mediaPreview && (
+                            <div style={{ width: '100%', cursor: 'pointer' }} onClick={() => window.open(formData.link, '_blank')}>
+                                <img src={formData.mediaPreview} alt="Post Media" style={{ width: '100%', height: '200px', objectFit: 'cover', display: 'block' }} />
+                            </div>
+                        )}
+
+                        <div style={{ padding: '5px' }}>
+                            <div style={{
+                                color: '#ccc',
+                                fontSize: 15,
+                                display: 'block'
+                            }}>
+                                {renderStyledText(formData.postText || "", formData.entities)}
+                            </div>
+                        </div>
+
+                        <div style={{
+                            padding: '0 16px 12px',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            alignItems: 'center',
+                            gap: 6,
+                            opacity: 0.6,
+                            fontSize: 12,
+                            color: '#aaa'
+                        }}>
+                            {formData.views && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <FiCheck size={14} style={{ display: 'none' }} />
+                                    {formData.views} <span style={{ fontSize: 14 }}>👁</span>
+                                </span>
+                            )}
+                            <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                    </div>
                 </>
+            ) : (
+                (formData.postText || formData.mediaPreview || formData.media) && (
+                    <>
+                        <div style={{
+                            background: '#212121',
+                            borderRadius: 16,
+                            overflow: 'hidden',
+                            maxWidth: 400,
+                            margin: '0 auto',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            fontFamily: 'Inter, sans-serif'
+                        }}>
+                            {formData.mediaPreview && (
+                                <div style={{ width: '100%' }}>
+                                    <img src={formData.mediaPreview} alt="Post Media" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                                </div>
+                            )}
+
+                            <div style={{ padding: '5px' }}>
+                                <div style={{
+                                    color: '#ccc',
+                                    fontSize: 15,
+                                    display: 'block'
+                                }}>
+                                    {renderStyledText(formData.postText || "", formData.entities)}
+                                </div>
+                            </div>
+
+                            <div style={{
+                                padding: '0 16px 12px',
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                alignItems: 'center',
+                                gap: 6,
+                                opacity: 0.6,
+                                fontSize: 12,
+                                color: '#aaa'
+                            }}>
+                                <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        </div>
+
+                        {(postMethod === 'new' && (formData.link || formData.buttonText || !formData.hasDraftButton)) && (
+                            <div className={styles.formGroup} style={{ marginTop: 24 }}>
+                                <label className={styles.label}>{t('ads.buttonLink')} (Optional)</label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        className={styles.input}
+                                        placeholder="Button Text"
+                                        value={formData.buttonText}
+                                        onChange={e => handleChange('buttonText', e.target.value)}
+                                        style={{ flex: 1, opacity: (postMethod === 'new' && formData.hasDraftButton) ? 0.7 : 1 }}
+                                        readOnly={postMethod === 'new' && formData.hasDraftButton}
+                                    />
+                                    <input
+                                        className={styles.input}
+                                        placeholder="https://t.me/..."
+                                        value={formData.link}
+                                        onChange={e => handleChange('link', e.target.value)}
+                                        style={{ flex: 2, opacity: (postMethod === 'new' && formData.hasDraftButton) ? 0.7 : 1 }}
+                                        readOnly={postMethod === 'new' && formData.hasDraftButton}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )
             )}
         </div>
     );

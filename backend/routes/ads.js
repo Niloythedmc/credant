@@ -44,37 +44,107 @@ router.post('/resolve-link', async (req, res) => {
 
                 // Text often in ".tgme_widget_message_text"
                 let text = "";
-                const textMatch = html.match(/class="tgme_widget_message_text[^"]*">([\s\S]*?)<\/div>/);
+                let entities = [];
+                const textMatch = html.match(/class="[^"]*tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+
                 if (textMatch) {
-                    text = textMatch[1].replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").trim(); // simple strip tags
+                    let rawHtml = textMatch[1].replace(/<br\s*\/?>/g, "\n");
+                    // Simple HTML Entity Decode Helper
+                    const decodeHtml = (str) => {
+                        return str.replace(/&nbsp;/g, " ")
+                            .replace(/&amp;/g, "&")
+                            .replace(/&lt;/g, "<")
+                            .replace(/&gt;/g, ">")
+                            .replace(/&quot;/g, '"')
+                            .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec)) // Numeric
+                            .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16))); // Hex
+                    };
+
+                    const emojiRegex = /<tg-emoji\s+emoji-id="(\d+)"[^>]*>(.*?)<\/tg-emoji>/g;
+                    let match;
+                    let lastIndex = 0;
+                    let builtText = "";
+
+                    while ((match = emojiRegex.exec(rawHtml)) !== null) {
+                        // Text before emoji
+                        const before = rawHtml.substring(lastIndex, match.index);
+                        const cleanBefore = decodeHtml(before.replace(/<[^>]+>/g, ""));
+                        builtText += cleanBefore;
+
+                        // Emoji Info
+                        const emojiId = match[1];
+                        const innerContent = match[2];
+                        let fallback = decodeHtml(innerContent.replace(/<[^>]+>/g, "")).trim();
+                        if (!fallback || fallback.length === 0) fallback = "⭐"; // Default char if missing
+
+                        const offset = builtText.length;
+                        const length = fallback.length;
+
+                        builtText += fallback;
+
+                        entities.push({
+                            type: 'custom_emoji',
+                            offset,
+                            length,
+                            custom_emoji_id: emojiId
+                        });
+
+                        lastIndex = match.index + match[0].length;
+                    }
+
+                    // Remaining text
+                    const remain = rawHtml.substring(lastIndex);
+                    const cleanRemain = decodeHtml(remain.replace(/<[^>]+>/g, ""));
+                    builtText += cleanRemain;
+
+                    text = builtText;
+
+                } else {
+                    // Fallback to description if widget text not found
+                    text = getMeta('og:description') || "";
                 }
 
-                // Image/Video
-                let photoUrl = getMeta('og:image');
-                // Check for video thumb if og:image is default or missing
-                if (!photoUrl || photoUrl.includes('telegram.org/img/t_logo.png')) {
-                    // Try to find video thumb in background-image style
-                    const styleMatch = html.match(/background-image:url\('([^']+)'\)/);
-                    if (styleMatch) photoUrl = styleMatch[1];
+                // 1. Channel/Author Photo
+                let channelPhotoUrl = null;
+                // Match src with single or double quotes
+                const authorPhotoMatch = html.match(/class="tgme_widget_message_user_photo"[^>]*src=["']([^"']+)["']/);
+                if (authorPhotoMatch) {
+                    channelPhotoUrl = authorPhotoMatch[1];
+                }
+
+                // 2. Post Media (Image/Video) - Strict Check
+                // Only if actual media element exists
+                let photoUrl = null;
+                const hasMedia = html.match(/class="[^"]*tgme_widget_message_(photo|video)[^"]*"/);
+
+                if (hasMedia) {
+                    photoUrl = getMeta('og:image');
+                    // Check for video thumb if og:image is default or missing
+                    if (!photoUrl || photoUrl.includes('telegram.org/img/t_logo.png')) {
+                        const styleMatch = html.match(/background-image:url\('([^']+)'\)/);
+                        if (styleMatch) photoUrl = styleMatch[1];
+                    }
                 }
 
                 // Views
                 const viewsMatch = html.match(/class="tgme_widget_message_views"[^>]*>([^<]+)/);
                 const views = viewsMatch ? viewsMatch[1] : "0";
 
-                console.log(`[Resolve Link] Post Scraped: ${username}/${postId} - ${views} views`);
+                console.log(`[Resolve Link] Post Scraped: ${username}/${postId} - ${views} views. Entities: ${entities.length}`);
 
                 return res.json({
                     id: null,
                     title: channelTitle,
                     username: username,
                     description: `Post from ${username}`,
-                    photoUrl: photoUrl,
+                    channelPhotoUrl: channelPhotoUrl, // Send channel icon
+                    photoUrl: photoUrl, // Send post media (or null)
                     type: 'post',
                     isPost: true,
                     postId: postId,
                     views: views,
-                    text: text || ""
+                    text: text || "",
+                    entities: entities
                 });
 
             } catch (postErr) {
@@ -340,6 +410,74 @@ router.post('/create-contract', async (req, res) => {
 
 router.post('/confirm-contract', async (req, res) => {
     return res.status(200).json({ success: true });
+});
+
+// POST /api/ads/send-preview
+router.post('/send-preview', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid; // Maps to Telegram User ID
+        const { method, text, entities, media, buttons, link } = req.body;
+
+        console.log(`[Preview] Sending preview to ${uid} via ${method}`);
+
+        const { sendMessage, sendPhoto, forwardMessage } = require('../services/botService');
+
+        if (method === 'forward') {
+            // Extract channel and msg id from link
+            // Link formats: t.me/c/123123/123 or t.me/username/123
+            let match = link.match(/(?:t\.me\/|telegram\.me\/)([\w_]{5,})\/([0-9]+)/);
+            if (!match) {
+                // Try private link format t.me/c/ID/ID
+                // actually private links are harder for bot to forward unless it's in the chat.
+                // For now, let's assume public username links
+                return res.status(400).json({ error: "Invalid link format for preview. Use public post link." });
+            }
+
+            const username = match[1];
+            const postId = match[2];
+            const fromChatId = `@${username}`;
+
+            try {
+                await forwardMessage(uid, fromChatId, parseInt(postId));
+                return res.json({ success: true });
+            } catch (fwdErr) {
+                console.warn("[Preview] Forward failed, falling back to copy:", fwdErr.message);
+                // Fallback: Send as copy if forward fails (e.g. restriction or bot not in channel? Bot can forward public posts usually)
+                // If it fails, we might just try to send the media + text we scraped?
+                // For now, return error or try fallback.
+                // Let's try sending scraped content if provided
+            }
+        }
+
+        // Method 'new' OR Fallback for 'forward'
+        // Construct Message
+        const options = {};
+        if (entities) options.entities = entities; // or caption_entities
+        if (buttons && buttons.length > 0) {
+            options.reply_markup = { inline_keyboard: buttons };
+        }
+
+        if (media) {
+            // Media can be file_id (best) or URL
+            // If it's a file_id from a draft, it works great.
+            // If it's a URL (from scraped preview), sendPhoto supports URL too.
+            options.caption = text || "";
+            if (entities) options.caption_entities = entities; // Image uses caption_entities
+            delete options.entities; // Remove text entities if using caption
+
+            await sendPhoto(uid, media, options);
+        } else {
+            // Text only
+            await sendMessage(uid, text || "Preview", options);
+        }
+
+        return res.json({ success: true });
+
+    } catch (error) {
+        console.error("Send Preview Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
 });
 
 // GET /api/ads/my-ads

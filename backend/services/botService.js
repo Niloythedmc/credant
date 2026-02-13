@@ -129,4 +129,36 @@ bot.on('message', async (msg) => {
     }
 });
 
-module.exports = { sendMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId, botInstance: bot };
+/**
+ * Sends a photo to a chat
+ * @param {string|number} chatId
+ * @param {string|Buffer} photo - file_id, url or buffer
+ * @param {object} options
+ */
+const sendPhoto = async (chatId, photo, options = {}) => {
+    try {
+        const msg = await bot.sendPhoto(chatId, photo, options);
+        return msg.message_id;
+    } catch (error) {
+        console.error("Bot SendPhoto Error:", error.message);
+        throw error;
+    }
+}
+
+/**
+ * Forwards a message
+ * @param {string|number} chatId - Destination
+ * @param {string|number} fromChatId - Source
+ * @param {number} messageId - Message ID
+ */
+const forwardMessage = async (chatId, fromChatId, messageId) => {
+    try {
+        const msg = await bot.forwardMessage(chatId, fromChatId, messageId);
+        return msg.message_id;
+    } catch (error) {
+        console.error("Bot ForwardMessage Error:", error.message);
+        throw error;
+    }
+}
+
+module.exports = { sendMessage, sendPhoto, forwardMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId, botInstance: bot };
