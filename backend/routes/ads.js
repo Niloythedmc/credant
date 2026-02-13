@@ -144,7 +144,9 @@ router.post('/resolve-link', async (req, res) => {
                     postId: postId,
                     views: views,
                     text: text || "",
-                    entities: entities
+                    text: text || "",
+                    entities: entities,
+                    isBotMember: await checkBotMembership(`@${username}`) // Check if bot is in the channel
                 });
 
             } catch (postErr) {
@@ -198,6 +200,9 @@ router.post('/resolve-link', async (req, res) => {
                 memberCount = await getChatMemberCount(chat.id);
             } catch (e) { }
 
+            // Check Bot Membership
+            const isBotMember = await checkBotMembership(chat.id);
+
             return res.json({
                 id: chat.id,
                 title: chat.title || chat.first_name,
@@ -205,7 +210,8 @@ router.post('/resolve-link', async (req, res) => {
                 description: chat.description || chat.bio,
                 photoUrl,
                 type: chat.type,
-                memberCount
+                memberCount,
+                isBotMember
             });
         }
 
@@ -227,6 +233,11 @@ router.post('/resolve-link', async (req, res) => {
 
             if (!title) throw new Error("No title found in scrape");
 
+            // We can't check membership via scrape easily without ID, 
+            // but usually scrape is only for public entities where we might not have bot in it anyway.
+            // We assume false for scraped fallback unless we can get ID?
+            // Actually scrape sometimes reveals ID in deeper inspection, but let's default false.
+
             return res.json({
                 id: null,
                 title: title,
@@ -234,7 +245,8 @@ router.post('/resolve-link', async (req, res) => {
                 description: description,
                 photoUrl: photoUrl,
                 type: 'bot_or_user',
-                memberCount: 0
+                memberCount: 0,
+                isBotMember: false // Fallback assumption
             });
 
         } catch (scrapeError) {
@@ -247,6 +259,18 @@ router.post('/resolve-link', async (req, res) => {
         return res.status(500).json({ error: "Could not resolve link: " + error.message });
     }
 });
+
+// Helper to safely check bot membership
+const checkBotMembership = async (chatId) => {
+    try {
+        const { getBotId, getChatMember } = require('../services/botService');
+        const botId = getBotId();
+        const member = await getChatMember(chatId, botId);
+        return ['administrator', 'member', 'restricted'].includes(member.status);
+    } catch (e) {
+        return false;
+    }
+}
 const { getSecret, saveSecret } = require('../services/secretService');
 const { transferTon, createWallet, getBalance } = require('../services/tonService'); // Import getBalance from updated service
 
@@ -428,9 +452,6 @@ router.post('/send-preview', async (req, res) => {
             // Link formats: t.me/c/123123/123 or t.me/username/123
             let match = link.match(/(?:t\.me\/|telegram\.me\/)([\w_]{5,})\/([0-9]+)/);
             if (!match) {
-                // Try private link format t.me/c/ID/ID
-                // actually private links are harder for bot to forward unless it's in the chat.
-                // For now, let's assume public username links
                 return res.status(400).json({ error: "Invalid link format for preview. Use public post link." });
             }
 
@@ -442,33 +463,36 @@ router.post('/send-preview', async (req, res) => {
                 await forwardMessage(uid, fromChatId, parseInt(postId));
                 return res.json({ success: true });
             } catch (fwdErr) {
-                console.warn("[Preview] Forward failed, falling back to copy:", fwdErr.message);
-                // Fallback: Send as copy if forward fails (e.g. restriction or bot not in channel? Bot can forward public posts usually)
-                // If it fails, we might just try to send the media + text we scraped?
-                // For now, return error or try fallback.
-                // Let's try sending scraped content if provided
+                console.warn("[Preview] Forward failed:", fwdErr.message);
+                // User requested NO fallback to text/image if forward fails.
+                return res.status(400).json({ error: "Could not forward post. Ensure the channel is public and the bot is not blocked." });
             }
         }
 
-        // Method 'new' OR Fallback for 'forward'
+        // Method 'new'
         // Construct Message
         const options = {};
-        if (entities) options.entities = entities; // or caption_entities
+
+        // IMPORTANT: node-telegram-bot-api Requires entities to be stringified JSON for some methods/versions
+        // especially when mixed with other options or depending on underlying request construction
+
         if (buttons && buttons.length > 0) {
-            options.reply_markup = { inline_keyboard: buttons };
+            options.reply_markup = JSON.stringify({ inline_keyboard: buttons });
         }
 
         if (media) {
             // Media can be file_id (best) or URL
-            // If it's a file_id from a draft, it works great.
-            // If it's a URL (from scraped preview), sendPhoto supports URL too.
             options.caption = text || "";
-            if (entities) options.caption_entities = entities; // Image uses caption_entities
-            delete options.entities; // Remove text entities if using caption
+            if (entities) {
+                options.caption_entities = JSON.stringify(entities);
+            }
 
             await sendPhoto(uid, media, options);
         } else {
             // Text only
+            if (entities) {
+                options.entities = JSON.stringify(entities);
+            }
             await sendMessage(uid, text || "Preview", options);
         }
 

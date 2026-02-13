@@ -1,39 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageContainer from '../components/PageContainer';
 import styles from './Feed.module.css';
 import AdCard from '../components/AdCard';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '../auth/useApi';
 import { useAuth } from '../auth/AuthProvider';
-import Post from '../components/Post';
-import UserProfileModal from '../components/UserProfileModal';
+import Modal from '../components/Modal'; // Assuming we have a Modal for channel details
 
 const Feed = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
     const index = 0;
-    const { get, post } = useApi();
-    const { user, tgUser } = useAuth();
-    const [posts, setPosts] = useState([]);
-    const [channels, setChannels] = useState([]); // State for channels
-    const [ads, setAds] = useState([]); // State for ads
+    const { get } = useApi();
+    const { user } = useAuth();
+
+    // Data State
+    const [ads, setAds] = useState([]);
+    const [channels, setChannels] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Profile Modal State
-    const [profileModal, setProfileModal] = useState({ isOpen: false, userId: null, username: null });
+    // Filter & Search State
+    const [activeTab, setActiveTab] = useState('all'); // 'all', 'ads', 'channels'
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState('newest'); // 'newest', 'budget_high', 'members_high'
 
+    // Selected Item for Details
+    const [selectedChannel, setSelectedChannel] = useState(null);
+
+    // 1. Fetch Data
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Parallel fetching
-                const [feedData, channelsData, adsData] = await Promise.all([
-                    get('/feed').catch(e => ({ posts: [] })),
-                    get('/channels').catch(e => ({ channels: [] })),
-                    get('/ads').catch(e => ({ ads: [] })) // Assuming GET /ads returns all ads, we might want to filter for active ones later or backend does it
+                setLoading(true);
+                const [adsData, channelsData] = await Promise.all([
+                    get('/ads').catch(() => ({ ads: [] })),
+                    get('/channels').catch(() => ({ channels: [] }))
                 ]);
 
-                setPosts(feedData.posts || []);
-                setChannels((channelsData.channels || []).slice(0, 10)); // Top 10 channels for stories
-                setAds((adsData.ads || []).filter(ad => ad.status === 'active')); // Only active ads
+                // Normalize Ads
+                const loadedAds = Array.isArray(adsData) ? adsData : (adsData.ads || []);
+                // Normalize Channels
+                const loadedChannels = Array.isArray(channelsData) ? channelsData : (channelsData.channels || []);
+
+                setAds(loadedAds.map(ad => ({ ...ad, type: 'ad' })));
+                setChannels(loadedChannels.map(ch => ({ ...ch, type: 'channel' })));
+
             } catch (error) {
                 console.error("Failed to load feed data", error);
             } finally {
@@ -43,155 +53,209 @@ const Feed = ({ activePage, onNavigate }) => {
         fetchData();
     }, []);
 
-    const handleLike = async (postId) => {
-        try {
-            await post('/feed/like', { postId });
-            setPosts(prev => prev.map(p => {
-                if (p.id === postId) {
-                    return { ...p, likesCount: (p.likesCount || 0) + 1 };
-                }
-                return p;
-            }));
-        } catch (e) {
-            console.error("Like failed", e);
-        }
-    };
+    // 2. Filter & Sort Logic
+    const filteredItems = useMemo(() => {
+        let items = [];
 
-    const handleProfileClick = (identifier) => {
-        // Identifier can be userId or username
-        // If it starts with @, treat as username? No, Post.jsx handles logic.
-        // Actually Post.jsx passes username if available, else userId.
-        // But identifier from Mention is always username (string).
-        // Identifier from Post user click is username or userId.
-
-        // Let's assume username if string and not a UID pattern, but UIDs are strings too.
-        // Simple heuristic: passed from Post.jsx
-
-        if (identifier && identifier.length < 20 && identifier.indexOf(' ') === -1) {
-            // likely username if short? Or we rely on explicit props.
-            // Let's just pass both to modal and let it figure it out?
-            // Or better, update modal to accept either.
+        // specific filtering
+        if (activeTab === 'all') {
+            items = [...ads, ...channels];
+        } else if (activeTab === 'ads') {
+            items = [...ads];
+        } else if (activeTab === 'channels') {
+            items = [...channels];
         }
 
-        // Actually, if we just pass it as 'username' to modal if it looks like one, or 'userId' otherwise.
-        // Users collection UIDs are usually long alphanumeric. Usernames are usually shorter.
-        // But easiest is to detect if it was a mention click (always username) or avatar click (could be either).
-
-        // Let's just try:
-        if (typeof identifier === 'string' && identifier.length < 25) {
-            // Most usernames are < 32 chars, UIDs are usually 28 (Firebase) or UUID (36).
-            // Let's rely on the fact that if it's from mention, it's username.
-            // If from Post avatar, it prefers username but falls back to userId.
-
-            // To be safe, let's just pass it to modal and let modal logic handle:
-            // The modal has: if (username) resolve; else if (userId) profile;
-
-            // We can determine if it's a userId or username based on context?
-            // No, 'Post' component just calls onProfileClick(username || userId).
-
-            // Refinement: update Post `handleProfileClick` to pass object { type: 'username' | 'id', value: ... }?
-            // Or just check if it matches UID format.
+        // Search
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            items = items.filter(item => {
+                const title = (item.title || item.name || '').toLowerCase();
+                const desc = (item.description || item.postText || '').toLowerCase();
+                return title.includes(q) || desc.includes(q);
+            });
         }
 
-        // Simplified approach: pass as is to state, and modal logic helps.
-        // If we pass `username: identifier` it calls resolve.
-        // If we pass `userId: identifier` it calls profile.
-
-        // Let's update helper:
-        const isUsername = typeof identifier === 'string' && !identifier.match(/^[a-zA-Z0-9]{28}$/); // Basic Firebase UID check
-
-        if (isUsername) {
-            setProfileModal({ isOpen: true, username: identifier, userId: null });
-        } else {
-            setProfileModal({ isOpen: true, userId: identifier, username: null });
-        }
-    };
-
-    // Helper to inject ads
-    const renderFeedItems = () => {
-        const items = [];
-        let adIndex = 0;
-
-        posts.forEach((post, i) => {
-            // Render Post
-            items.push(
-                <Post
-                    key={post.id}
-                    post={post}
-                    onLike={handleLike}
-                    onProfileClick={handleProfileClick}
-                />
-            );
-
-            // Inject Ad every 5 posts
-            if ((i + 1) % 5 === 0 && ads.length > 0) {
-                const ad = ads[adIndex % ads.length];
-                items.push(
-                    <div key={`ad-${ad.id}-${i}`} className={styles.adContainer}>
-                        <div className={styles.sponsoredLabel}>
-                            <span style={{ fontWeight: 'bold' }}>Sponsored</span> • {ad.title}
-                        </div>
-                        <AdCard
-                            ad={ad}
-                            isExpanded={false}
-                            onToggle={() => { }} // Basic click handler (maybe open details?)
-                            variant="preview" // Use a variant if AdCard supports it, or generic
-                        />
-                    </div>
-                );
-                adIndex++;
+        // Sort
+        items.sort((a, b) => {
+            if (sortBy === 'newest') {
+                const getTime = (obj) => {
+                    const t = obj.createdAt || obj.verificationStartTime;
+                    if (!t) return 0;
+                    if (typeof t === 'number') return t;
+                    if (t.toMillis) return t.toMillis();
+                    if (t._seconds) return t._seconds * 1000;
+                    return 0;
+                };
+                return getTime(b) - getTime(a);
             }
+            if (sortBy === 'budget_high') {
+                const valA = parseFloat(a.budget || a.startPrice || 0);
+                const valB = parseFloat(b.budget || b.startPrice || 0);
+                return valB - valA;
+            }
+            if (sortBy === 'members_high') {
+                const memA = a.memberCount || 0;
+                const memB = b.memberCount || 0;
+                return memB - memA;
+            }
+            return 0;
         });
+
         return items;
-    };
+    }, [ads, channels, activeTab, searchQuery, sortBy]);
+
+
+    // Helper: Channel Card Component (Inline for now or matching Channels.jsx style)
+    const renderChannelCard = (channel) => (
+        <div key={channel.id} className={styles.channelCard} onClick={() => setSelectedChannel(channel)}>
+            <div className={styles.channelInfo}>
+                <img
+                    src={channel.photoUrl || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"}
+                    alt={channel.title}
+                    className={styles.channelAvatar}
+                />
+                <div className={styles.channelDetails}>
+                    <h3 className={styles.channelTitle}>
+                        {channel.title || 'Channel'}
+                        {channel.purityScore > 80 && <span title="Verified" style={{ marginLeft: 4 }}>✅</span>}
+                    </h3>
+                    <span className={styles.channelSub}>
+                        {channel.memberCount ? `${channel.memberCount.toLocaleString()} subs` : 'No subs info'}
+                        {channel.username ? ` • @${channel.username}` : ''}
+                    </span>
+                </div>
+            </div>
+            {(channel.startPrice || channel.purityScore) && (
+                <div style={{ textAlign: 'right' }}>
+                    {channel.startPrice && <div style={{ fontWeight: 'bold', color: '#60a5fa' }}>${channel.startPrice}</div>}
+                    {channel.purityScore && <div style={{ fontSize: 11, color: '#4ade80' }}>{channel.purityScore}% Pure</div>}
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <PageContainer id="feed" activePage={activePage} index={index}>
             <div className={styles.page}>
-                <header className={styles.header}>
+                {/* Header with Search & Controls */}
+                <div className={styles.header}>
                     <h1 className={styles.headerTitle}>{t('feed.title')}</h1>
-                </header>
 
+                    <div className={styles.controls}>
+                        {/* Search Bar */}
+                        <div className={styles.searchContainer}>
+                            <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input
+                                type="text"
+                                placeholder="Search ads & channels..."
+                                className={styles.searchInput}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
 
-
-                {/* Stories Bar (Channels) */}
-                {channels.length > 0 && (
-                    <div className={styles.storiesContainer}>
-                        {channels.map(channel => (
-                            <div key={channel.id} className={styles.storyItem} onClick={() => onNavigate('channels')}>
-                                <div className={styles.storyRing}>
-                                    <img
-                                        src={channel.photoUrl || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"}
-                                        alt={channel.title}
-                                        className={styles.storyAvatar}
-                                    />
-                                </div>
-                                <span className={styles.storyName}>{channel.title || 'Channel'}</span>
+                        {/* Filters & Sort Row */}
+                        <div className={styles.filtersRow}>
+                            <div className={styles.tabs}>
+                                <button
+                                    className={`${styles.tab} ${activeTab === 'all' ? styles.tabActive : ''}`}
+                                    onClick={() => setActiveTab('all')}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    className={`${styles.tab} ${activeTab === 'ads' ? styles.tabActive : ''}`}
+                                    onClick={() => setActiveTab('ads')}
+                                >
+                                    Ads
+                                </button>
+                                <button
+                                    className={`${styles.tab} ${activeTab === 'channels' ? styles.tabActive : ''}`}
+                                    onClick={() => setActiveTab('channels')}
+                                >
+                                    Channels
+                                </button>
                             </div>
-                        ))}
+
+                            <select
+                                className={styles.sortSelect}
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                            >
+                                <option value="newest">Newest</option>
+                                <option value="budget_high">Budget High</option>
+                                <option value="members_high">Members High</option>
+                            </select>
+                        </div>
                     </div>
-                )}
+                </div>
 
-                <div className={styles.feedList}>
-                    {loading && <div className={styles.loading}>{t('feed.loading')}</div>}
+                {/* Content List */}
+                <div className={styles.feedGrid}>
+                    {loading && <div className={styles.loading}>Loading feed...</div>}
 
-                    {!loading && posts.length === 0 && (
+                    {!loading && filteredItems.length === 0 && (
                         <div className={styles.emptyState}>
-                            <p>{t('feed.empty')}</p>
+                            No items found matching your filters.
                         </div>
                     )}
 
-                    {!loading && renderFeedItems()}
+                    {!loading && filteredItems.map(item => {
+                        if (item.type === 'ad') {
+                            return (
+                                <AdCard
+                                    key={item.id}
+                                    ad={item}
+                                    variant="feed" // Pass a variant if needed
+                                    isExpanded={false}
+                                    onToggle={() => { }} // Could open details
+                                />
+                            );
+                        } else {
+                            return renderChannelCard(item);
+                        }
+                    })}
                 </div>
-            </div>
 
-            {/* Profile Modal */}
-            <UserProfileModal
-                isOpen={profileModal.isOpen}
-                onClose={() => setProfileModal({ isOpen: false, userId: null, username: null })}
-                userId={profileModal.userId}
-                username={profileModal.username}
-            />
+                {/* Channel Details Modal (Simple) */}
+                <Modal
+                    isOpen={!!selectedChannel}
+                    onClose={() => setSelectedChannel(null)}
+                    title={selectedChannel?.title || 'Channel'}
+                >
+                    {selectedChannel && (
+                        <div style={{ textAlign: 'center', padding: 20 }}>
+                            <img
+                                src={selectedChannel.photoUrl || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"}
+                                style={{ width: 80, height: 80, borderRadius: '50%', marginBottom: 16 }}
+                            />
+                            <h3>{selectedChannel.title}</h3>
+                            <p style={{ color: '#aaa', marginBottom: 20 }}>@{selectedChannel.username}</p>
+
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 10 }}>
+                                    <div style={{ fontSize: 12, color: '#aaa' }}>Subscribers</div>
+                                    <div style={{ fontWeight: 'bold' }}>{selectedChannel.memberCount?.toLocaleString() || 0}</div>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 10 }}>
+                                    <div style={{ fontSize: 12, color: '#aaa' }}>Purity</div>
+                                    <div style={{ fontWeight: 'bold', color: '#4ade80' }}>{selectedChannel.purityScore || 0}%</div>
+                                </div>
+                            </div>
+
+                            <button onClick={() => window.open(`https://t.me/${selectedChannel.username}`, '_blank')} style={{
+                                marginTop: 24, width: '100%', padding: 14, background: 'white', color: 'black', border: 'none', borderRadius: 14, fontWeight: 'bold', cursor: 'pointer'
+                            }}>
+                                View on Telegram
+                            </button>
+                        </div>
+                    )}
+                </Modal>
+            </div>
         </PageContainer>
     );
 };

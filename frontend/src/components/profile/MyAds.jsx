@@ -43,39 +43,44 @@ const MyAds = ({ ads, onNavigate, onRefresh }) => {
         return (
             <div style={{
                 background: 'rgba(255, 255, 255, 0.03)',
-                borderRadius: '24px',
-                padding: '40px 20px',
+                borderRadius: '16px',
+                padding: '24px 16px',
                 textAlign: 'center',
                 border: '1px solid rgba(255, 255, 255, 0.05)',
-                marginTop: '10px'
+                marginTop: '10px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px'
             }}>
                 <div style={{
-                    width: '60px', height: '60px',
+                    width: '48px', height: '48px',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto 16px',
-                    fontSize: '24px'
+                    fontSize: '20px'
                 }}>
                     📢
                 </div>
-                <h3 style={{ color: 'var(--text-main)', margin: '0 0 8px', fontSize: '18px' }}>{t('profile.noAds')}</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '0 0 24px', maxWidth: '80%', display: 'inline-block' }}>
-                    Start promoting your channel or project today and reach thousands of users.
-                </p>
+                <div>
+                    <h3 style={{ color: 'var(--text-main)', margin: '0 0 4px', fontSize: '16px' }}>{t('profile.noAds')}</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0', maxWidth: '300px', lineHeight: '1.4' }}>
+                        Start promoting your channel today.
+                    </p>
+                </div>
                 <button
                     onClick={() => onNavigate('postAds')}
                     style={{
                         background: 'linear-gradient(90deg, #3b82f6, #9333ea)',
                         color: 'white',
                         border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: '16px',
-                        fontSize: '15px',
+                        padding: '8px 20px',
+                        borderRadius: '12px',
+                        fontSize: '14px',
                         fontWeight: '600',
                         cursor: 'pointer',
                         boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                        transition: 'transform 0.2s'
+                        width: 'auto'
                     }}
                 >
                     {t('profile.postAds')}

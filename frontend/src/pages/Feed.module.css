@@ -7,95 +7,112 @@
 
 .header {
     display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-    position: relative;
-    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
     padding: 10px 0;
 }
 
 .headerTitle {
     color: var(--text-main);
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
     margin: 0;
 }
 
-.profileCard {
+/* Controls */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.searchContainer {
+    position: relative;
+    width: 100%;
+}
+
+.searchInput {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 12px 16px;
+    padding-left: 44px;
+    color: var(--text-main);
+    font-size: 15px;
+    transition: all 0.2s;
+}
+
+.searchInput:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.searchIcon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    width: 18px;
+    height: 18px;
+}
+
+.filtersRow {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
-    padding: 0 4px;
-}
-
-.userInfo {
-    display: flex;
-    align-items: center;
     gap: 12px;
 }
 
-.avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid var(--bg-card);
+.tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    /* Hide scrollbar potentially */
+    scrollbar-width: none;
 }
 
-.userName {
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.2;
+.tabs::-webkit-scrollbar {
+    display: none;
 }
 
-.userStatus {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-.inviteButton {
-    background: var(--bg-card);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
+.tab {
     padding: 8px 16px;
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-.shareThoughtTrigger {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    border-radius: 20px;
     background: var(--bg-card);
-    padding: 12px 16px;
-    border-radius: 20px;
-    margin-bottom: 24px;
-    cursor: pointer;
     border: 1px solid var(--glass-border);
-    transition: transform 0.2s;
-}
-
-.shareThoughtTrigger:active {
-    transform: scale(0.98);
-}
-
-.triggerAvatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.triggerInput {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 10px 16px;
-    border-radius: 20px;
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.feedList {
+.tabActive {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.sortSelect {
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+}
+
+/* Content Grid */
+.feedGrid {
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -106,179 +123,59 @@
 .emptyState {
     color: var(--text-muted);
     text-align: center;
-    padding: 20px;
-}
-
-.emptyState {
     padding: 40px;
+    font-size: 14px;
 }
 
-.postCard {
+/* Channel Card Styles (Inline replication or shared) */
+.channelCard {
     background: var(--bg-card);
     border-radius: 20px;
     padding: 16px;
-    box-shadow: var(--card-shadow);
-    border: 1px solid var(--glass-border);
-}
-
-.postHeader {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: transform 0.1s;
 }
 
-.postUser {
+.channelCard:active {
+    transform: scale(0.98);
+}
+
+.channelInfo {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 12px;
 }
 
-.postAvatar {
+.channelAvatar {
     width: 48px;
     height: 48px;
     border-radius: 50%;
     object-fit: cover;
+    background: #333;
 }
 
-.postUserInfo {
-    display: flex;
-    align-items: center;
-}
-
-.postName {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-main);
-    margin-right: 4px;
-}
-
-.genreBadge {
-    background: var(--badge-blue-bg);
-    color: var(--badge-blue-text);
-    font-size: 10px;
-    font-weight: 700;
-    padding: 4px 8px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.postContent {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--text-main);
-    margin-bottom: 16px;
-}
-
-.postActions {
-    display: flex;
-    gap: 12px;
-}
-
-/* Stories Bar */
-.storiesContainer {
-    display: flex;
-    gap: 12px;
-    padding: 16px;
-    overflow-x: auto;
-    margin-bottom: 16px;
-    scrollbar-width: none;
-    /* Firefox */
-    -ms-overflow-style: none;
-    /* IE/Edge */
-}
-
-.storiesContainer::-webkit-scrollbar {
-    display: none;
-    /* Chrome/Safari */
-}
-
-.storyItem {
+.channelDetails {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    min-width: 72px;
-    cursor: pointer;
 }
 
-.storyRing {
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
-    padding: 3px;
-    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.channelTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 2px;
 }
 
-.storyAvatar {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    border: 3px solid var(--bg-dark);
-    object-fit: cover;
-    background: var(--bg-card);
-}
-
-.storyName {
-    font-size: 11px;
-    color: var(--text-primary);
-    text-align: center;
-    max-width: 72px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Ad Container */
-.adContainer {
-    margin: 16px;
-}
-
-.sponsoredLabel {
+.channelSub {
     font-size: 12px;
     color: var(--text-muted);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
 }
 
-.likeButton {
-    background: none;
-    border: none;
-    color: var(--badge-yellow-text);
-    font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.verifiedIcon {
+.verified {
+    color: var(--primary);
     margin-left: 4px;
-    width: 14px;
-    height: 14px;
-    fill: var(--icon-verified);
-}
-
-.coinIcon {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 6px;
-}
-
-.coinInner {
-    width: 8px;
-    height: 8px;
-    border: 2px solid white;
-    border-radius: 50%;
 }

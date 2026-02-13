@@ -46,13 +46,20 @@ const TelegramFetcher = ({ link, onResolved, subject }) => {
     if (status === 'error') return <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>Could not resolve Telegram link</div>;
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
-            {data?.photoUrl && <img src={data.photoUrl} alt="Channel" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
-            <div>
-                <div style={{ fontSize: 13, fontWeight: 'bold' }}>{data?.title}</div>
-                <div style={{ fontSize: 11, opacity: 0.7 }}>@{data?.username} • {data?.type}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+                {data?.photoUrl && <img src={data.photoUrl} alt="Channel" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
+                <div>
+                    <div style={{ fontSize: 13, fontWeight: 'bold' }}>{data?.title}</div>
+                    <div style={{ fontSize: 11, opacity: 0.7 }}>@{data?.username} • {data?.type}</div>
+                </div>
+                <div style={{ marginLeft: 'auto', color: '#10b981' }}><FiCheck /></div>
             </div>
-            <div style={{ marginLeft: 'auto', color: '#10b981' }}><FiCheck /></div>
+            {data && data.isBotMember === false && (
+                <div style={{ fontSize: 13, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ⚠️ <span>Add <a href="https://t.me/CredantBot" target="_blank" style={{ color: '#60a5fa', textDecoration: 'underline' }}>@CredantBot</a> to <a href={`https://t.me/${data.username}`} target="_blank" style={{ color: '#60a5fa', textDecoration: 'underline' }}>@{data.username}</a> to enable forwarding.</span>
+                </div>
+            )}
         </div>
     );
 };
@@ -95,7 +102,11 @@ const CustomSelect = ({ options, value, onChange, placeholder }) => {
                             <div
                                 key={opt.id}
                                 className={`${styles.dropdownOption} ${value === opt.id ? styles.selected : ''}`}
-                                onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Fix glitch
+                                    onChange(opt.id);
+                                    setIsOpen(false);
+                                }}
                             >
                                 <span>{opt.icon}</span>
                                 {opt.label}
@@ -152,7 +163,7 @@ const MultiSelectInput = ({ options, value = [], onChange, placeholder, max, exc
             newValue = [...value, optId];
         }
         onChange(newValue);
-        // Do not close dropdown immediately to allow multiple selections
+        setIsOpen(false); // Close on select as requested
     };
 
     const removeTag = (e, optId) => {
@@ -215,7 +226,10 @@ const MultiSelectInput = ({ options, value = [], onChange, placeholder, max, exc
                                 <div
                                     key={optId}
                                     className={`${styles.dropdownOption} ${isSelected ? styles.selected : ''}`}
-                                    onClick={() => handleSelect(optId)}
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // Fix glitch
+                                        handleSelect(optId);
+                                    }}
                                 >
                                     {label}
                                     {isSelected && <FiCheck style={{ marginLeft: 'auto' }} />}
@@ -241,7 +255,7 @@ const PostAds = ({ activePage, onNavigate }) => {
     // Auth & Profile
     const { userProfile, refreshProfile, backendUrl } = useAuth();
     // Quick Search Data
-    const { get } = useApi();
+    const { get, post } = useApi();
     const [quickChannels, setQuickChannels] = useState([]);
 
     useEffect(() => {
@@ -394,11 +408,23 @@ const PostAds = ({ activePage, onNavigate }) => {
                     return false;
                 } return true;
             case 4:
-                // Allow if text present AND (media object OR mediaPreview string present)
-                if (!formData.postText || (!formData.media && !formData.mediaPreview)) {
-                    addNotification('warning', t('ads.addTextAndMedia') || "Please add text and media (or wait for preview to load)");
+                if (postMethod === 'forward') {
+                    if (!formData.link) {
+                        addNotification('warning', 'Please enter a valid Telegram link');
+                        return false;
+                    }
+                    return true;
+                }
+                // Method 'new': Require at least Text OR Media
+                // Check if any content exists
+                const hasText = !!formData.postText;
+                const hasMedia = !!(formData.media || formData.mediaPreview || formData.mediaFileId);
+
+                if (!hasText && !hasMedia) {
+                    addNotification('warning', t('ads.addTextOrMedia') || "Please add text or media");
                     return false;
-                } return true;
+                }
+                return true;
             default: return true;
         }
     };
@@ -719,17 +745,7 @@ const PostAds = ({ activePage, onNavigate }) => {
             {/* Content Display */}
             {postMethod === 'forward' ? (
                 <>
-                    <div className={styles.channelPreview} style={{ borderRadius: 12, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1c1c1e', marginBottom: 16 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: '#333' }}>
-                                <img src={formData.channelPhoto || "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/2048px-Telegram_logo.svg.png"} alt="Channel" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            </div>
-                            <div>
-                                <div style={{ fontWeight: 600, color: '#fff' }}>{formData.title}</div>
-                                <div style={{ fontSize: 13, color: '#aaa' }}>@{formData.link ? formData.link.split('/').slice(-2)[0] : 'channel'} • post</div>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Channel Preview Removed as requested */}
 
                     <div style={{
                         background: '#212121',
