@@ -73,6 +73,20 @@ const Ads = ({ activePage, onNavigate, isOverlayOpen }) => {
         fetchAds();
     }, []);
 
+    // Check for "Open Ad" request from Feed
+    useEffect(() => {
+        if (activePage === 'ads' && campaigns.length > 0) {
+            const openId = sessionStorage.getItem('openAdId');
+            if (openId) {
+                const found = campaigns.find(c => c.id === openId);
+                if (found) {
+                    setSelectedAd(found);
+                    sessionStorage.removeItem('openAdId');
+                }
+            }
+        }
+    }, [campaigns, activePage]);
+
     // Calculate Stats from Real Data
     const totalSpend = campaigns.reduce((acc, curr) => acc + (parseFloat(curr.budget) || 0), 0);
     const activeCampaigns = campaigns.filter(c => c.status === 'active').length;

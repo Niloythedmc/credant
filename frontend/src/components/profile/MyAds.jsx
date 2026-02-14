@@ -145,6 +145,7 @@ const MyAds = ({ ads, onNavigate, onRefresh }) => {
                 onClose={() => setSelectedAd(null)}
                 ad={selectedAd}
                 initialOffers={offersMap[selectedAd?.id] || []}
+                onNavigate={onNavigate}
             />
         </div>
     );

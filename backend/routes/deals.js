@@ -58,8 +58,31 @@ router.post('/update', async (req, res) => {
             }
         }
 
-        // 3. Logic for other transitions (e.g. Funding)
-        // ... (For MVP, focusing on the Auto-Posting requirement)
+        // 3. Logic for "Rejecting" a deal
+        if (status === 'rejected') {
+            if (decodedToken.uid !== dealData.adOwnerId && decodedToken.uid !== dealData.requesterId) {
+                return res.status(403).json({ error: "Unauthorized" });
+            }
+
+            await dealRef.update({
+                status: 'rejected',
+                rejectedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Notify Requester (if rejected by owner) OR Owner (if rejected by requester, though usually owner rejects)
+            const targetId = decodedToken.uid === dealData.adOwnerId ? dealData.requesterId : dealData.adOwnerId;
+
+            await admin.firestore().collection('users').doc(targetId).collection('notifications').add({
+                type: 'offer_rejected',
+                message: `Offer for "${dealData.adTitle}" was rejected.`,
+                offerId: dealId,
+                adId: dealData.adId,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            return res.status(200).json({ success: true, status: 'rejected' });
+        }
 
         return res.status(400).json({ error: "Invalid status transition" });
 
@@ -143,6 +166,17 @@ router.post('/request', async (req, res) => {
         // Check Budget
         if (parseFloat(amount) > parseFloat(ad.budget)) {
             return res.status(400).json({ error: `Amount cannot exceed budget of ${ad.budget} TON` });
+        }
+
+        // Duplicate Check
+        const existingOffers = await admin.firestore().collection('offers')
+            .where('adId', '==', adId)
+            .where('requesterId', '==', uid)
+            .where('status', 'in', ['pending', 'accepted', 'negotiating', 'posted'])
+            .get();
+
+        if (!existingOffers.empty) {
+            return res.status(400).json({ error: "You already have an active offer for this ad." });
         }
 
         // Fetch Channel & Verify Ownership
@@ -236,8 +270,93 @@ router.post('/request', async (req, res) => {
     }
 });
 
+// POST /api/deals/negotiate
+router.post('/negotiate', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { dealId, price } = req.body;
+
+        if (!dealId || !price) return res.status(400).json({ error: "Missing fields" });
+
+        const dealRef = admin.firestore().collection('offers').doc(dealId); // 'offers' collection used for deals/requests
+        const dealDoc = await dealRef.get();
+
+        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
+        const deal = dealDoc.data();
+
+        // Verify Participant
+        if (uid !== deal.requesterId && uid !== deal.adOwnerId) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const negotiationEntry = {
+            price: parseFloat(price),
+            by: uid,
+            at: new Date().toISOString()
+        };
+
+        await dealRef.update({
+            amount: parseFloat(price),
+            status: 'negotiating',
+            lastNegotiatorId: uid,
+            negotiationHistory: admin.firestore.FieldValue.arrayUnion(negotiationEntry)
+        });
+
+        // Notify Counterparty
+        const targetId = uid === deal.requesterId ? deal.adOwnerId : deal.requesterId;
+        const msg = `New Counter Offer: ${price} TON for "${deal.adTitle}"`;
+
+        // In-App
+        await admin.firestore().collection('users').doc(targetId).collection('notifications').add({
+            type: 'negotiation',
+            message: msg,
+            offerId: dealId,
+            adId: deal.adId,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // TG Notification (if Owner is target, straightforward. If Requester is target, need TG ID)
+        // Assuming requesterId is valid TG ID or we have mapping.
+        try {
+            await sendMessage(targetId, `🤝 *Negotiation Update*\n\n${msg}\n\nCheck your offers to respond.`, { parse_mode: 'Markdown' });
+        } catch (e) {
+            console.warn("TG Notify failed", e.message);
+        }
+
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error("Negotiation Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/deals/sent
+// Get offers sent by the current user
+router.get('/sent', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+
+        let query = admin.firestore().collection('offers')
+            .where('requesterId', '==', uid);
+
+        if (req.query.adId) {
+            query = query.where('adId', '==', req.query.adId);
+        }
+
+        const snapshot = await query.orderBy('createdAt', 'desc').get();
+
+        const offers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.status(200).json({ offers });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /api/deals/received
-// Get offers received by the current user
 router.get('/received', async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
@@ -255,6 +374,19 @@ router.get('/received', async (req, res) => {
 
         const offers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return res.status(200).json({ offers });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/deals/single/:dealId
+router.get('/single/:dealId', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req); // Optional security
+        const { dealId } = req.params;
+        const dealDoc = await admin.firestore().collection('offers').doc(dealId).get();
+        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
+        return res.status(200).json({ ...dealDoc.data(), id: dealDoc.id });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }

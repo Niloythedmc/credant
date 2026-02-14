@@ -140,59 +140,83 @@ const RequestDeal = ({ activePage, onNavigate }) => {
         return uploadJson.url;
     };
 
-    // Features
+    // Interaction Helpers
+    const lastPreviewRef = useRef({ time: 0, msgId: null });
+
+    const sendPreviewIfNeeded = async (force = false) => {
+        const now = Date.now();
+        // If sent within last 60s, skip unless forced
+        if (!force && now - lastPreviewRef.current.time < 60000 && lastPreviewRef.current.msgId) {
+            console.log("Preview sent recently, reusing.");
+            return lastPreviewRef.current.msgId;
+        }
+
+        let mediaUrl = modifiedContent.mediaPreview;
+        if (modifiedContent.mediaFile) {
+            addNotification('info', 'Uploading media for preview...');
+            mediaUrl = await uploadImage(modifiedContent.mediaFile);
+        }
+        if (mediaUrl && mediaUrl.startsWith('blob:')) mediaUrl = null;
+
+        const res = await post('/ads/send-preview', {
+            method: 'new',
+            text: modifiedContent.postText,
+            entities: modifiedContent.entities,
+            buttons: modifiedContent.link ? [[{ text: modifiedContent.buttonText, url: modifiedContent.link }]] : [],
+            media: mediaUrl
+        });
+
+        if (res.success) {
+            lastPreviewRef.current = { time: Date.now(), msgId: res.messageId };
+            return res.messageId;
+        }
+        throw new Error("Failed to send preview");
+    };
+
     const handleSeePreview = async () => {
-        console.log("[RequestDeal] Sending preview. Current User ID:", userProfile?.id);
+        console.log("[RequestDeal] See Preview Clicked");
         try {
-            let mediaUrl = modifiedContent.mediaPreview;
-
-            // If blob, must upload first
-            if (modifiedContent.mediaFile) {
-                addNotification('info', 'Uploading media for preview...');
-                mediaUrl = await uploadImage(modifiedContent.mediaFile);
-            }
-
-            // Fix for 500: Ensure mediaUrl is valid string or null
-            if (mediaUrl && mediaUrl.startsWith('blob:')) {
-                // Should have been uploaded above, but double check
-                // If no file but blob exists, it's stale or from ad? 
-                // If from ad, it should be http.
-                console.warn("Blob URL detected without file:", mediaUrl);
-                mediaUrl = null; // Fallback
-            }
-
-            await post('/ads/send-preview', {
-                method: 'new',
-                text: modifiedContent.postText,
-                entities: modifiedContent.entities,
-                buttons: modifiedContent.link ? [[{ text: modifiedContent.buttonText, url: modifiedContent.link }]] : [],
-                media: mediaUrl
-            });
-            addNotification('success', 'Preview sent to Bot!');
-            // WebApp.close(); // Removed as per user request
+            await sendPreviewIfNeeded();
+            addNotification('success', 'Preview sent! Opening Bot...');
+            WebApp.openTelegramLink('https://t.me/CredantBot');
         } catch (e) {
             console.error(e);
             addNotification('error', 'Failed to send preview');
         }
     };
 
-    const handleRequestChanges = () => {
-        addNotification('info', 'Edit post in Bot. App will update automatically.');
-        WebApp.close();
-        startPolling();
+    const handleRequestChanges = async () => {
+        console.log("[RequestDeal] Request Changes Clicked");
+        try {
+            const msgId = await sendPreviewIfNeeded();
+
+            // Send instruction reply
+            await post('/ads/send-preview', { // Reusing endpoint for simple text msg
+                method: 'new',
+                text: "Send me the change you want in this post (Reply to this message or just send text)",
+                replyTo: msgId
+            });
+
+            addNotification('info', 'Please send your changes in the Bot.');
+            WebApp.openTelegramLink('https://t.me/CredantBot');
+            startPolling();
+
+        } catch (e) {
+            console.error(e);
+            addNotification('error', 'Failed to initiate change request');
+        }
     };
 
     const startPolling = () => {
         if (pollingRef.current) return;
         setDraftStatus('polling');
+        // Poll for modifications
         pollingRef.current = setInterval(async () => {
             try {
                 const res = await get('/drafts');
                 if (res && res.draft) {
                     const d = res.draft;
-                    // Compare logic or timestamp logic to ensure it's new?
-                    // For MVP, just update.
-
+                    // Check if strictly newer? For now any draft.
                     setModifiedContent(prev => ({
                         ...prev,
                         postText: d.text || prev.postText,
@@ -202,7 +226,7 @@ const RequestDeal = ({ activePage, onNavigate }) => {
                         buttonText: d.buttons?.[0]?.[0]?.text || prev.buttonText,
                     }));
                     setDraftStatus('found');
-                    addNotification('success', 'New draft captured!');
+                    addNotification('success', 'Changes applied!');
                     stopPolling();
                 }
             } catch (e) { }

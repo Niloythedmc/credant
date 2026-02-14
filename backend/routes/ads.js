@@ -481,6 +481,12 @@ router.post('/send-preview', async (req, res) => {
             options.reply_markup = JSON.stringify({ inline_keyboard: buttons });
         }
 
+        if (req.body.replyTo) {
+            options.reply_to_message_id = req.body.replyTo;
+        }
+
+        let sentMsg;
+
         if (media) {
             // Media can be file_id (best) or URL
             options.caption = text || "";
@@ -489,7 +495,7 @@ router.post('/send-preview', async (req, res) => {
             }
 
             try {
-                await sendPhoto(uid, media, options);
+                sentMsg = await sendPhoto(uid, media, options);
             } catch (photoErr) {
                 console.warn("[Preview] sendPhoto failed, falling back to text:", photoErr.message);
 
@@ -499,18 +505,17 @@ router.post('/send-preview', async (req, res) => {
                 if (entities) {
                     options.entities = JSON.stringify(entities);
                 }
-                // Notify user in text that image failed? Optional.
-                await sendMessage(uid, (text || "Preview") + "\n\n[Image Preview Failed]", options);
+                sentMsg = await sendMessage(uid, (text || "Preview") + "\n\n[Image Preview Failed]", options);
             }
         } else {
             // Text only
             if (entities) {
                 options.entities = JSON.stringify(entities);
             }
-            await sendMessage(uid, text || "Preview", options);
+            sentMsg = await sendMessage(uid, text || "Preview", options);
         }
 
-        return res.json({ success: true });
+        return res.json({ success: true, messageId: sentMsg?.message_id });
 
     } catch (error) {
         console.error("Send Preview Error:", error);

@@ -16,6 +16,7 @@ import Setting from './pages/Setting';
 import ListChannel from './pages/ListChannel';
 import PostAds from './pages/PostAds';
 import RequestDeal from './pages/RequestDeal';
+import OfferDetails from './pages/OfferDetails';
 import WebApp from '@twa-dev/sdk';
 import { useAuth } from './auth/AuthProvider';
 import { useApi } from './auth/useApi';
@@ -40,7 +41,7 @@ function App() {
 
   // List of all pages
   const navPages = ['feed', 'ads', 'channels', 'profile'];
-  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox', 'listChannel', 'postAds', 'requestDeal'];
+  const secondaryPages = ['wallet', 'deals', 'details', 'post', 'list', 'offer', 'setting', 'inbox', 'listChannel', 'postAds', 'requestDeal', 'offerDetails'];
   const allPages = [...navPages, ...secondaryPages];
 
   // Helper to handle navigation
@@ -246,6 +247,7 @@ function App() {
     if (id === 'listChannel') return <ListChannel key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'postAds') return <PostAds key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'requestDeal') return <RequestDeal key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'offerDetails') return <OfferDetails key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
 
     return (
       <GenericPage

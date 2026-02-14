@@ -16,8 +16,13 @@ const AnimatedIcon = ({ emojiId, size = 40, loop = false, staticMode = false }) 
             if (!emojiId || !backendUrl) return;
 
             try {
-                const response = await fetch(`${backendUrl}/telegram-proxy/getFile?custom_emoji_id=${emojiId}`);
-                if (!response.ok) throw new Error('Failed to fetch emoji');
+                // Ensure backendUrl doesn't have trailing slash and endpoint starts with slash
+                const baseUrl = backendUrl.replace(/\/$/, '');
+                const url = `${baseUrl}/telegram-proxy/getFile?custom_emoji_id=${emojiId}`;
+                console.log("Fetching animation from:", url);
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch emoji: ${response.status}`);
 
                 const blob = await response.blob();
                 const arrayBuffer = await blob.arrayBuffer();

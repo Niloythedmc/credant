@@ -94,14 +94,19 @@ const Profile = ({ activePage, onNavigate }) => {
         }
     };
 
-    // Fetch Received Offers
+    // Fetch Received & Sent Offers
     const [receivedOffers, setReceivedOffers] = useState([]);
+    const [sentOffers, setSentOffers] = useState([]);
+
     const fetchOffers = async () => {
         try {
-            const res = await get('/deals/received');
-            if (res && res.offers) {
-                setReceivedOffers(res.offers);
-            }
+            const [recRes, sentRes] = await Promise.all([
+                get('/deals/received'),
+                get('/deals/sent')
+            ]);
+
+            if (recRes && recRes.offers) setReceivedOffers(recRes.offers);
+            if (sentRes && sentRes.offers) setSentOffers(sentRes.offers);
         } catch (e) {
             console.error("Failed to fetch offers", e);
         }
@@ -273,31 +278,43 @@ const Profile = ({ activePage, onNavigate }) => {
         );
     };
 
-    const OffersSection = ({ offers }) => {
+    const OffersSection = ({ offers, type = 'received' }) => {
         const [isExpanded, setIsExpanded] = useState(false);
         const displayOffers = isExpanded ? offers : offers.slice(0, 3);
+        const title = type === 'received' ? t('profile.offers') : "My Sent Offers";
+        const emptyText = type === 'received' ? t('profile.noOffers') : "You haven't sent any offers.";
 
         if (!offers || offers.length === 0) {
             return (
                 <div className={styles.section}>
                     <div className={styles.sectionHeader}>
-                        <div className={styles.sectionTitle} style={{ color: 'var(--text-main)' }}>{t('profile.offers')}</div>
+                        <div className={styles.sectionTitle} style={{ color: 'var(--text-main)' }}>{title}</div>
                     </div>
                     <div className={styles.emptyState}>
-                        <p className={styles.emptyText} style={{ color: 'var(--text-muted)' }}>{t('profile.noOffers')}</p>
+                        <p className={styles.emptyText} style={{ color: 'var(--text-muted)' }}>{emptyText}</p>
                     </div>
                 </div>
             );
         }
 
+        const handleOfferClick = (offer) => {
+            sessionStorage.setItem('selectedOfferId', offer.id);
+            if (onNavigate) onNavigate('offerDetails');
+        };
+
         return (
             <div className={styles.section}>
                 <div className={styles.sectionHeader}>
-                    <div className={styles.sectionTitle} style={{ color: 'var(--text-main)' }}>{t('profile.offers')}</div>
+                    <div className={styles.sectionTitle} style={{ color: 'var(--text-main)' }}>{title}</div>
                 </div>
                 <div className={styles.sectionList}>
                     {displayOffers.map((offer) => (
-                        <div key={offer.id} className={styles.itemCard} style={{ background: 'rgba(128,128,128,0.1)', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                        <div
+                            key={offer.id}
+                            className={styles.itemCard}
+                            style={{ background: 'rgba(128,128,128,0.1)', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}
+                            onClick={() => handleOfferClick(offer)}
+                        >
                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                                 <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-main)' }}>
                                     {offer.amount} TON <span style={{ fontSize: '12px', fontWeight: 'normal', color: 'var(--text-muted)' }}>for {offer.duration}h</span>
@@ -306,8 +323,12 @@ const Profile = ({ activePage, onNavigate }) => {
                                     fontSize: '11px',
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    background: offer.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                                    color: offer.status === 'pending' ? '#f59e0b' : '#10b981'
+                                    background: offer.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' :
+                                        offer.status === 'negotiating' ? 'rgba(59, 130, 246, 0.2)' :
+                                            'rgba(16, 185, 129, 0.2)',
+                                    color: offer.status === 'pending' ? '#f59e0b' :
+                                        offer.status === 'negotiating' ? '#60a5fa' :
+                                            '#10b981'
                                 }}>
                                     {offer.status.toUpperCase()}
                                 </div>
@@ -317,12 +338,16 @@ const Profile = ({ activePage, onNavigate }) => {
                                 Ad: <span style={{ color: 'var(--text-main)' }}>{offer.adTitle}</span>
                             </div>
                             <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                                On: <span style={{ color: 'var(--text-main)' }}>{offer.channelTitle}</span>
+                                {type === 'received' ? 'From: ' : 'To: '}
+                                <span style={{ color: 'var(--text-main)' }}>{type === 'received' ? 'User' : offer.channelTitle}</span>
                             </div>
 
-                            {offer.status === 'pending' && (
+                            {type === 'received' && offer.status === 'pending' && (
                                 <button
-                                    onClick={() => handleAcceptOffer(offer)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAcceptOffer(offer);
+                                    }}
                                     style={{
                                         width: '100%', padding: '8px', marginTop: '4px',
                                         background: 'var(--primary)', color: 'white',
@@ -461,7 +486,7 @@ const Profile = ({ activePage, onNavigate }) => {
                     onRefresh={fetchAds}
                 />
 
-                <OffersSection offers={receivedOffers} />
+                <OffersSection offers={sentOffers} type="sent" />
 
             </div>
 

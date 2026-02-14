@@ -2,15 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../Modal';
 import { useApi } from '../../auth/useApi';
 import { useNotification } from '../../context/NotificationContext';
-// Reuse OfferItem from the previous file? Or duplicate/move?
-// Ideally move OfferItem to a shared component or just define it here if we plan to delete the old modal.
-// I will copy OfferItem logic here for self-containment as I plan to replace the old modal.
 import { useUserCache } from '../../context/UserCacheContext';
 import styles from './OffersListModal.module.css'; // Reusing styles for now
-import { FiActivity, FiYoutube, FiMessageCircle, FiMonitor, FiGlobe, FiCpu, FiBarChart2 } from 'react-icons/fi';
 
-
-const OfferItem = ({ offer, onAccept, onReject }) => {
+const OfferItem = ({ offer, onClick }) => {
     const { resolveUser, getCachedUser } = useUserCache();
     const [channelData, setChannelData] = useState(null);
     const [userData, setUserData] = useState(null);
@@ -20,6 +15,7 @@ const OfferItem = ({ offer, onAccept, onReject }) => {
         let isMounted = true;
         const fetchData = async () => {
             try {
+                // Fetch Channel Data
                 const cachedChannel = getCachedUser(offer.channelId);
                 if (cachedChannel) {
                     setChannelData(cachedChannel);
@@ -28,6 +24,7 @@ const OfferItem = ({ offer, onAccept, onReject }) => {
                     if (isMounted) setChannelData(res);
                 }
 
+                // Fetch Requester Data
                 if (offer.requesterId) {
                     const cachedUser = getCachedUser(offer.requesterId);
                     if (cachedUser) {
@@ -47,127 +44,56 @@ const OfferItem = ({ offer, onAccept, onReject }) => {
         return () => { isMounted = false; };
     }, [offer, resolveUser, getCachedUser]);
 
-    if (loading) {
-        return (
-            <div className={styles.offerItemSkeleton}>
-                <div className={styles.skeletonAvatar} />
-                <div className={styles.skeletonContent}>
-                    <div className={styles.skeletonLine} style={{ width: '60%' }} />
-                    <div className={styles.skeletonLine} style={{ width: '40%' }} />
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <div className={styles.offerItemSkeleton} />;
 
     const channelName = channelData?.title || channelData?.name || offer.channelTitle || 'Unknown Channel';
-    const channelImg = channelData?.photoUrl || channelData?.image || offer.channelImage;
     const userName = userData?.username ? `@${userData.username}` : (userData?.name || 'Unknown User');
 
     return (
-        <div className={styles.offerItem}>
+        <div className={styles.offerItem} onClick={() => onClick(offer)} style={{ cursor: 'pointer' }}>
             <div className={styles.offerHeader}>
                 <div className={styles.offerChannel}>
-                    <img
-                        src={channelImg || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"}
-                        alt={channelName}
-                        className={styles.channelAvatar}
-                    />
+                    <img src={channelData?.photoUrl || offer.channelImage || "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"} className={styles.channelAvatar} onError={(e) => e.target.style.display = 'none'} />
                     <div>
-                        <div className={styles.channelName}>
-                            {channelName}
-                            {channelData?.verified && <span className={styles.verifiedBadge}>✓</span>}
-                        </div>
-                        <div className={styles.subscribers}>
-                            {channelData?.subscribers
-                                ? (channelData.subscribers < 1000
-                                    ? `${channelData.subscribers} subscribers`
-                                    : `${(channelData.subscribers / 1000).toFixed(1)}k subscribers`)
-                                : 'No subscribers'}
-                        </div>
-                        <div className={styles.senderInfo}>
-                            Sent by <span className={styles.senderName}>{userName}</span>
-                        </div>
-                        {offer.modifiedContent && (
-                            <div className={styles.modifiedBadge}>
-                                Modified Proposal
-                            </div>
-                        )}
+                        <div className={styles.channelName}>{channelName}</div>
+                        <div className={styles.senderInfo}>{userName}</div>
                     </div>
                 </div>
-                <div className={styles.offerStatus} data-status={offer.status}>
-                    {offer.status.toUpperCase()}
-                </div>
+                <div className={styles.offerStatus} data-status={offer.status}>{offer.status.toUpperCase()}</div>
             </div>
-
             <div className={styles.offerDetails}>
-                <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Amount</span>
-                    <span className={styles.detailValue}>{offer.amount} TON</span>
-                </div>
-                <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Duration</span>
-                    <span className={styles.detailValue}>{offer.duration} Hours</span>
-                </div>
+                <div className={styles.detailItem}><span className={styles.detailValue}>{offer.amount} TON</span></div>
             </div>
-
-            {offer.modifiedContent && (
-                <div className={styles.modifiedContent}>
-                    <div className={styles.modifiedHeader}>Proposed Changes:</div>
-                    {offer.modifiedContent.postText && (
-                        <div className={styles.modifiedText}>
-                            <strong>Text:</strong> {offer.modifiedContent.postText.substring(0, 50)}...
-                        </div>
-                    )}
-                    {offer.modifiedContent.buttonText && (
-                        <div className={styles.modifiedText}>
-                            <strong>Button:</strong> {offer.modifiedContent.buttonText}
-                        </div>
-                    )}
-                    {offer.modifiedContent.mediaPreview && (
-                        <div className={styles.modifiedText}>
-                            <strong>Image:</strong> Changed
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {offer.status === 'pending' && (
-                <div className={styles.offerActions}>
-                    <button onClick={() => onReject(offer)} className={styles.rejectButton}>
-                        Reject
-                    </button>
-                    <button onClick={() => onAccept(offer)} className={styles.acceptButton}>
-                        Accept
-                    </button>
-                </div>
-            )}
         </div>
     );
 };
 
-const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [] }) => {
+const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) => {
     const { get, post } = useApi();
     const { addNotification } = useNotification();
-    const [activeTab, setActiveTab] = useState('info'); // 'info' or 'offers'
+    const [activeTab, setActiveTab] = useState('info');
     const [offers, setOffers] = useState(initialOffers);
+    const [myOffer, setMyOffer] = useState(null);
     const [loadingOffers, setLoadingOffers] = useState(false);
 
-    // If modal opens, we might want to refresh offers to be sure
-    useEffect(() => {
-        if (isOpen && ad) {
-            // If we didn't pass offers or want fresh ones
-            if (activeTab === 'offers') {
-                fetchOffers();
-            }
+    const handleOfferClick = (offer) => {
+        sessionStorage.setItem('selectedOfferId', offer.id);
+        if (onNavigate) {
+            onNavigate('offerDetails');
         }
-    }, [isOpen, ad, activeTab]);
+    };
 
     const fetchOffers = async () => {
         setLoadingOffers(true);
         try {
-            const res = await get(`/deals/received?adId=${ad.id}`);
-            if (res && res.offers) {
-                setOffers(res.offers);
+            const resReceived = await get(`/deals/received?adId=${ad.id}`);
+            if (resReceived && resReceived.offers) {
+                setOffers(resReceived.offers);
+            }
+
+            const resSent = await get(`/deals/sent?adId=${ad.id}`);
+            if (resSent && resSent.offers && resSent.offers.length > 0) {
+                setMyOffer(resSent.offers[0]);
             }
         } catch (e) {
             console.error(e);
@@ -176,31 +102,13 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [] }) => {
         }
     };
 
-    const handleAccept = async (offer) => {
-        if (!confirm(`Accept offer of ${offer.amount} TON?`)) return;
-        try {
-            const res = await post('/deals/update', { dealId: offer.id, status: 'approved' });
-            if (res.success) {
-                addNotification('success', 'Offer Accepted!');
+    useEffect(() => {
+        if (isOpen && ad) {
+            if (activeTab === 'offers') {
                 fetchOffers();
             }
-        } catch (e) {
-            addNotification('error', e.response?.data?.error || 'Failed');
         }
-    };
-
-    const handleReject = async (offer) => {
-        if (!confirm('Reject?')) return;
-        try {
-            const res = await post('/deals/update', { dealId: offer.id, status: 'rejected' });
-            if (res.success) {
-                addNotification('info', 'Rejected');
-                fetchOffers();
-            }
-        } catch (e) {
-            addNotification('error', 'Failed');
-        }
-    };
+    }, [isOpen, ad, activeTab]);
 
     if (!ad) return null;
 
@@ -250,7 +158,6 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [] }) => {
                 <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
                     {activeTab === 'info' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {/* Stats Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>Total Budget</div>
@@ -294,17 +201,26 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [] }) => {
 
                     {activeTab === 'offers' && (
                         <div className={styles.list}>
+                            {myOffer && (
+                                <div style={{ marginBottom: '16px', borderBottom: '1px dashed #333', paddingBottom: '16px' }}>
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#60a5fa' }}>Your Offer</h4>
+                                    <OfferItem
+                                        offer={myOffer}
+                                        onClick={handleOfferClick}
+                                    />
+                                </div>
+                            )}
+
                             {loadingOffers ? (
                                 <div className={styles.loading}>Loading offers...</div>
-                            ) : offers.length === 0 ? (
+                            ) : offers.length === 0 && !myOffer ? (
                                 <div className={styles.empty}>No offers yet.</div>
                             ) : (
                                 offers.map(offer => (
                                     <OfferItem
                                         key={offer.id}
                                         offer={offer}
-                                        onAccept={handleAccept}
-                                        onReject={handleReject}
+                                        onClick={handleOfferClick}
                                     />
                                 ))
                             )}
