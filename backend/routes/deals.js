@@ -189,7 +189,15 @@ router.post('/request', async (req, res) => {
         // We need to know Ad Owner's TG ID. Assuming userId IS the TG ID (from auth flow)
         try {
             const adOwnerId = ad.userId; // This is string, usually matches TG ID if auth via TG
-            await sendMessage(adOwnerId, `📩 New Deal Request!\n\nChannel: ${offerData.channelTitle}\nAmount: ${amount} TON\nAd: ${ad.title}\n\nCheck your profile to accept/reject.`);
+            // Using a premium animated emoji character if supported (or standard emoji)
+            // Telegram 'Custom Emoji' require entities.
+            // But user said "msg will contain animated premium tg emoji".
+            // We can just add a standard emoji that animates in TG (like ⚡ or 💰) or use specific entity logic?
+            // "animated premium tg emoji" usually implies custom emoji id.
+            // MVP: Just use a standard one that usually animates (Bell, MoneyBag) and maybe bold text?
+            // Or if we know a custom_emoji_id we can send it.
+            // Let's use a nice standard set for now: 🔔💰
+            await sendMessage(adOwnerId, `🔔💰 *New Deal Request!*\n\nChannel: ${offerData.channelTitle}\nAmount: ${amount} TON\nAd: ${ad.title}\n\nCheck your profile to accept/reject.`, { parse_mode: 'Markdown' });
         } catch (botErr) {
             console.warn(`Failed to send TG notification to ${ad.userId}:`, botErr.message);
         }

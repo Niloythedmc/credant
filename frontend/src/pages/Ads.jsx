@@ -12,7 +12,7 @@ import { useNotification } from '../context/NotificationContext';
 import WebApp from '@twa-dev/sdk';
 import TelegramPostRenderer from '../components/TelegramPostRenderer';
 
-const Ads = ({ activePage, onNavigate }) => {
+const Ads = ({ activePage, onNavigate, isOverlayOpen }) => {
     const { t } = useTranslation();
     const index = 1;
 
@@ -25,16 +25,22 @@ const Ads = ({ activePage, onNavigate }) => {
 
     // TWA Back Button Logic
     useEffect(() => {
-        if (selectedAd) {
+        if (selectedAd && !isOverlayOpen) { // Only handle if selected AND no overlay covering us
             WebApp.BackButton.show();
             const handleBack = () => setSelectedAd(null);
             WebApp.BackButton.onClick(handleBack);
             return () => {
                 WebApp.BackButton.offClick(handleBack);
-                WebApp.BackButton.hide();
+                // Don't hide if we are just switching to overlay? 
+                // App.jsx handles overlay back button. 
+                // If we unmount/change dependencies, we should cleanup.
+                // If switching to overlay, isOverlayOpen becomes true. This cleanup runs.
+                // We remove our listener. App.jsx adds its listener.
+                // Perfect.
+                if (!isOverlayOpen) WebApp.BackButton.hide();
             };
         }
-    }, [selectedAd]);
+    }, [selectedAd, isOverlayOpen]);
 
     // Deal Request State - REMOVED (Moved to RequestDeal.jsx)
 
@@ -148,33 +154,8 @@ const Ads = ({ activePage, onNavigate }) => {
                                     overflow: 'hidden' // Important for sticky header
                                 }}
                             >
-                                {/* Back Button (Replaces Header) */}
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '24px',
-                                    left: '20px',
-                                    zIndex: 10
-                                }}>
-                                    <button
-                                        onClick={() => setSelectedAd(null)}
-                                        style={{
-                                            background: 'rgba(255,255,255,0.1)',
-                                            border: 'none',
-                                            color: 'white',
-                                            width: 40,
-                                            height: 40,
-                                            borderRadius: '12px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="15 18 9 12 15 6"></polyline>
-                                        </svg>
-                                    </button>
-                                </div>
+                                {/* Back Button (Replaces Header) - REMOVED as per request to use Native Back Button only */}
+                                {/* <div style={{...}}>...</div> */}
 
                                 {/* Scrollable Content */}
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingTop: '80px', paddingBottom: '100px' }}>

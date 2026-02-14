@@ -236,7 +236,7 @@ function App() {
     if (id === 'feed') return <Feed key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
 
 
-    if (id === 'ads') return <Ads key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
+    if (id === 'ads') return <Ads key={id} activePage={relevantActivePage} onNavigate={handleNavigate} isOverlayOpen={!!overlayPage} />;
 
     if (id === 'profile') return <Profile key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'channels') return <Channels key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;

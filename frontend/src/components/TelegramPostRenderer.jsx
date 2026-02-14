@@ -2,15 +2,23 @@ import React from 'react';
 import styles from './TelegramPostRenderer.module.css';
 import AnimatedIcon from './Notification/AnimatedIcon';
 
-const TelegramPostRenderer = ({ text, entities }) => {
+const TelegramPostRenderer = ({ text, entities, style = {}, staticEmoji = false }) => {
     if (!text) return null;
 
-    // Highlight Text Helper (Fallback and for non-entity text if needed, 
-    // but the main logic handles entities. We'll keep it simple for now and rely on entity logic or simple text dump)
+    const baseStyle = {
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        fontSize: '15px',
+        lineHeight: '1.5',
+        color: '#ccc',
+        ...style
+    };
+
+    // Highlight Text Helper
     const highlightText = (txt) => {
         const parts = txt.split(/(\s+)/);
         return (
-            <span className={styles.previewText}>
+            <span style={baseStyle}>
                 {parts.map((part, i) => {
                     if (part.trim() === '') return <span key={i}>{part}</span>;
                     const hasDot = part.includes('.');
@@ -24,7 +32,7 @@ const TelegramPostRenderer = ({ text, entities }) => {
     };
 
     if (!entities || entities.length === 0) {
-        return <div className={styles.previewText}>{highlightText(text)}</div>;
+        return <div style={baseStyle}>{highlightText(text)}</div>;
     }
 
     // 1. Collect all boundaries
@@ -54,7 +62,11 @@ const TelegramPostRenderer = ({ text, entities }) => {
         if (emojiEntity) {
             content = (
                 <span key={`emoji-${i}`} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
-                    <AnimatedIcon emojiId={emojiEntity.custom_emoji_id} size={20} loop={true} />
+                    <AnimatedIcon
+                        emojiId={emojiEntity.custom_emoji_id}
+                        size={parseInt(baseStyle.fontSize) + 4 || 20}
+                        loop={!staticEmoji}
+                    />
                 </span>
             );
         }
@@ -92,7 +104,7 @@ const TelegramPostRenderer = ({ text, entities }) => {
         result.push(<React.Fragment key={i}>{wrapped}</React.Fragment>);
     }
 
-    return <div className={styles.previewText}>{result}</div>;
+    return <div style={baseStyle}>{result}</div>;
 };
 
 export default TelegramPostRenderer;
