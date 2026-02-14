@@ -20,6 +20,36 @@
     font-weight: bold;
 }
 
-.italic {
-    font-style: italic;
+
+/* Card Mode Styles (Matching PostAds.module.css) */
+.card {
+    background: #1e1e1e;
+    /* var(--bg-card) fallback */
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* var(--glass-border) fallback */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+}
+
+.cardImage {
+    width: 100%;
+    /* height: 200px; Remove fixed height to let it be auto/contain if needed, 
+       but PostAds had 200px cover. User requested "exact like post ads". 
+       So I should default to that, or allow override. */
+    height: auto;
+    max-height: 300px;
+    object-fit: cover;
+    background: #000;
+    display: block;
+}
+
+.cardContent {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }

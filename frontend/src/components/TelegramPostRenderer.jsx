@@ -2,8 +2,21 @@ import React from 'react';
 import styles from './TelegramPostRenderer.module.css';
 import AnimatedIcon from './Notification/AnimatedIcon';
 
-const TelegramPostRenderer = ({ text, entities, style = {}, staticEmoji = false }) => {
-    if (!text) return null;
+const TelegramPostRenderer = ({
+    text,
+    entities,
+    style = {},
+    staticEmoji = false,
+    // Card Mode Props
+    showCard = false,
+    mediaPreview = null,
+    buttonText = null,
+    link = null
+}) => {
+    // If invalid text, just don't render or render empty?
+    // If card mode, we might still want to show image.
+    const hasContent = text || mediaPreview;
+    if (!hasContent) return null;
 
     const baseStyle = {
         whiteSpace: 'pre-wrap',
@@ -16,6 +29,7 @@ const TelegramPostRenderer = ({ text, entities, style = {}, staticEmoji = false 
 
     // Highlight Text Helper
     const highlightText = (txt) => {
+        if (!txt) return null;
         const parts = txt.split(/(\s+)/);
         return (
             <span style={baseStyle}>
@@ -31,80 +45,119 @@ const TelegramPostRenderer = ({ text, entities, style = {}, staticEmoji = false 
         );
     };
 
-    if (!entities || entities.length === 0) {
-        return <div style={baseStyle}>{highlightText(text)}</div>;
+    const renderTextContent = () => {
+        if (!text) return null;
+        if (!entities || entities.length === 0) {
+            return highlightText(text);
+        }
+
+        const boundaries = new Set([0, text.length]);
+        entities.forEach(e => {
+            boundaries.add(e.offset);
+            boundaries.add(e.offset + e.length);
+        });
+
+        const sortedPoints = Array.from(boundaries).sort((a, b) => a - b);
+        const result = [];
+
+        for (let i = 0; i < sortedPoints.length - 1; i++) {
+            const start = sortedPoints[i];
+            const end = sortedPoints[i + 1];
+            if (start >= end) continue;
+
+            let content = text.slice(start, end);
+            const activeEntities = entities.filter(e => start >= e.offset && end <= (e.offset + e.length));
+            const emojiEntity = activeEntities.find(e => e.type === 'custom_emoji');
+
+            if (emojiEntity) {
+                // Static vs Animated
+                content = staticEmoji ? (
+                    <span key={`emoji-${i}`} style={{ fontSize: 'inherit' }}>💎</span> // Fallback for static if no image logic, but AnimatedIcon handles check.
+                ) : (
+                    <span key={`emoji-${i}`} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
+                        <AnimatedIcon
+                            emojiId={emojiEntity.custom_emoji_id}
+                            size={parseInt(baseStyle.fontSize) + 4 || 20}
+                            loop={!staticEmoji}
+                            staticMode={staticEmoji}
+                        />
+                    </span>
+                );
+
+                // For static, we might still want AnimatedIcon to fetch the "Static" frame.
+                // Or user requested "Not animated".
+                // AnimatedIcon can have a prop `staticMode`.
+                content = (
+                    <span key={`emoji-${i}`} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
+                        <AnimatedIcon
+                            emojiId={emojiEntity.custom_emoji_id}
+                            size={parseInt(baseStyle.fontSize) + 4 || 20}
+                            loop={false}
+                            staticMode={staticEmoji}
+                        />
+                    </span>
+                );
+            }
+
+            let wrapped = content;
+            if (activeEntities.some(e => e.type === 'bold')) wrapped = <strong key={`bold-${i}`} className={styles.bold}>{wrapped}</strong>;
+            if (activeEntities.some(e => e.type === 'italic')) wrapped = <em key={`italic-${i}`} className={styles.italic}>{wrapped}</em>;
+
+            const linkEntity = activeEntities.find(e => e.type === 'text_link' || e.type === 'url');
+            if (linkEntity) {
+                wrapped = (
+                    <a key={`link-${i}`} href={linkEntity.url} target="_blank" rel="noopener noreferrer" className={styles.link} onClick={(e) => e.stopPropagation()}>
+                        {wrapped}
+                    </a>
+                );
+            }
+            result.push(<React.Fragment key={i}>{wrapped}</React.Fragment>);
+        }
+        return result;
+    };
+
+    // Render logic
+    const content = <div style={baseStyle}>{renderTextContent()}</div>;
+
+    if (showCard) {
+        return (
+            <div className={styles.card}>
+                <div style={{ position: 'relative' }}>
+                    {mediaPreview && <img src={mediaPreview} className={styles.cardImage} alt="Post Media" />}
+                </div>
+                <div className={styles.cardContent}>
+                    {content}
+                    {link && (
+                        <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'block',
+                                width: '90%',
+                                margin: '0 auto',
+                                padding: '10px',
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                color: 'white',
+                                borderRadius: '8px',
+                                textAlign: 'center',
+                                textDecoration: 'none',
+                                fontWeight: 500,
+                                fontSize: '14px'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {buttonText || 'Open Link'}
+                        </a>
+                    )}
+                </div>
+            </div>
+        );
     }
 
-    // 1. Collect all boundaries
-    const boundaries = new Set([0, text.length]);
-    entities.forEach(e => {
-        boundaries.add(e.offset);
-        boundaries.add(e.offset + e.length);
-    });
-
-    // 2. Sort boundaries
-    const sortedPoints = Array.from(boundaries).sort((a, b) => a - b);
-    const result = [];
-
-    // 3. Iterate segments
-    for (let i = 0; i < sortedPoints.length - 1; i++) {
-        const start = sortedPoints[i];
-        const end = sortedPoints[i + 1];
-        if (start >= end) continue;
-
-        let content = text.slice(start, end);
-
-        // Find active entities for this segment
-        const activeEntities = entities.filter(e => start >= e.offset && end <= (e.offset + e.length));
-
-        // Prioritize: Emoji replaces content
-        const emojiEntity = activeEntities.find(e => e.type === 'custom_emoji');
-        if (emojiEntity) {
-            content = (
-                <span key={`emoji-${i}`} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
-                    <AnimatedIcon
-                        emojiId={emojiEntity.custom_emoji_id}
-                        size={parseInt(baseStyle.fontSize) + 4 || 20}
-                        loop={!staticEmoji}
-                    />
-                </span>
-            );
-        }
-
-        // Apply styles (wrapping)
-        let wrapped = content;
-
-        // Bold
-        if (activeEntities.some(e => e.type === 'bold')) {
-            wrapped = <strong key={`bold-${i}`} className={styles.bold}>{wrapped}</strong>;
-        }
-
-        // Italic
-        if (activeEntities.some(e => e.type === 'italic')) {
-            wrapped = <em key={`italic-${i}`} className={styles.italic}>{wrapped}</em>;
-        }
-
-        // Link
-        const linkEntity = activeEntities.find(e => e.type === 'text_link' || e.type === 'url');
-        if (linkEntity) {
-            wrapped = (
-                <a
-                    key={`link-${i}`}
-                    href={linkEntity.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.link}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {wrapped}
-                </a>
-            );
-        }
-
-        result.push(<React.Fragment key={i}>{wrapped}</React.Fragment>);
-    }
-
-    return <div style={baseStyle}>{result}</div>;
+    return content;
 };
 
 export default TelegramPostRenderer;

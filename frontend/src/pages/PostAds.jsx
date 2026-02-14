@@ -514,7 +514,12 @@ const PostAds = ({ activePage, onNavigate }) => {
 
     const addChannel = (chan) => {
         if (!formData.channels.find(c => c.id === chan.id)) {
-            handleChange('channels', [...formData.channels, { id: chan.id, name: chan.title || chan.username }]); // Normalize name
+            handleChange('channels', [...formData.channels, {
+                id: chan.id,
+                name: chan.title || chan.username,
+                photoUrl: chan.photoUrl,
+                subscribers: chan.subscribers // If available
+            }]);
         }
         setSearchQ('');
     };
@@ -641,7 +646,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                                     newDat.mediaPreview = data.photoUrl || null;
                                     newDat.entities = data.entities || [];
                                     newDat.views = data.views || "";
-                                    newDat.channelPhoto = data.channelPhotoUrl || null;
+                                    newDat.channelPhotoUrl = data.channelPhotoUrl || null;
                                 } else {
                                     newDat.title = newDat.title || data.title;
                                     newDat.mediaPreview = newDat.mediaPreview || data.photoUrl;
@@ -846,7 +851,14 @@ const PostAds = ({ activePage, onNavigate }) => {
                 // Backend 'create-contract' should accept it.
             }
 
-            const payloadData = { ...formData, budget: parseFloat(formData.budget), duration: parseInt(formData.duration), mediaPreview: mediaUrl, walletAddress: userProfile?.wallet?.address };
+            const payloadData = {
+                ...formData,
+                budget: parseFloat(formData.budget),
+                duration: parseInt(formData.duration),
+                mediaPreview: mediaUrl,
+                walletAddress: userProfile?.wallet?.address,
+                postMethod: postMethod // Save postMethod ('new' or 'forward')
+            };
             const result = await apiPost('/ads/create-contract', payloadData);
             if (!result || !result.success) throw new Error(result?.error || 'Failed');
 

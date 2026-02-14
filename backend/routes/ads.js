@@ -443,7 +443,8 @@ router.post('/send-preview', async (req, res) => {
         const uid = decodedToken.uid; // Maps to Telegram User ID
         const { method, text, entities, media, buttons, link } = req.body;
 
-        console.log(`[Preview] Sending preview to ${uid} via ${method}`);
+        console.log(`[Preview] Request received. method=${method}`);
+        console.log(`[Preview] Decoded UID (Recipient): ${uid}`);
 
         const { sendMessage, sendPhoto, forwardMessage } = require('../services/botService');
 
@@ -487,7 +488,20 @@ router.post('/send-preview', async (req, res) => {
                 options.caption_entities = JSON.stringify(entities);
             }
 
-            await sendPhoto(uid, media, options);
+            try {
+                await sendPhoto(uid, media, options);
+            } catch (photoErr) {
+                console.warn("[Preview] sendPhoto failed, falling back to text:", photoErr.message);
+
+                // Fallback to text only
+                delete options.caption;
+                delete options.caption_entities;
+                if (entities) {
+                    options.entities = JSON.stringify(entities);
+                }
+                // Notify user in text that image failed? Optional.
+                await sendMessage(uid, (text || "Preview") + "\n\n[Image Preview Failed]", options);
+            }
         } else {
             // Text only
             if (entities) {
@@ -582,3 +596,4 @@ router.get('/', async (req, res) => {
 
 
 module.exports = router;
+// Force redeploy for logging update

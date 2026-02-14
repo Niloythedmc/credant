@@ -160,6 +160,19 @@ const Ads = ({ activePage, onNavigate, isOverlayOpen }) => {
                                 {/* Scrollable Content */}
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingTop: '80px', paddingBottom: '100px' }}>
 
+                                    {/* Channel Header (Host) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 16 }}>
+                                        {selectedAd.channelPhotoUrl ? (
+                                            <img src={selectedAd.channelPhotoUrl} style={{ width: 48, height: 48, borderRadius: '50%' }} alt="Channel" />
+                                        ) : (
+                                            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📢</div>
+                                        )}
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', fontSize: 16 }}>{selectedAd.title || selectedAd.username || 'Unknown Channel'}</div>
+                                            <div style={{ fontSize: 13, opacity: 0.7 }}>@{selectedAd.username}</div>
+                                        </div>
+                                    </div>
+
                                     {/* 1. Post Image (Hero) */}
                                     {selectedAd.mediaPreview && !selectedAd.mediaPreview.startsWith('blob:') ? (
                                         <div style={{
@@ -199,13 +212,17 @@ const Ads = ({ activePage, onNavigate, isOverlayOpen }) => {
                                             Post Content
                                         </h3>
                                         <div style={{
-                                            background: 'rgba(255,255,255,0.03)',
-                                            padding: '20px', borderRadius: '20px',
-                                            border: '1px solid rgba(255,255,255,0.05)',
-                                            fontSize: '16px', lineHeight: '1.6', color: 'rgba(255,255,255,0.95)',
-                                            whiteSpace: 'pre-wrap'
+                                            // Container style removed as renderer handles card
                                         }}>
-                                            <TelegramPostRenderer text={selectedAd.postText || selectedAd.description || 'No content text.'} entities={selectedAd.entities} />
+                                            <TelegramPostRenderer
+                                                text={selectedAd.postText || selectedAd.description || 'No content text.'}
+                                                entities={selectedAd.entities}
+                                                staticEmoji={true}
+                                                showCard={true}
+                                                mediaPreview={selectedAd.mediaPreview}
+                                                buttonText={selectedAd.buttonText}
+                                                link={selectedAd.link}
+                                            />
                                         </div>
                                     </div>
 
@@ -265,21 +282,26 @@ const Ads = ({ activePage, onNavigate, isOverlayOpen }) => {
                                                         background: 'rgba(255,255,255,0.03)', padding: '12px',
                                                         borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'
                                                     }}>
-                                                        {/* Avatar Mockup */}
-                                                        <div style={{
-                                                            width: 40, height: 40, borderRadius: '50%',
-                                                            background: `hsl(${Math.random() * 360}, 70%, 20%)`,
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            fontSize: 18
-                                                        }}>
-                                                            📢
-                                                        </div>
+                                                        {/* Avatar */}
+                                                        {ch.photoUrl ? (
+                                                            <img src={ch.photoUrl} style={{ width: 40, height: 40, borderRadius: '50%' }} alt="CH" />
+                                                        ) : (
+                                                            <div style={{
+                                                                width: 40, height: 40, borderRadius: '50%',
+                                                                background: `hsl(${Math.random() * 360}, 70%, 20%)`,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                fontSize: 18
+                                                            }}>
+                                                                📢
+                                                            </div>
+                                                        )}
+
                                                         <div style={{ flex: 1 }}>
                                                             <div style={{ fontWeight: '600', fontSize: 15 }}>
                                                                 {typeof ch === 'string' ? ch : (ch.name || ch.title || 'Unknown Channel')}
                                                             </div>
                                                             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                                                                {(ch.subs || 'N/A') + ' subscribers'}
+                                                                {(ch.subscribers || ch.subs || 'N/A') + ' subscribers'}
                                                             </div>
                                                         </div>
                                                         <div style={{

@@ -48,18 +48,19 @@ export const AuthProvider = ({ children }) => {
             // 1. Check if we are already signed in
             const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
                 if (firebaseUser) {
+                    // Check if TG user changed (prevent stale session from another account)
+                    if (tgUnsafeData?.user && firebaseUser.uid !== tgUnsafeData.user.id.toString()) {
+                        console.log("User mismatch! Logging out stale session.", firebaseUser.uid, tgUnsafeData.user.id);
+                        await signOut(auth);
+                        return;
+                    }
+
                     setUser(firebaseUser);
                     // Get ID Token for API calls
                     const idToken = await firebaseUser.getIdToken();
                     setToken(idToken);
 
                     // Fetch User Profile (with Wallet)
-                    // We can't use refreshProfile here easily because of closure/state, 
-                    // so we duplicate the fetch call or move refreshProfile definition up 
-                    // but it depends on state. simpler to just inline fetch here for init 
-                    // or better: define fetch logic outside.
-                    // Actually, let's just define the fetcher here:
-
                     try {
                         const res = await fetch(`${BACKEND_URL}/auth/me?t=${Date.now()}`, {
                             headers: { 'Authorization': `Bearer ${idToken}` }

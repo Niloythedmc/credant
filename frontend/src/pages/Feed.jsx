@@ -212,7 +212,11 @@ const Feed = ({ activePage, onNavigate }) => {
                                     ad={item}
                                     variant="feed" // Pass a variant if needed
                                     isExpanded={false}
-                                    onToggle={() => { }} // Could open details
+                                    onToggle={() => {
+                                        // Navigate to Ads -> Details
+                                        sessionStorage.setItem('openAdId', item.id);
+                                        if (onNavigate) onNavigate('ads');
+                                    }} // Could open details
                                 />
                             );
                         } else {
