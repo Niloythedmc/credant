@@ -9,6 +9,7 @@ import { useApi } from '../auth/useApi';
 import { useAuth } from '../auth/AuthProvider';
 import WalletActionModal from '../components/WalletActionModal';
 import AnimatedIcon from '../components/Notification/AnimatedIcon';
+import TelegramPostRenderer from '../components/TelegramPostRenderer';
 
 // Telegram Fetcher (Keep as is)
 const TelegramFetcher = ({ link, onResolved, subject }) => {
@@ -574,76 +575,8 @@ const PostAds = ({ activePage, onNavigate }) => {
         }
     };
 
-    const renderStyledText = (text, entities) => {
-        if (!entities || entities.length === 0) return highlightText(text);
-
-        // 1. Collect all boundaries
-        const boundaries = new Set([0, text.length]);
-        entities.forEach(e => {
-            boundaries.add(e.offset);
-            boundaries.add(e.offset + e.length);
-        });
-
-        // 2. Sort boundaries
-        const sortedPoints = Array.from(boundaries).sort((a, b) => a - b);
-        const result = [];
-
-        // 3. Iterate segments
-        for (let i = 0; i < sortedPoints.length - 1; i++) {
-            const start = sortedPoints[i];
-            const end = sortedPoints[i + 1];
-            if (start >= end) continue;
-
-            let content = text.slice(start, end);
-
-            // Find active entities for this segment
-            const activeEntities = entities.filter(e => start >= e.offset && end <= (e.offset + e.length));
-
-            // Prioritize: Emoji replaces content
-            const emojiEntity = activeEntities.find(e => e.type === 'custom_emoji');
-            if (emojiEntity) {
-                content = (
-                    <span key={`emoji-${i}`} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}>
-                        <AnimatedIcon emojiId={emojiEntity.custom_emoji_id} size={20} loop={true} />
-                    </span>
-                );
-            }
-
-            // Apply styles (wrapping)
-            let wrapped = content;
-
-            // Bold
-            if (activeEntities.some(e => e.type === 'bold')) {
-                wrapped = <strong key={`bold-${i}`}>{wrapped}</strong>;
-            }
-
-            // Italic
-            if (activeEntities.some(e => e.type === 'italic')) {
-                wrapped = <em key={`italic-${i}`}>{wrapped}</em>;
-            }
-
-            // Link
-            const linkEntity = activeEntities.find(e => e.type === 'text_link' || e.type === 'url');
-            if (linkEntity) {
-                wrapped = (
-                    <a
-                        key={`link-${i}`}
-                        href={linkEntity.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#60a5fa', textDecoration: 'underline' }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {wrapped}
-                    </a>
-                );
-            }
-
-            result.push(<React.Fragment key={i}>{wrapped}</React.Fragment>);
-        }
-
-        return <div className={styles.previewText} style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{result}</div>;
-    };
+    // Use TelegramPostRenderer instead of internal renderStyledText
+    // const renderStyledText = ... (Removed)
 
     // Highlight Text Helper (Keep as fallback)
     const highlightText = (text) => {
@@ -816,7 +749,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                                     fontSize: 15,
                                     display: 'block'
                                 }}>
-                                    {renderStyledText(formData.postText || "", formData.entities)}
+                                    <TelegramPostRenderer text={formData.postText || ""} entities={formData.entities} />
                                 </div>
                             </div>
 
@@ -876,7 +809,9 @@ const PostAds = ({ activePage, onNavigate }) => {
                     {formData.mediaPreview && <img src={formData.mediaPreview} className={styles.previewImage} alt="Ad Content" />}
                 </div>
                 <div className={styles.previewContent}>
-                    <div className={styles.previewText} style={{ padding: 0 }}>{formData.postText ? renderStyledText(formData.postText, formData.entities) : 'No text content'}</div>
+                    <div className={styles.previewText} style={{ padding: 0 }}>
+                        <TelegramPostRenderer text={formData.postText || 'No text content'} entities={formData.entities} />
+                    </div>
                     {formData.link && <button className={styles.previewLinkBtn} onClick={() => window.open(formData.link, '_blank')}>{formData.buttonText || 'Open Link'}</button>}
                 </div>
             </div>

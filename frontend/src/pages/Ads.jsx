@@ -10,6 +10,7 @@ import { useAuth } from '../auth/AuthProvider';
 import Modal from '../components/Modal';
 import { useNotification } from '../context/NotificationContext';
 import WebApp from '@twa-dev/sdk';
+import TelegramPostRenderer from '../components/TelegramPostRenderer';
 
 const Ads = ({ activePage, onNavigate }) => {
     const { t } = useTranslation();
@@ -223,7 +224,7 @@ const Ads = ({ activePage, onNavigate }) => {
                                             fontSize: '16px', lineHeight: '1.6', color: 'rgba(255,255,255,0.95)',
                                             whiteSpace: 'pre-wrap'
                                         }}>
-                                            {selectedAd.postText || selectedAd.description || 'No content text.'}
+                                            <TelegramPostRenderer text={selectedAd.postText || selectedAd.description || 'No content text.'} entities={selectedAd.entities} />
                                         </div>
                                     </div>
 

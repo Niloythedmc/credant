@@ -1,0 +1,25 @@
+.previewText {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #ccc;
+}
+
+.highlight {
+    color: #60a5fa;
+}
+
+.link {
+    color: #60a5fa;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.italic {
+    font-style: italic;
+}
