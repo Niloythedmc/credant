@@ -167,90 +167,18 @@ router.get('/resolve/:username', async (req, res) => {
         }
 
         // --- FALLBACK: FETCH FROM TELEGRAM ---
+        // DISABLED TO PREVENT CRASHES ON INVALID INPUTS (Railway Deployment Fix)
         // If not found in DB, try fetching via Bot API
-        console.log(`[Resolve] Entity not found in DB. Fetching from Telegram: ${username}`);
+        console.log(`[Resolve] Entity not found in DB: ${username}`);
+        return res.status(404).json({ error: "Entity not found" });
 
+        /* 
         try {
-            // Determine input for getChat (ID or @username)
-            // If it's numeric ID, pass as is (int or string). If username, prepend @.
-            const chatInput = isNumericId ? username : (username.startsWith('@') ? username : `@${username}`);
-            console.log(`[Resolve] Telegram chatInput: ${chatInput}`);
-
-            let chat;
-            try {
-                chat = await getChat(chatInput);
-            } catch (tgErr) {
-                console.warn(`[Resolve] getChat failed for ${chatInput}: ${tgErr.message}`);
-            }
-
-            // If getChat failed or we want to try scraping for better photo (optional, but consistent with ads.js)
-            let photoUrl = null;
-            let memberCount = 0;
-
-            if (chat) {
-                // Try to get photo
-                if (chat.photo && chat.photo.big_file_id) {
-                    photoUrl = await getFileLink(chat.photo.big_file_id);
-                }
-
-                try {
-                    memberCount = await getChatMemberCount(chat.id);
-                } catch (e) { }
-
-                // Determine type
-                // chat.type can be 'private', 'group', 'supergroup', 'channel'
-                const type = chat.type === 'channel' ? 'channel' : 'user'; // simplify 'private' -> 'user'
-
-                return res.json({
-                    type: type,
-                    id: chat.id,
-                    name: chat.title || chat.first_name || chat.username || 'Unknown',
-                    username: chat.username,
-                    photoUrl: photoUrl,
-                    bio: chat.description || chat.bio || '',
-                    subscribers: memberCount || 0,
-                    verified: false // From Telegram directly we don't know proprietary verified status easily without premium checks, or just default false
-                });
-            }
-
-            // If getChat failed (e.g. bot hasn't seen user), try SCRAPING as last resort
-            // Only works for public usernames, not IDs
-            if (!isNumericId) {
-                const scrapeUrl = `https://t.me/${username}`;
-                console.log(`[Resolve] Attempting scrape: ${scrapeUrl}`);
-                const { data: html } = await axios.get(scrapeUrl);
-
-                // Regex Extraction (borrowed from ads.js)
-                const getMeta = (prop) => {
-                    const regex = new RegExp(`<meta property="${prop}" content="([^"]+)"`);
-                    const match = html.match(regex);
-                    return match ? match[1] : null;
-                };
-
-                const titleRaw = getMeta('og:title') || '';
-                const title = titleRaw.replace(/^Telegram: Contact @/, '').replace(/^Telegram: Join Group Chat/, '').trim();
-                const description = getMeta('og:description');
-                const scrapedPhoto = getMeta('og:image');
-
-                if (title) {
-                    console.log(`[Resolve] Scrape successful: ${title}`);
-                    return res.json({
-                        type: 'user', // Default to user if scraped, or guess?
-                        id: null, // Unknown ID
-                        name: title,
-                        username: username,
-                        photoUrl: scrapedPhoto,
-                        bio: description,
-                        verified: false
-                    });
-                } else {
-                    console.log(`[Resolve] Scrape returned no title.`);
-                }
-            }
-
+            // ... (rest of the logic commented out)
         } catch (tgFetchError) {
-            console.error(`[Resolve] Telegram fetch failed: ${tgFetchError.message}`);
+             console.error(`[Resolve] Telegram fetch failed: ${tgFetchError.message}`);
         }
+        */
 
         if (dbResponse) {
             console.log(`[Resolve] Telegram fetch failed or yielded no result. Returning DB fallback.`);

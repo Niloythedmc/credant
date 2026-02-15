@@ -3,9 +3,15 @@ import { FiActivity, FiClock, FiDollarSign, FiBarChart2, FiGlobe, FiCpu, FiMessa
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useApi } from '../auth/useApi';
+import { useUserCache } from '../context/UserCacheContext';
 
 const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) => {
     const { post } = useApi();
+    const { resolveUser, getCachedUser } = useUserCache();
+
+    // Channel Data State
+    const [channelData, setChannelData] = React.useState(null);
+
     // Dynamic Calculations
     const now = Date.now();
     let createdAtMs = now;
@@ -51,39 +57,46 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
     const statusColor = isActive ? '#4ade80' : (isCompleted ? '#9ca3af' : '#facc15');
     const statusLabel = isActive ? 'Active' : (isCompleted ? 'Completed' : 'Pending');
 
-    // Real-time Repair Logic: If image is missing/blob, try to fetch it.
+    // Fetch Channel Identity
+    React.useEffect(() => {
+        const fetchChannel = async () => {
+            // Prioritize fetching if we have an ID (userId or channelId)
+            const targetId = ad.channelId || ad.userId;
+            if (targetId) {
+                try {
+                    const res = await resolveUser(targetId);
+                    setChannelData(res);
+                } catch (e) {
+                    const cached = getCachedUser(targetId);
+                    if (cached) setChannelData(cached);
+                }
+            } else if (ad.username) {
+                // Try resolve by username if ID missing
+                try {
+                    const res = await resolveUser(ad.username);
+                    setChannelData(res);
+                } catch (e) { }
+            }
+        };
+        fetchChannel();
+    }, [ad.channelId, ad.userId, ad.username, resolveUser, getCachedUser]);
+
+    // Image Logic: Prefer Fetch -> Ad Prop -> Fallback logic
     const [imageSrc, setImageSrc] = React.useState(ad.mediaPreview);
 
-    // Initial check
-    const isValid = (url) => url && !url.startsWith('blob:');
-
     React.useEffect(() => {
-        // Update local state if prop changes (and is valid)
-        if (isValid(ad.mediaPreview)) {
+        if (channelData?.photoUrl) {
+            setImageSrc(channelData.photoUrl);
+        } else if (ad.mediaPreview && !ad.mediaPreview.startsWith('blob:')) {
             setImageSrc(ad.mediaPreview);
-        } else {
-            // Prop is invalid/missing. Try to fetch?
-            if (ad.link || ad.username) {
-                const fetchImage = async () => {
-                    try {
-                        // Construct link if missing but username exists
-                        const targetLink = ad.link || `https://t.me/${ad.username}`;
-                        // Avoid fetching if it looks like a generic website that isn't telegram? 
-                        // But resolve-link handles validation.
-
-                        const res = await post('/ads/resolve-link', { link: targetLink });
-                        if (res && res.photoUrl) {
-                            setImageSrc(res.photoUrl);
-                        }
-                    } catch (e) {
-                        // Silent fail
-                    }
-                };
-                fetchImage();
-            }
         }
-    }, [ad.mediaPreview, ad.link, ad.username]); // Re-run if identity changes
+    }, [channelData, ad.mediaPreview]);
 
+    // Resolve Display Info
+    const displayTitle = channelData?.title || channelData?.name || ad.title;
+    const displaySubjectLabel = channelData?.type === 'channel' ? 'Channel' : (channelData?.type === 'bot' ? 'Bot' : subjectConfig.label);
+
+    const isValid = (src) => src && typeof src === 'string' && src.length > 5;
     const hasValidImage = isValid(imageSrc);
 
     return (
@@ -134,7 +147,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                     </div>
                     <div>
                         <h4 style={{ margin: '0 0 4px 0', color: 'white', fontSize: '16px', fontWeight: '700' }}>
-                            {ad.title}
+                            {displayTitle}
                         </h4>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{
@@ -145,7 +158,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                                 padding: '2px 8px',
                                 borderRadius: '6px'
                             }}>
-                                {subjectConfig.label}
+                                {displaySubjectLabel}
                             </span>
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {durationDays} Days</span>
                         </div>

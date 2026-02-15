@@ -8,6 +8,8 @@ import styles from './RequestDeal.module.css';
 import WebApp from '@twa-dev/sdk';
 import TelegramPostRenderer from '../components/TelegramPostRenderer';
 
+import { useUserCache } from '../context/UserCacheContext';
+
 const RequestDeal = ({ activePage, onNavigate }) => {
     // Visibility Logic
     const isVisible = activePage === 'requestDeal';
@@ -36,8 +38,10 @@ const RequestDeal = ({ activePage, onNavigate }) => {
     const { get, post } = useApi();
     const { userProfile, backendUrl } = useAuth();
     const { addNotification } = useNotification();
+    const { resolveUser, getCachedUser } = useUserCache();
 
     const [ad, setAd] = useState(null);
+    const [channelData, setChannelData] = useState(null); // Host Channel Data
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
@@ -61,7 +65,7 @@ const RequestDeal = ({ activePage, onNavigate }) => {
     const [draftStatus, setDraftStatus] = useState('idle'); // idle, polling, found
     const pollingRef = useRef(null);
 
-    // Load Ad
+    // Load Ad & Channel Data
     useEffect(() => {
         const fetchAd = async () => {
             try {
@@ -78,6 +82,23 @@ const RequestDeal = ({ activePage, onNavigate }) => {
                         entities: res.entities || []
                     });
                     setAmount(res.budget || '');
+
+                    // Fetch Channel Data for the Ad's Source Channel
+                    const targetId = res.channelId || res.userId;
+                    if (targetId) {
+                        try {
+                            const cRes = await resolveUser(targetId);
+                            setChannelData(cRes);
+                        } catch (e) {
+                            const cached = getCachedUser(targetId);
+                            if (cached) setChannelData(cached);
+                        }
+                    } else if (res.username) {
+                        try {
+                            const cRes = await resolveUser(res.username);
+                            setChannelData(cRes);
+                        } catch (e) { }
+                    }
                 }
             } catch (e) {
                 console.error("Failed to fetch ad", e);
@@ -88,7 +109,7 @@ const RequestDeal = ({ activePage, onNavigate }) => {
         };
 
         if (adId) fetchAd();
-    }, [adId, get]);
+    }, [adId, get, resolveUser, getCachedUser]);
 
     // Initialize Channel
     useEffect(() => {
@@ -300,6 +321,35 @@ const RequestDeal = ({ activePage, onNavigate }) => {
         <div className={styles.page} style={style}>
 
             <div className={styles.scrollContent}>
+
+                {/* 0. Target Campaign Info (New) */}
+                <div className={styles.section}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                            width: '48px', height: '48px', borderRadius: '14px',
+                            background: 'rgba(255,255,255,0.05)', overflow: 'hidden',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            {channelData?.photoUrl || ad.mediaPreview ? (
+                                <img
+                                    src={channelData?.photoUrl || ad.mediaPreview}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={(e) => e.target.style.display = 'none'}
+                                />
+                            ) : <span style={{ fontSize: '20px' }}>📢</span>}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Requesting Deal From</div>
+                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                                {channelData?.title || channelData?.name || ad.title}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--primary)' }}>
+                                {channelData?.username ? `@${channelData.username}` : ''} {channelData?.subscribers ? `• ${channelData.subscribers} subs` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div className={styles.section}>
                     <div className={styles.sectionTitle}>1. Select Channel & Offer</div>
 

@@ -21,7 +21,7 @@ router.post('/update', async (req, res) => {
 
         if (!dealId || !status) return res.status(400).json({ error: "Missing fields" });
 
-        const dealRef = admin.firestore().collection('deals').doc(dealId);
+        const dealRef = admin.firestore().collection('offers').doc(dealId);
         const dealDoc = await dealRef.get();
 
         if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
@@ -29,8 +29,8 @@ router.post('/update', async (req, res) => {
 
         // 2. Logic for "Approving" a deal (Advertiser approves)
         if (status === 'approved') {
-            // Security: Only advertiser can approve
-            if (decodedToken.uid !== dealData.advertiserId) {
+            // Security: Only requester (Advertiser) can approve
+            if (decodedToken.uid !== dealData.requesterId) {
                 return res.status(403).json({ error: "Only advertiser can approve" });
             }
 
@@ -38,7 +38,50 @@ router.post('/update', async (req, res) => {
             try {
                 // Assuming 'content' field exists in deal, and 'channelId' is the Telegram Chat ID (e.g. -100xxx or @channel)
                 const chatId = dealData.channelId;
-                const messageId = await sendMessage(chatId, dealData.content || "Default Ad Content: " + dealData.id);
+                // Use modified content if available, else Ad content
+                // We need to fetch Ad content if not in offer? 
+                // Offer has `modifiedContent` or `adTitle`. 
+                // We might need to fetch the original Ad to get `postText` if `modifiedContent` is null.
+                // For now, let's assume `modifiedContent` has it or we fetch ad.
+
+                let contentText, entities, media, buttons;
+
+                if (dealData.modifiedContent) {
+                    // Use Content from Deal (whether modified or original snapshot)
+                    contentText = dealData.modifiedContent.postText || ''; // Allow empty
+                    entities = dealData.modifiedContent.entities || [];
+                    media = dealData.modifiedContent.mediaPreview;
+                    buttons = dealData.modifiedContent.buttonText
+                        ? [[{ text: dealData.modifiedContent.buttonText, url: dealData.modifiedContent.link }]]
+                        : [];
+                } else {
+                    // Fallback: Fetch Ad (Legacy support or if modifiedContent missing)
+                    const adDoc = await admin.firestore().collection('ads').doc(dealData.adId).get();
+                    const ad = adDoc.data();
+                    contentText = ad.postText || ad.description || '';
+                    entities = ad.entities || [];
+                    media = ad.mediaPreview;
+                    buttons = ad.buttonText ? [[{ text: ad.buttonText, url: ad.link }]] : [];
+                }
+
+                const { sendPhoto, sendMessage } = require('../services/botService');
+
+                let messageId;
+                const options = {};
+                if (buttons.length) options.reply_markup = JSON.stringify({ inline_keyboard: buttons });
+
+                if (media) {
+                    options.caption = contentText;
+                    if (entities) options.caption_entities = JSON.stringify(entities);
+                    // Sending photo...
+                    // Note: media might be URL. sendPhoto supports URL.
+                    const sent = await sendPhoto(chatId, media, options);
+                    messageId = sent.message_id;
+                } else {
+                    if (entities) options.entities = JSON.stringify(entities);
+                    const sent = await sendMessage(chatId, contentText, options);
+                    messageId = sent.message_id;
+                }
 
                 // Update Deal
                 await dealRef.update({
@@ -48,14 +91,54 @@ router.post('/update', async (req, res) => {
                     verificationDueAt: admin.firestore.Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000) // 24h later
                 });
 
+                // Notify Channel Owner
+                await admin.firestore().collection('users').doc(dealData.adOwnerId).collection('notifications').add({
+                    type: 'offer_posted',
+                    message: `Deal Approved! Your channel has successfully posted "${dealData.adTitle}".`,
+                    offerId: dealId,
+                    adId: dealData.adId,
+                    read: false,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Update Ad Data with Approved Offer for Calculations
+                await admin.firestore().collection('ads').doc(dealData.adId).update({
+                    approvedOffers: admin.firestore.FieldValue.arrayUnion({
+                        dealId: dealId,
+                        price: dealData.amount, // Final agreed price
+                        channelId: dealData.channelId,
+                        channelTitle: dealData.channelTitle,
+                        timestamp: new Date().toISOString()
+                    }),
+                    spentBudget: admin.firestore.FieldValue.increment(dealData.amount)
+                });
+
                 return res.status(200).json({ success: true, status: 'posted', messageId });
 
             } catch (botError) {
                 console.error("Bot Posting Failed", botError);
-                // Revert/Set status to 'failed_post' so user knows
                 await dealRef.update({ status: 'failed_post', error: botError.message });
-                return res.status(500).json({ error: "Failed to post to Telegram" });
+                return res.status(500).json({ error: "Failed to post to Telegram: " + botError.message });
             }
+        }
+
+        // Logic for "Accepting" (Owner says Yes)
+        if (status === 'accepted') {
+            if (decodedToken.uid !== dealData.adOwnerId) {
+                return res.status(403).json({ error: "Only channel owner can accept" });
+            }
+            await dealRef.update({ status: 'accepted' });
+
+            // Notify Advertiser
+            await admin.firestore().collection('users').doc(dealData.requesterId).collection('notifications').add({
+                type: 'offer_accepted',
+                message: `Channel Owner accepted your offer for "${dealData.adTitle}". Please approve to post.`,
+                offerId: dealId,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            return res.status(200).json({ success: true, status: 'accepted' });
         }
 
         // 3. Logic for "Rejecting" a deal
@@ -64,14 +147,61 @@ router.post('/update', async (req, res) => {
                 return res.status(403).json({ error: "Unauthorized" });
             }
 
+            // Smart Rejection Logic: Revert to previous price if negotiating
+            if (dealData.status === 'negotiating' && dealData.negotiationHistory && dealData.negotiationHistory.length > 0) {
+                // Find the last offer made by the REJECTOR (Current User)
+                // If I reject your offer, I stand by MY last offer.
+                const myHistory = dealData.negotiationHistory.filter(h => h.by === decodedToken.uid);
+
+                // Sort by date just in case, though arrayUnion maintains order usually? Better safethan sorry if client dates vary.
+                // Assuming array is chronological.
+                const lastMyOffer = myHistory.length > 0 ? myHistory[myHistory.length - 1] : null;
+
+                if (lastMyOffer) {
+                    // We found a fallback price "on the table" from this user. Revert to it.
+                    const fallbackPrice = lastMyOffer.price;
+
+                    // Helper: Determine new status
+                    // If Owner reverts: They stand by their price -> Status 'accepted' (Waiting for Adv)
+                    // If Requester reverts: They stand by their price -> Status 'negotiating' (Waiting for Owner)
+                    let newStatus = 'negotiating';
+                    let newLastNegotiator = decodedToken.uid; // It's effectively "My Term" now active
+
+                    if (decodedToken.uid === dealData.adOwnerId) {
+                        newStatus = 'accepted';
+                        // Owner accepted (their own price), waiting for Adv.
+                    }
+
+                    await dealRef.update({
+                        amount: fallbackPrice,
+                        status: newStatus,
+                        lastNegotiatorId: newLastNegotiator,
+                        // Optional: Add a 'rejection' entry to history? Or just let the revert happen.
+                        // Let's rely on the status change.
+                    });
+
+                    // Notify the other party that their counter was rejected and price reverted
+                    const targetId = decodedToken.uid === dealData.adOwnerId ? dealData.requesterId : dealData.adOwnerId;
+                    await admin.firestore().collection('users').doc(targetId).collection('notifications').add({
+                        type: 'negotiation',
+                        message: `Counter-offer rejected. Price reverted to ${fallbackPrice} TON.`,
+                        offerId: dealId,
+                        read: false,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    return res.status(200).json({ success: true, status: newStatus, message: "Reverted to previous price" });
+                }
+                // If no history found for me, fallthrough to standard rejection (I never made a counter, just rejecting initial?)
+            }
+
+            // Standard Rejection (Dead Deal)
             await dealRef.update({
                 status: 'rejected',
                 rejectedAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
-            // Notify Requester (if rejected by owner) OR Owner (if rejected by requester, though usually owner rejects)
             const targetId = decodedToken.uid === dealData.adOwnerId ? dealData.requesterId : dealData.adOwnerId;
-
             await admin.firestore().collection('users').doc(targetId).collection('notifications').add({
                 type: 'offer_rejected',
                 message: `Offer for "${dealData.adTitle}" was rejected.`,
