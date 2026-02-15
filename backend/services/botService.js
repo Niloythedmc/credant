@@ -161,4 +161,18 @@ const forwardMessage = async (chatId, fromChatId, messageId) => {
     }
 }
 
-module.exports = { sendMessage, sendPhoto, forwardMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getBotId, botInstance: bot };
+/**
+ * Gets file path (for proxying)
+ * @param {string} fileId 
+ */
+const getFilePath = async (fileId) => {
+    try {
+        const file = await bot.getFile(fileId);
+        return file.file_path;
+    } catch (error) {
+        console.error("Bot GetFilePath Error:", error.message);
+        return null;
+    }
+}
+
+module.exports = { sendMessage, sendPhoto, forwardMessage, getChatMember, getChat, getChatMemberCount, getFileLink, getFilePath, getBotId, botInstance: bot };

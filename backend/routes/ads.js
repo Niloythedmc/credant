@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
-const { getChat, getFileLink, getChatMemberCount } = require('../services/botService'); // Import bot services
+const { getChat, getFileLink, getFilePath, getChatMemberCount } = require('../services/botService'); // Import bot services
 
 // ... existing code ...
 
@@ -191,9 +191,21 @@ router.post('/resolve-link', async (req, res) => {
                 }
             } catch (scrapeErr) { }
 
-            // 2. Fallback to API Link
+            // 2. Fallback to API Link (Proxy)
             if (!photoUrl && chat.photo && chat.photo.big_file_id) {
-                photoUrl = await getFileLink(chat.photo.big_file_id);
+                // OLD: photoUrl = await getFileLink(chat.photo.big_file_id);
+                // NEW: Get Path and use Proxy
+                const path = await getFilePath(chat.photo.big_file_id);
+                if (path) {
+                    // Assuming backend is at same host or we return relative path for frontend to prepend API_URL
+                    // For simplicity, let's return the full proxy URL if we know the host, OR just the relative path 
+                    // and let frontend handle it? 
+                    // To be safe and easy for frontend: return relative path `/api/telegram-proxy/image?path=${path}`
+                    // BUT Frontend expects a full URL usually for `src`.
+                    // If we return `/api/...` it works if served from same origin or if frontend handles base.
+                    // Let's assume standard behavior: return a relative URL string.
+                    photoUrl = `/api/telegram-proxy/image?path=${path}`;
+                }
             }
 
             try {
@@ -599,6 +611,89 @@ router.get('/', async (req, res) => {
     }
 });
 
+
+// POST /api/ads/unlock-funds
+router.post('/unlock-funds', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { adId, amount } = req.body;
+
+        if (!adId || !amount || parseFloat(amount) <= 0) {
+            return res.status(400).json({ error: "Invalid amount or ID" });
+        }
+        const reqAmount = parseFloat(amount);
+
+        // 1. Fetch Ad & Verify Ownership
+        const adRef = admin.firestore().collection('ads').doc(adId);
+        const adDoc = await adRef.get();
+        if (!adDoc.exists) return res.status(404).json({ error: "Ad not found" });
+        const ad = adDoc.data();
+
+        if (ad.userId !== uid) return res.status(403).json({ error: "Unauthorized" });
+
+        // 2. Fetch Wallet Balance (Real Source of Truth)
+        if (!ad.contractAddress || !ad.escrowSecretId) {
+            return res.status(400).json({ error: "No escrow wallet found for this ad" });
+        }
+
+        const balanceRes = await getBalance(ad.contractAddress); // Returns bigint string (nanoTON)
+        const balanceTon = Number(balanceRes) / 1e9;
+
+        // 3. Calculate Committed Funds
+        // Commited = Active Offers (Accepted/Posted)
+        const allOffers = await admin.firestore().collection('offers')
+            .where('adId', '==', adId)
+            .where('status', 'in', ['accepted', 'approved', 'posted', 'completed'])
+            .get();
+
+        let committedFunds = 0;
+        allOffers.forEach(doc => {
+            const o = doc.data();
+            committedFunds += (parseFloat(o.amount) || 0);
+        });
+
+        // Funds available to withdraw = CurrentBalance - Committed - Reserve(0.01 for gas)
+        const availableToWithdraw = balanceTon - committedFunds - 0.01;
+
+        if (reqAmount > availableToWithdraw) {
+            return res.status(400).json({
+                error: `Insufficient available funds. Max withdrawable: ${Math.max(0, availableToWithdraw).toFixed(4)} TON`,
+                available: availableToWithdraw
+            });
+        }
+
+        // 4. Perform Transfer
+        const { getSecret } = require('../services/secretService');
+        const escrowMnemonic = await getSecret(ad.escrowSecretId);
+
+        // Target: User's INNER wallet
+        const userDoc = await admin.firestore().collection('users').doc(uid).get();
+        const userWallet = userDoc.data().wallet?.address;
+
+        if (!userWallet) return res.status(400).json({ error: "User inner wallet not found" });
+
+        console.log(`[Unlock Funds] Transferring ${reqAmount} TON from ${ad.contractAddress} to ${userWallet}`);
+        await transferTon(escrowMnemonic, userWallet, reqAmount.toString());
+
+        // 5. Update Ad Record
+        // We track unlockedAmount to ensure our "Budget" logic in deals.js stays consistent.
+        // Budget Logic there: Remaining = AdBudget - (Committed + Unlocked).
+        // If we reduce the AdBudget here, it might be cleaner, but keeping original budget + tracking withdrawals is better for history.
+        // Let's increment 'unlockedAmount'.
+
+        await adRef.update({
+            unlockedAmount: admin.firestore.FieldValue.increment(reqAmount),
+            lastUnlockedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return res.status(200).json({ success: true, amount: reqAmount, remaining: availableToWithdraw - reqAmount });
+
+    } catch (error) {
+        console.error("Unlock Funds Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;
 // Force redeploy for logging update

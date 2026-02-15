@@ -81,14 +81,32 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
         fetchChannel();
     }, [ad.channelId, ad.userId, ad.username, resolveUser, getCachedUser]);
 
-    // Image Logic: Prefer Fetch -> Ad Prop -> Fallback logic
-    const [imageSrc, setImageSrc] = React.useState(ad.mediaPreview);
+    // Image Logic: 
+    // Main Card Image: Prefer Ad Media Preview -> Channel Photo -> Fallback
+    // Icon Image: Prefer Channel Photo -> Default Icon
+
+    const [cardImageSrc, setCardImageSrc] = React.useState(ad.mediaPreview);
+    const [iconImageSrc, setIconImageSrc] = React.useState(null);
 
     React.useEffect(() => {
+        // Update Icon
         if (channelData?.photoUrl) {
-            setImageSrc(channelData.photoUrl);
-        } else if (ad.mediaPreview && !ad.mediaPreview.startsWith('blob:')) {
-            setImageSrc(ad.mediaPreview);
+            setIconImageSrc(channelData.photoUrl);
+        }
+
+        // Update Card Image (ONLY if ad.mediaPreview is missing should we fallback, 
+        // but user specifically said "Ad Image" appears in card. 
+        // So we stick to ad.mediaPreview. 
+        // If ad.mediaPreview is empty, maybe fallback to channel? 
+        // User said "appear the ad image, not the advertiser image".
+        // So we ensure it is ad.mediaPreview.
+        if (ad.mediaPreview) {
+            setCardImageSrc(ad.mediaPreview);
+        } else if (channelData?.photoUrl) {
+            // Optional fallback if no ad image? Or keep it blank?
+            // "not the advertiser image" implies strictly ad image. 
+            // But if ad has no image? 
+            // Let's assume ad.mediaPreview is the source of truth.
         }
     }, [channelData, ad.mediaPreview]);
 
@@ -97,7 +115,6 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
     const displaySubjectLabel = channelData?.type === 'channel' ? 'Channel' : (channelData?.type === 'bot' ? 'Bot' : subjectConfig.label);
 
     const isValid = (src) => src && typeof src === 'string' && src.length > 5;
-    const hasValidImage = isValid(imageSrc);
 
     return (
         <motion.div
@@ -139,16 +156,23 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                         boxShadow: `0 4px 12px ${subjectConfig.color}20`,
                         overflow: 'hidden'
                     }}>
-                        {hasValidImage ? (
-                            <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {/* MAIN AD IMAGE */}
+                        {isValid(cardImageSrc) ? (
+                            <img src={cardImageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                             <SubjectIcon />
                         )}
                     </div>
                     <div>
-                        <h4 style={{ margin: '0 0 4px 0', color: 'white', fontSize: '16px', fontWeight: '700' }}>
-                            {displayTitle}
-                        </h4>
+                        {/* TITLE ROW with Channel Icon */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            {isValid(iconImageSrc) && (
+                                <img src={iconImageSrc} alt="" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                            )}
+                            <h4 style={{ margin: 0, color: 'white', fontSize: '16px', fontWeight: '700' }}>
+                                {displayTitle}
+                            </h4>
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{
                                 fontSize: '11px',
@@ -231,24 +255,12 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                 </div>
             </div>
 
-            {/* Progress Bar */}
+            {/* Progress Bar REMOVED */}
+            {/* 
             <div style={{ marginBottom: '16px', position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px', color: 'var(--text-muted)' }}>
-                    <span>Campaign Progress</span>
-                    <span>{Math.round(progressPercent)}%</span>
-                </div>
-                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPercent}%` }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                        style={{ height: '100%', background: subjectConfig.color, borderRadius: '3px' }}
-                    />
-                </div>
-                <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right' }}>
-                    {isActive ? `${daysLeft} days ${hoursLeft}h remaining` : 'Campaign Finished'}
-                </div>
-            </div>
+                 ...
+            </div> 
+            */}
 
             <AnimatePresence>
                 {isExpanded && (

@@ -76,6 +76,30 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) 
     const [myOffer, setMyOffer] = useState(null);
     const [loadingOffers, setLoadingOffers] = useState(false);
 
+    // Unlock Funds State
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
+    const [unlockAmount, setUnlockAmount] = useState('');
+    const [unlocking, setUnlocking] = useState(false);
+
+    const handleUnlock = async () => {
+        if (!unlockAmount || parseFloat(unlockAmount) <= 0) return;
+        setUnlocking(true);
+        try {
+            const res = await post('/ads/unlock-funds', { adId: ad.id, amount: unlockAmount });
+            if (res.success) {
+                addNotification('success', `Successfully Unlocked ${unlockAmount} TON`);
+                setShowUnlockModal(false);
+                setUnlockAmount('');
+                // Ideally refresh Ad data here (would need parent handler or context)
+            }
+        } catch (e) {
+            console.error(e);
+            addNotification('error', e.response?.data?.error || 'Unlock Failed');
+        } finally {
+            setUnlocking(false);
+        }
+    };
+
     const handleOfferClick = (offer) => {
         sessionStorage.setItem('selectedOfferId', offer.id);
         if (onNavigate) {
@@ -88,7 +112,14 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) 
         try {
             const resReceived = await get(`/deals/received?adId=${ad.id}`);
             if (resReceived && resReceived.offers) {
-                setOffers(resReceived.offers);
+                const ProcessedOffers = resReceived.offers
+                    .filter(o => o.status !== 'rejected')
+                    .sort((a, b) => {
+                        const tA = new Date(a.createdAt || 0).getTime();
+                        const tB = new Date(b.createdAt || 0).getTime();
+                        return tB - tA;
+                    });
+                setOffers(ProcessedOffers);
             }
 
             const resSent = await get(`/deals/sent?adId=${ad.id}`);
@@ -162,6 +193,10 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) 
                                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>Total Budget</div>
                                     <div style={{ fontSize: '18px', fontWeight: '700' }}>{ad.budget} TON</div>
+                                    <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px' }}>
+                                        Used: {offers.filter(o => ['accepted', 'approved', 'posted', 'completed'].includes(o.status))
+                                            .reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0) + (parseFloat(ad.unlockedAmount) || 0)} TON
+                                    </div>
                                 </div>
                                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>Wait Time</div>
@@ -227,8 +262,8 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) 
                         </div>
                     )}
                 </div>
-            </div>
-        </Modal>
+            </div >
+        </Modal >
     );
 };
 

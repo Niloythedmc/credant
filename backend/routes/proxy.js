@@ -103,4 +103,19 @@ router.get('/getThumbnail', async (req, res) => {
     await streamFileFromTelegram(filePath, res);
 });
 
+// GET /api/telegram-proxy/image?path=...
+router.get('/image', async (req, res) => {
+    const { path } = req.query;
+    if (!path) {
+        return res.status(400).json({ error: "path is required" });
+    }
+
+    // Security: basic check to ensure path doesn't try to go up directories (though telegram paths are usually safe)
+    if (path.includes('..')) {
+        return res.status(400).json({ error: "Invalid path" });
+    }
+
+    await streamFileFromTelegram(path, res);
+});
+
 module.exports = router;

@@ -74,16 +74,21 @@ const OfferDetails = ({ activePage, onNavigate }) => {
     // Actions
     const handleAccept = async () => {
         // Role based action
-        const actionStatus = isOwner ? 'accepted' : 'approved';
-        const confirmMsg = isOwner ? 'Accept this deal? (Advertiser will need to confirm)' : 'Approve and Post this deal?';
+        // Advertiser (isAdvertiser) -> 'approved' (Post)
+        // Channel Owner (isChannelOwner) -> 'accepted' (Agree to terms)
+
+        let actionStatus = isAdvertiser ? 'approved' : 'accepted';
+
+        // Safety: If Ad Owner (Advertiser) clicks it, it must always be approved/post.
+        const confirmMsg = isAdvertiser ? 'Approve and Post this deal?' : 'Accept this deal? (Advertiser will need to confirm)';
 
         if (!confirm(confirmMsg)) return;
 
         try {
             const res = await post('/deals/update', { dealId: offer.id, status: actionStatus });
             if (res.success) {
-                addNotification('success', isOwner ? 'Deal Accepted! Waiting for Advertiser.' : 'Deal Posted Successfully!');
-                if (isOwner) fetchOffer(); // Refresh to show new status
+                addNotification('success', isChannelOwner ? 'Deal Accepted! Waiting for Advertiser.' : 'Deal Posted Successfully!');
+                if (isChannelOwner) fetchOffer(); // Refresh
                 else onNavigate('profile');
             }
         } catch (e) {
@@ -124,20 +129,22 @@ const OfferDetails = ({ activePage, onNavigate }) => {
         }
     };
 
-    // Render Helpers
-    const isOwner = user?.uid === offer?.adOwnerId;
-    const isRequester = user?.uid === offer?.requesterId;
+    // Role Helpers
+    // Advertiser = Ad Owner (Budget Holder)
+    // Channel Owner = Requester (Applicant)
+    const isAdvertiser = user?.uid === offer?.adOwnerId;
+    const isChannelOwner = user?.uid === offer?.requesterId;
 
     // Turn Logic:
-    // - Pending: Owner's turn.
+    // - Pending: Channel Owner's turn to Accept/Counter.
     // - Negotiating: Last negotiator waits.
     // - Accepted: Advertiser's turn to Final Approve.
     let isMyTurn = false;
-    if (offer?.status === 'pending') isMyTurn = isOwner;
+    if (offer?.status === 'pending') isMyTurn = isChannelOwner;
     else if (offer?.status === 'negotiating') {
-        isMyTurn = (offer.lastNegotiatorId && offer.lastNegotiatorId !== user?.uid) || (!offer.lastNegotiatorId && isOwner);
+        isMyTurn = (offer.lastNegotiatorId && offer.lastNegotiatorId !== user?.uid) || (!offer.lastNegotiatorId && isChannelOwner);
     } else if (offer?.status === 'accepted') {
-        isMyTurn = isRequester;
+        isMyTurn = isAdvertiser;
     }
 
     if (!offer) return <div style={style}>Loading...</div>;
@@ -147,9 +154,67 @@ const OfferDetails = ({ activePage, onNavigate }) => {
     const displayChannelUsername = channelData?.username || offer.channelUsername;
     const displaySubs = channelData?.subscribers || offer.subscribers || 0; // Use fresh if available
 
+    // --- Verification & Payout Logic ---
+    const [verifying, setVerifying] = useState(false);
+
+    const handleCheckPost = async () => {
+        setVerifying(true);
+        try {
+            const res = await post('/deals/verify-post', { dealId: offer.id });
+            // Update local state to reflect result
+            setOffer(prev => ({ ...prev, verificationStatus: res.status }));
+            if (res.status === 'ok') addNotification('success', 'Post Verified: Valid');
+            else if (res.status === 'deleted') addNotification('error', 'Post Verified: DELETED');
+            else addNotification('warning', 'Post Verified: Issues Found');
+        } catch (e) {
+            console.error(e);
+            addNotification('error', 'Verification Failed');
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleSuspend = async () => {
+        if (!confirm("Suspend this deal? Funds will be returned to your budget.")) return;
+        try {
+            const res = await post('/deals/suspend', { dealId: offer.id });
+            if (res.success) {
+                addNotification('success', 'Deal Suspended');
+                fetchOffer();
+            }
+        } catch (e) {
+            addNotification('error', 'Suspend failed');
+        }
+    };
+
+    const handleClaim = async () => {
+        if (!confirm("Claim funds?")) return;
+        try {
+            const res = await post('/deals/claim', { dealId: offer.id });
+            if (res.success) {
+                addNotification('success', `Funds Claimed! ${res.payout} TON`);
+                fetchOffer();
+            }
+        } catch (e) {
+            console.error(e);
+            addNotification('error', e.response?.data?.error || 'Claim Failed');
+        }
+    };
+
+    // Calculate time for Claim button
+    const canClaim = (() => {
+        if (offer?.status !== 'posted') return false;
+        if (!offer.postedAt) return false;
+        const postedTime = new Date(offer.postedAt._seconds ? offer.postedAt._seconds * 1000 : offer.postedAt).getTime(); // Handle Firestore TS
+        const now = Date.now();
+        const hours = (now - postedTime) / (1000 * 60 * 60);
+        return hours >= 24;
+    })();
+
+
     return (
         <div style={style}>
-            {/* Header Removed */}
+            {/* ... (Header/Content same as before) ... */}
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: '80px', paddingBottom: '80px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
@@ -158,16 +223,30 @@ const OfferDetails = ({ activePage, onNavigate }) => {
                     padding: '16px', borderRadius: '12px',
                     background: offer.status === 'pending' ? 'rgba(245, 158, 11, 0.1)' :
                         offer.status === 'negotiating' ? 'rgba(59, 130, 246, 0.1)' :
-                            offer.status === 'accepted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
+                            offer.status === 'accepted' ? 'rgba(16, 185, 129, 0.1)' :
+                                offer.status === 'posted' ? 'rgba(16, 185, 129, 0.2)' :
+                                    offer.status === 'suspended' ? 'rgba(239, 68, 68, 0.2)' :
+                                        offer.status === 'completed' ? 'rgba(59, 130, 246, 0.2)' :
+                                            'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                     <div>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Status</div>
                         <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-main)' }}>{offer.status.toUpperCase()}</div>
+                        {offer.verificationStatus && (
+                            <div style={{ fontSize: '11px', marginTop: '4px', color: offer.verificationStatus === 'ok' ? '#10b981' : '#ef4444' }}>
+                                Verification: {offer.verificationStatus.toUpperCase()}
+                            </div>
+                        )}
                     </div>
                     <div style={{ fontSize: '24px' }}>
-                        {offer.status === 'pending' ? '⏳' : offer.status === 'negotiating' ? '🤝' : offer.status === 'accepted' ? '✅' : '📄'}
+                        {offer.status === 'pending' ? '⏳' :
+                            offer.status === 'negotiating' ? '🤝' :
+                                offer.status === 'accepted' ? '✅' :
+                                    offer.status === 'posted' ? '📢' :
+                                        offer.status === 'suspended' ? '🛑' :
+                                            offer.status === 'completed' ? '💰' : '📄'}
                     </div>
                 </div>
 
@@ -206,12 +285,8 @@ const OfferDetails = ({ activePage, onNavigate }) => {
                     <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                         {offer.modifiedContent ? 'Proposed Post' : 'Ad Content'}
                     </h3>
-                    {/* Rendering Logic: Use Modified if exists, otherwise Original Ad Data (we might need to fetch AD if not fully in offer, but usually offer has snapshot or we need to fetch Ad separately? 
-                        The Offer object currently stores `modifiedContent`. If standard, it links to Ad.
-                        Ideally we fetch the AD content to show "Original" vs "Modified", but for now let's show what is proposed to be posted.
-                     */}
                     <TelegramPostRenderer
-                        text={offer.modifiedContent?.postText || offer.adTitle} // Fallback to Title if no text? Better to fetch Ad if possible, but for now show what we have.
+                        text={offer.modifiedContent?.postText || offer.adTitle}
                         entities={offer.modifiedContent?.entities}
                         mediaPreview={offer.modifiedContent?.mediaPreview}
                         buttonText={offer.modifiedContent?.buttonText}
@@ -249,19 +324,82 @@ const OfferDetails = ({ activePage, onNavigate }) => {
                     </div>
                 )}
 
-                {/* Padding for footer - Increased to account for fixed bottom section */}
                 <div style={{ height: '120px' }} />
             </div>
 
             {/* Footer Actions */}
-            {(['pending', 'negotiating', 'accepted'].includes(offer.status)) && (
+            {(['pending', 'negotiating', 'accepted', 'failed_post', 'posted'].includes(offer.status)) && (
                 <div style={{
                     padding: '16px', background: 'var(--bg-dark)', borderTop: '1px solid rgba(255,255,255,0.1)',
                     position: 'absolute', bottom: 0, left: 0, right: 0
                 }}>
-                    {isMyTurn ? (
+                    {offer.status === 'failed_post' && isAdvertiser ? (
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <div style={{ color: '#ef4444', fontSize: '14px', flex: 1 }}>
+                                Posting Failed: {offer.error || "Unknown Error"}
+                            </div>
+                            <button
+                                onClick={handleAccept}
+                                style={{ padding: '10px 20px', borderRadius: '12px', background: '#10b981', border: 'none', color: 'white', fontWeight: 'bold' }}
+                            >
+                                Retry Post
+                            </button>
+                        </div>
+                    ) : offer.status === 'posted' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {isNegotiating ? (
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                {/* CHECK POST BUTTON (Both) */}
+                                <button
+                                    onClick={handleCheckPost}
+                                    disabled={verifying}
+                                    style={{
+                                        flex: 1, padding: '14px', borderRadius: '12px',
+                                        background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6',
+                                        color: '#3b82f6', fontWeight: 'bold', cursor: verifying ? 'wait' : 'pointer'
+                                    }}
+                                >
+                                    {verifying ? 'Checking...' : 'Check Post'}
+                                </button>
+
+                                {/* SUSPEND BUTTON (Advertiser - Only if Failed Check) */}
+                                {isAdvertiser && offer.verificationStatus && offer.verificationStatus !== 'ok' && (
+                                    <button
+                                        onClick={handleSuspend}
+                                        style={{
+                                            flex: 1, padding: '14px', borderRadius: '12px',
+                                            background: '#ef4444', border: 'none',
+                                            color: 'white', fontWeight: 'bold'
+                                        }}
+                                    >
+                                        Suspend
+                                    </button>
+                                )}
+
+                                {/* CLAIM BUTTON (Channel Owner - Only if >24h & OK) */}
+                                {isChannelOwner && canClaim && offer.verificationStatus === 'ok' && (
+                                    <button
+                                        onClick={handleClaim}
+                                        style={{
+                                            flex: 1.5, padding: '14px', borderRadius: '12px',
+                                            background: '#10b981', border: 'none',
+                                            color: 'white', fontWeight: 'bold'
+                                        }}
+                                    >
+                                        Claim Funds
+                                    </button>
+                                )}
+                            </div>
+                            {/* Info Text */}
+                            {isChannelOwner && !canClaim && (
+                                <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                    Funds unlock 24h after posting. Run "Check Post" before claiming.
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* NEGOTIATION INPUT */}
+                            {isNegotiating && (
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <input
                                         type="number"
@@ -277,28 +415,66 @@ const OfferDetails = ({ activePage, onNavigate }) => {
                                         <FiX />
                                     </button>
                                 </div>
-                            ) : (
-                                <div style={{ display: 'flex', gap: '12px' }}>
-                                    <button onClick={handleReject} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', fontWeight: 'bold' }}>
-                                        Reject
-                                    </button>
-
-                                    {/* Only show Counter if NOT Accepted state (final step doesn't counter usually?) */}
-                                    {offer.status !== 'accepted' && (
-                                        <button onClick={() => setIsNegotiating(true)} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontWeight: 'bold' }}>
-                                            Counter
-                                        </button>
-                                    )}
-
-                                    <button onClick={handleAccept} style={{ flex: 1.5, padding: '14px', borderRadius: '12px', background: '#10b981', border: 'none', color: 'white', fontWeight: 'bold' }}>
-                                        {offer.status === 'accepted' ? 'Post Now' : (isOwner ? 'Accept' : 'Approve')}
-                                    </button>
-                                </div>
                             )}
-                        </div>
-                    ) : (
-                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '10px' }}>
-                            {offer.status === 'accepted' ? 'Waiting for Advertiser to Post...' : 'Waiting for response...'}
+
+                            {/* MAIN BUTTONS ROW */}
+                            <div style={{ display: 'flex', gap: '12px' }}>
+
+                                {/* REJECT BUTTON (Both Parties) */}
+                                {(isAdvertiser || isChannelOwner) && (
+                                    <button
+                                        onClick={() => {
+                                            if (offer.status === 'negotiating') {
+                                                post('/deals/update', { dealId: offer.id, status: 'reject_counter' })
+                                                    .then(res => {
+                                                        if (res.success) {
+                                                            addNotification('info', 'Counter Rejected');
+                                                            fetchOffer();
+                                                        } else addNotification('error', 'Failed');
+                                                    });
+                                            } else {
+                                                handleReject();
+                                            }
+                                        }}
+                                        style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', fontWeight: 'bold' }}
+                                    >
+                                        {offer.status === 'negotiating' ? 'Reject Counter' : 'Reject'}
+                                    </button>
+                                )}
+
+                                {/* COUNTER BUTTON (Channel Only usually, or both?) */}
+                                {!isNegotiating && offer.status !== 'accepted' && (
+                                    <button onClick={() => setIsNegotiating(true)} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontWeight: 'bold' }}>
+                                        Counter
+                                    </button>
+                                )}
+
+                                {/* APPROVE & POST (Advertiser ONLY) */}
+                                {isAdvertiser && (
+                                    <button
+                                        onClick={handleAccept}
+                                        style={{ flex: 1.5, padding: '14px', borderRadius: '12px', background: '#10b981', border: 'none', color: 'white', fontWeight: 'bold' }}
+                                    >
+                                        Approve & Post
+                                    </button>
+                                )}
+
+                                {/* ACCEPT (Channel Owner) - Only if not Accepted yet */}
+                                {/* If Channel owner accepts, it becomes 'accepted' state waiting for Advertiser Approve */}
+                                {!isAdvertiser && isChannelOwner && offer.status !== 'accepted' && (
+                                    <button
+                                        onClick={handleAccept} // This triggers 'accepted' status for Channel Owner
+                                        style={{ flex: 1.5, padding: '14px', borderRadius: '12px', background: '#10b981', border: 'none', color: 'white', fontWeight: 'bold' }}
+                                    >
+                                        Accept
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Role Debug Helper */}
+                            <div style={{ textAlign: 'center', fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '4px' }}>
+                                Role: {isAdvertiser ? 'Advertiser (Buyer)' : isChannelOwner ? 'Channel Owner (Seller)' : 'Viewer'}
+                            </div>
                         </div>
                     )}
                 </div>
