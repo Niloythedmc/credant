@@ -629,4 +629,224 @@ router.get('/single/:dealId', async (req, res) => {
     }
 });
 
+// --- VERIFICATION & PAYOUT ROUTES ---
+
+// POST /api/deals/verify-post
+router.post('/verify-post', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { dealId } = req.body;
+
+        if (!dealId) return res.status(400).json({ error: "Deal ID required" });
+
+        const dealRef = admin.firestore().collection('offers').doc(dealId);
+        const dealDoc = await dealRef.get();
+        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
+        const deal = dealDoc.data();
+
+        // Must be participant
+        const adDoc = await admin.firestore().collection('ads').doc(deal.adId).get();
+        const ad = adDoc.data();
+        if (deal.requesterId !== uid && ad.userId !== uid) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        if (deal.status !== 'posted') {
+            return res.status(400).json({ error: "Deal is not active (not posted)" });
+        }
+
+        if (!deal.message_id || !deal.channelId) {
+            console.warn("Missing message_id/channelId", deal);
+            // Cannot verify
+            await dealRef.update({ verificationStatus: 'unknown' });
+            return res.json({ status: 'unknown', message: "Tracking ID missing" });
+        }
+
+        const { forwardMessage } = require('../services/botService');
+
+        // Resolve Target TG ID
+        // 1. Try Current User
+        let targetTgId = (await admin.firestore().collection('users').doc(uid).get()).data().telegramId;
+
+        // 2. Fallback: Channel Owner (Requester)
+        if (!targetTgId) {
+            const ownerDoc = await admin.firestore().collection('users').doc(deal.requesterId).get();
+            targetTgId = ownerDoc.data().telegramId;
+        }
+
+        // 3. Fallback: Ad Owner
+        if (!targetTgId) {
+            const adOwnerDoc = await admin.firestore().collection('users').doc(deal.adOwnerId).get();
+            targetTgId = adOwnerDoc.data().telegramId;
+        }
+
+        let status = 'unknown';
+        let discrepancy = null;
+        let diffMessage = "";
+
+        if (!targetTgId) {
+            diffMessage = "No linked Telegram account found for verification.";
+        } else {
+            try {
+                // 1. Check Existence by Forwarding
+                const forwardedMsg = await forwardMessage(targetTgId, deal.channelId, deal.message_id);
+
+                if (forwardedMsg) {
+                    status = 'ok';
+                    // 2. Check Content (Edited?)
+                    const actualText = (forwardedMsg.caption || forwardedMsg.text || '').trim();
+                    let expectedText = deal.snapshotContent || (deal.modifiedContent && deal.modifiedContent.postText) || ad.postText || ad.description || '';
+                    expectedText = expectedText.trim();
+
+                    if (actualText !== expectedText) {
+                        status = 'edited';
+                        discrepancy = { actual: actualText, expected: expectedText };
+                    }
+                }
+            } catch (e) {
+                console.error(`Verification Failed Deal ${dealId}:`, e.message);
+                const err = e.message.toLowerCase();
+
+                if (err.includes("message to forward not found") ||
+                    err.includes("message not found") ||
+                    err.includes("deleted") ||
+                    err.includes("does not exist")) {
+                    status = 'deleted';
+                } else if (err.includes("chat not found")) {
+                    status = 'deleted';
+                } else {
+                    status = 'unknown';
+                    diffMessage = "API Error: " + e.message;
+                }
+            }
+        }
+
+        // Update Deal
+        await dealRef.update({
+            verificationStatus: status,
+            lastVerifiedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Response
+        if (status === 'ok') return res.json({ status, message: "Post is Valid" });
+        if (status === 'deleted') return res.json({ status, message: "Post was DELETED. Suspend available." });
+        if (status === 'edited') return res.json({ status, message: "Post was EDITED.", discrepancy });
+
+        return res.json({ status, message: diffMessage || "Verification inconclusive. Manual check recommended." });
+
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/deals/suspend
+router.post('/suspend', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { dealId } = req.body;
+
+        const dealRef = admin.firestore().collection('offers').doc(dealId);
+        const dealDoc = await dealRef.get();
+        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
+        const deal = dealDoc.data();
+
+        // Only Advertiser
+        const adDoc = await admin.firestore().collection('ads').doc(deal.adId).get();
+        const ad = adDoc.data();
+        if (ad.userId !== uid) return res.status(403).json({ error: "Unauthorized" });
+
+        // Must be failed verification
+        if (deal.verificationStatus === 'ok' || !deal.verificationStatus) {
+            return res.status(400).json({ error: "Cannot suspend valid post. Verify first." });
+        }
+
+        await dealRef.update({ status: 'suspended' });
+
+        // Refund logic is implicit (budget is calculated dynamically based on ACTIVE deals)
+        // If status is 'suspended', it is NOT in ['accepted', 'approved', 'posted', 'completed'].
+        // So funds are automatically available.
+
+        return res.json({ success: true, status: 'suspended' });
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/deals/claim
+router.post('/claim', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { dealId } = req.body;
+
+        const dealRef = admin.firestore().collection('offers').doc(dealId);
+        const dealDoc = await dealRef.get();
+        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
+        const deal = dealDoc.data();
+
+        // Only Requester (Channel Owner)
+        if (deal.requesterId !== uid) return res.status(403).json({ error: "Unauthorized" });
+
+        // Checks: posted, >24h, verified
+        if (deal.status !== 'posted') return res.status(400).json({ error: "Deal not active" });
+
+        const now = Date.now();
+        const postedAt = deal.postedAt ? (deal.postedAt.toMillis ? deal.postedAt.toMillis() : new Date(deal.postedAt).getTime()) : 0;
+        const hoursPassed = (now - postedAt) / (1000 * 60 * 60);
+
+        if (hoursPassed < 24) {
+            return res.status(400).json({ error: `Wait 24h. Passed: ${hoursPassed.toFixed(1)}h` });
+        }
+
+        // Verify again? Optional. Let's assume UI forced a check or we trust current state.
+        if (deal.verificationStatus && deal.verificationStatus !== 'ok') {
+            return res.status(400).json({ error: "Post validation failed. Cannot claim." });
+        }
+
+        // Payout Logic
+        const adDoc = await admin.firestore().collection('ads').doc(deal.adId).get();
+        const ad = adDoc.data();
+
+        // Send Funds
+        const { getSecret } = require('../services/secretService'); // Dynamic require if needed
+        const { transferTon } = require('../services/tonService');
+
+        // Ensure secret service works
+        // const escrowMnemonic = await getSecret(ad.escrowSecretId); 
+        // Note: ad.escrowSecretId might not be set if we used a shared wallet or different logic?
+        // Assuming we have ad.escrowSecretId from creation.
+
+        if (!ad.escrowSecretId) {
+            // Fallback or Error? 
+            // If we don't have it, we can't pay.
+            return res.status(500).json({ error: "Escrow wallet not configured for this ad." });
+        }
+
+        const escrowMnemonic = await getSecret(ad.escrowSecretId);
+        const userDoc = await admin.firestore().collection('users').doc(uid).get();
+        const userWallet = userDoc.data().wallet?.address;
+
+        if (!userWallet) return res.status(400).json({ error: "Your wallet not linked" });
+
+        const amount = parseFloat(deal.amount);
+        const payout = amount - 0.01; // Gas deduction
+
+        if (payout <= 0) return res.status(400).json({ error: "Amount too small for gas" });
+
+        console.log(`[Claim] Sending ${payout} TON to ${userWallet} for deal ${dealId}`);
+        await transferTon(escrowMnemonic, userWallet, payout.toString(), `Pay: ${dealId}`);
+
+        await dealRef.update({ status: 'completed', payoutTx: 'sent', completedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+        return res.json({ success: true, payout });
+
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;

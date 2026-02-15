@@ -28,6 +28,7 @@ const OfferDetails = ({ activePage, onNavigate }) => {
     const [loading, setLoading] = useState(true);
     const [counterPrice, setCounterPrice] = useState('');
     const [isNegotiating, setIsNegotiating] = useState(false);
+    const [verifying, setVerifying] = useState(false);
 
     // Fetch Offer
     const fetchOffer = async () => {
@@ -155,7 +156,6 @@ const OfferDetails = ({ activePage, onNavigate }) => {
     const displaySubs = channelData?.subscribers || offer.subscribers || 0; // Use fresh if available
 
     // --- Verification & Payout Logic ---
-    const [verifying, setVerifying] = useState(false);
 
     const handleCheckPost = async () => {
         setVerifying(true);

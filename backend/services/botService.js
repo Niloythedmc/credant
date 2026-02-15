@@ -154,7 +154,7 @@ const sendPhoto = async (chatId, photo, options = {}) => {
 const forwardMessage = async (chatId, fromChatId, messageId) => {
     try {
         const msg = await bot.forwardMessage(chatId, fromChatId, messageId);
-        return msg.message_id;
+        return msg;
     } catch (error) {
         console.error("Bot ForwardMessage Error:", error.message);
         throw error;
