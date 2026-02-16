@@ -48,7 +48,7 @@ const withRetry = async (fn, retries = 5, delay = 1000) => {
     }
 };
 
-const transferTon = async (mnemonic, toAddress, amount) => {
+const transferTon = async (mnemonic, toAddress, amount, comment = "Withdrawal via Credant") => {
     // 1. Initialize Client
     const client = new TonClient({
         endpoint: tonApiUrl,
@@ -78,7 +78,7 @@ const transferTon = async (mnemonic, toAddress, amount) => {
             internal({
                 to: toAddress,
                 value: amount, // "0.1" (string)
-                body: "Withdrawal via Credant",
+                body: comment,
                 bounce: false,
             })
         ]

@@ -79,7 +79,32 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) 
     // Unlock Funds State
     const [showUnlockModal, setShowUnlockModal] = useState(false);
     const [unlockAmount, setUnlockAmount] = useState('');
-    const [unlocking, setUnlocking] = useState(false);
+
+
+    // End Campaign State
+    const [showEndConfirm, setShowEndConfirm] = useState(false);
+    const [isEnding, setIsEnding] = useState(false);
+
+    const handleEndCampaign = async () => {
+        setIsEnding(true);
+        try {
+            const res = await post('/ads/end-campaign', { adId: ad.id });
+            if (res.success) {
+                addNotification('success', 'Campaign Ended Successfully');
+                setShowEndConfirm(false);
+                onClose();
+                // Refresh parent list if possible, or reload
+                if (window.location.hash.includes('profile')) {
+                    window.location.reload();
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            addNotification('error', e.response?.data?.error || 'Failed to End Campaign');
+        } finally {
+            setIsEnding(false);
+        }
+    };
 
     const handleUnlock = async () => {
         if (!unlockAmount || parseFloat(unlockAmount) <= 0) return;
@@ -231,6 +256,109 @@ const AdDetailModal = ({ isOpen, onClose, ad, initialOffers = [], onNavigate }) 
                                     )}
                                 </div>
                             </div>
+
+                            {/* End Campaign Button */}
+                            {ad.status === 'active' && (
+                                <div style={{ marginTop: '24px', marginBottom: '20px' }}>
+                                    <button
+                                        onClick={() => setShowEndConfirm(true)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '16px',
+                                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '16px',
+                                            fontWeight: '700',
+                                            fontSize: '16px',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                                            transition: 'transform 0.2s, box-shadow 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+                                        }}
+                                    >
+                                        End Campaign
+                                    </button>
+                                    <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
+                                        Refunds remaining budget to your wallet
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* End Confirmation Overlay - Portaled */}
+                            {showEndConfirm && (
+                                <div style={{
+                                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'rgba(0,0,0,0.85)',
+                                    backdropFilter: 'blur(8px)',
+                                    zIndex: 9999, // Very high z-index
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    padding: '20px',
+                                    animation: 'fadeIn 0.2s ease-out'
+                                }}>
+                                    <div style={{
+                                        background: '#1f2937',
+                                        padding: '32px',
+                                        borderRadius: '24px',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        textAlign: 'center',
+                                        maxWidth: '320px',
+                                        width: '100%',
+                                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                                        animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                                    }}>
+                                        <div style={{
+                                            width: '64px', height: '64px', borderRadius: '50%',
+                                            background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            margin: '0 auto 16px auto'
+                                        }}>
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                                            </svg>
+                                        </div>
+                                        <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: 'bold', color: 'white' }}>End Campaign?</h3>
+                                        <p style={{ color: '#9ca3af', marginBottom: '32px', fontSize: '15px', lineHeight: '1.6' }}>
+                                            This will reject all pending offers and refund the remaining budget to your wallet.
+                                        </p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            <button
+                                                onClick={handleEndCampaign}
+                                                disabled={isEnding}
+                                                style={{
+                                                    width: '100%', padding: '16px', borderRadius: '16px',
+                                                    background: '#ef4444', color: 'white', border: 'none',
+                                                    fontWeight: '600', fontSize: '16px', cursor: 'pointer',
+                                                    opacity: isEnding ? 0.7 : 1
+                                                }}
+                                            >
+                                                {isEnding ? 'Ending...' : 'Yes, End Campaign'}
+                                            </button>
+                                            <button
+                                                onClick={() => setShowEndConfirm(false)}
+                                                style={{
+                                                    width: '100%', padding: '16px', borderRadius: '16px',
+                                                    background: 'transparent',
+                                                    color: 'rgba(255,255,255,0.5)',
+                                                    border: 'none',
+                                                    fontWeight: '600', fontSize: '15px', cursor: 'pointer'
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

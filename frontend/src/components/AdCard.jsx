@@ -44,10 +44,12 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
     const budgetTon = parseFloat(ad.budget) || 0;
 
     // Calculate Available Budget
-    // Assuming linear spend over duration
-    const spentApprox = durationMs > 0 && !isNaN(elapsedMs) ? (elapsedMs / durationMs) * budgetTon : 0;
-    const availableBudgetVal = Math.max(0, budgetTon - spentApprox);
-    const availableBudget = isNaN(availableBudgetVal) ? budgetTon.toFixed(2) : availableBudgetVal.toFixed(2);
+    // Calculate Available Budget
+    // Available = Total - Locked - Unlocked
+    const locked = parseFloat(ad.lockedBudget || 0);
+    const unlocked = parseFloat(ad.unlockedAmount || 0);
+    const availableBudgetVal = Math.max(0, budgetTon - locked - unlocked);
+    const availableBudget = availableBudgetVal.toFixed(2);
 
     // Styles config based on subject/status
     const getSubjectConfig = (subject) => {

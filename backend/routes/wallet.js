@@ -112,7 +112,7 @@ router.post('/withdraw', async (req, res) => {
 
         // 3. Transfer
         const { transferTon } = require('../services/tonService');
-        const seqno = await transferTon(mnemonic, toAddress, amount);
+        const seqno = await transferTon(mnemonic, toAddress, amount, "Withdrawal from Credant");
 
         return res.status(200).json({ status: "success", seqno });
 
@@ -140,7 +140,7 @@ router.post('/deposit', async (req, res) => {
         // Generate TON deep link
         // ton://transfer/<address>?amount=<nanoton>
         const nanoton = Math.floor(parseFloat(amount) * 1e9);
-        const paymentLink = `ton://transfer/${address}?amount=${nanoton}`;
+        const paymentLink = `ton://transfer/${address}?amount=${nanoton}&text=Create%20Credant%20Campaign`;
 
         return res.status(200).json({
             paymentLink,

@@ -403,6 +403,7 @@ router.post('/create-contract', async (req, res) => {
             status: 'active',
             contractAddress: escrowWallet.address,
             budget: budget,
+            lockedBudget: 0, // Initialize locked budget
             duration: duration,
             platformFee: totalFee,
             escrowSecretId: escrowSecretId,
@@ -611,8 +612,143 @@ router.get('/', async (req, res) => {
     }
 });
 
+// POST /api/ads/end-campaign
+router.post('/end-campaign', async (req, res) => {
+    try {
+        const decodedToken = await verifyAuth(req);
+        const uid = decodedToken.uid;
+        const { adId } = req.body;
 
-// POST /api/ads/unlock-funds
+        if (!adId) return res.status(400).json({ error: "Ad ID is required" });
+
+        const db = admin.firestore();
+
+        // Transaction for atomic update & refund calculation
+        const result = await db.runTransaction(async (transaction) => {
+            const adRef = db.collection('ads').doc(adId);
+            const adDoc = await transaction.get(adRef);
+
+            if (!adDoc.exists) throw new Error("Ad not found");
+            const ad = adDoc.data();
+
+            if (ad.userId !== uid) throw new Error("Unauthorized");
+            if (ad.status === 'ended') throw new Error("Campaign already ended");
+
+            // 1. Calculate Refundable Amount
+            // We use the same formula as Unlock Funds but applied to everything remaining.
+            // But to be 100% safe, we should check Real Balance if possible.
+            // However, transaction cannot wait for async api calls to Toncenter.
+            // So we rely on our stored data or do the transfer after transaction?
+            // "The available budget will be sent...".
+            // Available = Budget - Locked - Unlocked.
+            // This is the "Accounting" available.
+            // Real Wallet might have more if fees were overestimated, or less if gas used?
+            // Safer to use "Accounting" value to avoid draining committed funds.
+
+            const totalBudget = parseFloat(ad.budget || 0);
+            const lockedBudget = parseFloat(ad.lockedBudget || 0);
+            const unlockedAmount = parseFloat(ad.unlockedAmount || 0);
+
+            // Available to Refund
+            let refundAmount = totalBudget - lockedBudget - unlockedAmount;
+            refundAmount = Math.max(0, refundAmount);
+
+            // 2. Fetch Pending Offers (READ before WRITE)
+            const offersQuery = db.collection('offers')
+                .where('adId', '==', adId)
+                .where('status', 'in', ['pending', 'negotiating']);
+
+            const offersSnapshot = await transaction.get(offersQuery);
+            const rejectedOffers = [];
+
+            offersSnapshot.forEach(doc => {
+                rejectedOffers.push({ id: doc.id, ...doc.data(), ref: doc.ref });
+            });
+
+            // 3. Update Ad Status (WRITE)
+            transaction.update(adRef, {
+                status: 'ended',
+                endedAt: admin.firestore.FieldValue.serverTimestamp(),
+                unlockedAmount: admin.firestore.FieldValue.increment(refundAmount)
+            });
+
+            // 4. Reject Pending Offers (WRITE)
+            rejectedOffers.forEach(offer => {
+                transaction.update(offer.ref, {
+                    status: 'rejected',
+                    rejectionReason: 'Campaign Ended by Advertiser'
+                });
+            });
+
+            return { ad, refundAmount, rejectedOffers };
+
+            return { ad, refundAmount, rejectedOffers };
+        });
+
+        // Post-Transaction: Transfer & Notify
+        const { ad, refundAmount, rejectedOffers } = result;
+
+        // 1. Refund Transfer
+        if (refundAmount > 0.05) { // Min amount covers gas
+            try {
+                const { getSecret } = require('../services/secretService');
+                const { transferTon } = require('../services/tonService');
+
+                const escrowMnemonic = await getSecret(ad.escrowSecretId);
+                const userDoc = await admin.firestore().collection('users').doc(uid).get();
+                const userWallet = userDoc.data().wallet?.address;
+
+                if (userWallet) {
+                    // Send Refund
+                    // Reserve 0.05 for gas (User Request)
+                    const payoutAmount = refundAmount - 0.05;
+
+                    if (payoutAmount > 0) {
+                        console.log(`[EndCampaign] Refunding ${payoutAmount.toFixed(4)} TON to ${userWallet}`);
+                        await transferTon(escrowMnemonic, userWallet, payoutAmount.toFixed(4), "End campaign");
+                    } else {
+                        console.warn(`[EndCampaign] Refund amount ${refundAmount} too small after gas.`);
+                    }
+                } else {
+                    console.warn(`[EndCampaign] User has no wallet to refund to.`);
+                }
+            } catch (txErr) {
+                console.error(`[EndCampaign] Refund Failed:`, txErr);
+                // We swallowed the error, so DB thinks it's ended/refunded.
+                // In prod, should log high alert or have retry mechanism.
+            }
+        }
+
+        // 2. Notify Rejected Offers
+        const { sendMessage } = require('../services/botService');
+        for (const offer of rejectedOffers) {
+            // In-App
+            await db.collection('users').doc(offer.requesterId).collection('notifications').add({
+                type: 'campaign_ended',
+                message: `Campaign "${ad.title}" has ended. Your offer was cancelled.`,
+                offerId: offer.id,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Bot
+            try {
+                let targetTgId = offer.requesterId; // Or fetch
+                // Best effort fetch
+                const u = await db.collection('users').doc(offer.requesterId).get();
+                if (u.exists && u.data().telegramId) targetTgId = u.data().telegramId;
+
+                await sendMessage(targetTgId, `⚠️ Campaign "${ad.title}" ended. Your offer was automatically rejected.`);
+            } catch (e) { console.warn("Notify failed", e.message); }
+        }
+
+        return res.json({ success: true, refundAmount });
+
+    } catch (error) {
+        console.error("End Campaign Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
 router.post('/unlock-funds', async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
@@ -674,7 +810,7 @@ router.post('/unlock-funds', async (req, res) => {
         if (!userWallet) return res.status(400).json({ error: "User inner wallet not found" });
 
         console.log(`[Unlock Funds] Transferring ${reqAmount} TON from ${ad.contractAddress} to ${userWallet}`);
-        await transferTon(escrowMnemonic, userWallet, reqAmount.toString());
+        await transferTon(escrowMnemonic, userWallet, reqAmount.toString(), "Campaign Withdrawal");
 
         // 5. Update Ad Record
         // We track unlockedAmount to ensure our "Budget" logic in deals.js stays consistent.

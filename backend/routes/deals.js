@@ -22,220 +22,273 @@ router.post('/update', async (req, res) => {
 
         if (!dealId || !status) return res.status(400).json({ error: "Missing fields" });
 
-        const dealRef = admin.firestore().collection('offers').doc(dealId);
-        const dealDoc = await dealRef.get();
+        const db = admin.firestore();
 
-        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
-        const dealData = dealDoc.data();
+        // Use transaction for atomic budget updates
+        const result = await db.runTransaction(async (transaction) => {
+            const dealRef = db.collection('offers').doc(dealId);
+            const dealDoc = await transaction.get(dealRef);
 
-        // 2. Logic for "Approving" a deal (Advertiser approves)
-        if (status === 'approved') {
-            // Security: Only Ad Owner (Advertiser) can approve to post
-            // (Because Ad Owner holds the budget and created the Ad)
-            if (decodedToken.uid !== dealData.adOwnerId) {
-                return res.status(403).json({ error: "Only advertiser (Ad Owner) can approve" });
+            if (!dealDoc.exists) throw new Error("Deal not found");
+            const dealData = dealDoc.data();
+
+            const adRef = db.collection('ads').doc(dealData.adId);
+            const adDoc = await transaction.get(adRef);
+
+            if (!adDoc.exists) throw new Error("Ad not found");
+            const adData = adDoc.data();
+
+            // ----------------------------------------------------
+            // 2. Logic for "Approving" a deal (Advertiser approves)
+            // ----------------------------------------------------
+            if (status === 'approved') {
+                if (decodedToken.uid !== dealData.adOwnerId) {
+                    throw new Error("Only advertiser (Ad Owner) can approve");
+                }
+                return { action: 'approve_post', dealData };
             }
 
-            // Trigger Post immediately (Auto-Posting Logic)
-            console.log(`[Deal ${dealId}] Status updated to APPROVED. Initiating Auto-Post...`);
-            try {
-                // Assuming 'content' field exists in deal, and 'channelId' is the Telegram Chat ID (e.g. -100xxx or @channel)
-                const chatId = dealData.channelId;
-                console.log(`[Deal ${dealId}] Target Channel ID: ${chatId}`);
-                // Use modified content if available, else Ad content
-                // We need to fetch Ad content if not in offer? 
-                // Offer has `modifiedContent` or `adTitle`. 
-                // We might need to fetch the original Ad to get `postText` if `modifiedContent` is null.
-                // For now, let's assume `modifiedContent` has it or we fetch ad.
-
-                let contentText, entities, media, buttons;
-
-                if (dealData.modifiedContent) {
-                    // Use Content from Deal (whether modified or original snapshot)
-                    contentText = dealData.modifiedContent.postText || ''; // Allow empty
-                    entities = dealData.modifiedContent.entities || [];
-                    media = dealData.modifiedContent.mediaPreview;
-                    buttons = dealData.modifiedContent.buttonText
-                        ? [[{ text: dealData.modifiedContent.buttonText, url: dealData.modifiedContent.link }]]
-                        : [];
-                } else {
-                    // Fallback: Fetch Ad (Legacy support or if modifiedContent missing)
-                    const adDoc = await admin.firestore().collection('ads').doc(dealData.adId).get();
-                    const ad = adDoc.data();
-                    contentText = ad.postText || ad.description || '';
-                    entities = ad.entities || [];
-                    media = ad.mediaPreview;
-                    buttons = ad.buttonText ? [[{ text: ad.buttonText, url: ad.link }]] : [];
+            // ----------------------------------------------------
+            // 3. Logic for "Accepting" (Advertiser Accepts Offer)
+            // ----------------------------------------------------
+            if (status === 'accepted') {
+                // If Requester = Channel Owner, Ad Owner = Advertiser.
+                // Only Advertiser can accept.
+                if (decodedToken.uid !== dealData.adOwnerId) {
+                    throw new Error("Only Ad Owner (Advertiser) can accept offers.");
                 }
 
-                console.log(`[Deal ${dealId}] Content Prepared. Media: ${media ? 'Yes' : 'No'}, Text Length: ${contentText.length}`);
+                if (dealData.status === 'accepted') {
+                    // Idempotency
+                    return { action: 'already_accepted' };
+                }
 
-                const { sendPhoto, sendMessage } = require('../services/botService');
+                // BUDGET CHECK
+                const totalBudget = parseFloat(adData.budget || 0);
+                const currentLocked = parseFloat(adData.lockedBudget || 0);
+                const unlocked = parseFloat(adData.unlockedAmount || 0);
+                const availableBudget = totalBudget - currentLocked - unlocked;
+                const offerAmount = parseFloat(dealData.amount);
 
-                let messageId;
-                const options = {};
-                if (buttons.length) options.reply_markup = JSON.stringify({ inline_keyboard: buttons });
+                if (offerAmount > availableBudget) {
+                    throw new Error(`Insufficient budget. Available: ${availableBudget.toFixed(2)} TON`);
+                }
 
-                let sent;
-                if (media) {
-                    try {
-                        options.caption = contentText;
-                        if (entities) options.caption_entities = JSON.stringify(entities);
-                        // Sending photo...
-                        sent = await sendPhoto(chatId, media, options);
-                    } catch (imgErr) {
-                        console.error(`[Deal ${dealId}] Image failed: ${imgErr.message}. Fallback to text.`);
-                        // Fallback to text only
-                        delete options.caption;
-                        delete options.caption_entities;
-                        if (entities) options.entities = JSON.stringify(entities);
-                        sent = await sendMessage(chatId, contentText, options);
+                // LOCK FUNDS
+                const newLocked = currentLocked + offerAmount;
+                transaction.update(adRef, { lockedBudget: newLocked });
+                transaction.update(dealRef, { status: 'accepted' });
+
+                // Identify Pending Offers to Cancel
+                const pendingOffersQuery = db.collection('offers')
+                    .where('adId', '==', dealData.adId)
+                    .where('status', '==', 'pending');
+
+                const pendingSnapshot = await transaction.get(pendingOffersQuery);
+                const offersToCancel = [];
+                const newAvailable = totalBudget - newLocked - unlocked;
+
+                pendingSnapshot.forEach(doc => {
+                    if (doc.id === dealId) return;
+                    const params = doc.data();
+                    const pAmount = parseFloat(params.amount);
+                    if (pAmount > newAvailable) {
+                        offersToCancel.push({ id: doc.id, ...params });
+                        transaction.update(doc.ref, { status: 'cancelled', cancellationReason: 'Insufficient Budget' });
                     }
-                } else {
-                    if (entities) options.entities = JSON.stringify(entities);
-                    sent = await sendMessage(chatId, contentText, options);
-                }
-
-                // Robust extraction of Message ID to prevent crashes
-                let finalMessageId = null;
-                if (typeof sent === 'number') {
-                    finalMessageId = sent;
-                } else if (sent && typeof sent === 'object' && sent.message_id) {
-                    finalMessageId = sent.message_id;
-                } else {
-                    console.warn(`[Deal ${dealId}] Warning: 'sent' result is unexpected:`, sent);
-                    finalMessageId = 0; // Prevent crash
-                }
-
-                // Update Deal
-                console.log(`[Deal ${dealId}] Post Successful! Message ID: ${finalMessageId}`);
-                await dealRef.update({
-                    status: 'posted', // Skip 'approved' state directly to 'posted' if successful
-                    message_id: finalMessageId,
-                    postedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    verificationDueAt: admin.firestore.Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000) // 24h later
                 });
 
-                // Notify Channel Owner
-                await admin.firestore().collection('users').doc(dealData.adOwnerId).collection('notifications').add({
-                    type: 'offer_posted',
-                    message: `Deal Approved! Your channel has successfully posted "${dealData.adTitle}".`,
-                    offerId: dealId,
-                    adId: dealData.adId,
-                    read: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-
-                // Update Ad Data with Approved Offer for Calculations
-                await admin.firestore().collection('ads').doc(dealData.adId).update({
-                    approvedOffers: admin.firestore.FieldValue.arrayUnion({
-                        dealId: dealId,
-                        price: dealData.amount, // Final agreed price
-                        channelId: dealData.channelId,
-                        channelTitle: dealData.channelTitle,
-                        timestamp: new Date().toISOString()
-                    }),
-                    spentBudget: admin.firestore.FieldValue.increment(dealData.amount)
-                });
-
-                return res.status(200).json({ success: true, status: 'posted', messageId });
-
-            } catch (botError) {
-                console.error("Bot Posting Failed", botError);
-                await dealRef.update({ status: 'failed_post', error: botError.message });
-                return res.status(500).json({ error: "Failed to post to Telegram: " + botError.message });
+                return { action: 'accepted', dealData, offersToCancel };
             }
+
+            // ----------------------------------------------------
+            // 4. Logic for "Rejecting" a deal
+            // ----------------------------------------------------
+            if (status === 'rejected' || status === 'reject_counter') {
+                if (decodedToken.uid !== dealData.adOwnerId && decodedToken.uid !== dealData.requesterId) {
+                    throw new Error("Unauthorized");
+                }
+                // Smart Rejection Check
+                if ((dealData.status === 'negotiating' || status === 'reject_counter') && dealData.negotiationHistory && dealData.negotiationHistory.length > 0) {
+                    return { action: 'reject_negotiation', dealData, status };
+                }
+                return { action: 'reject', dealData };
+            }
+
+            return { action: 'invalid_status' };
+        });
+
+        // ----------------------------------------------------
+        // POST-TRANSACTION SIDE EFFECTS
+        // ----------------------------------------------------
+
+        if (result.action === 'already_accepted') {
+            return res.status(200).json({ success: true, status: 'accepted', message: 'Already accepted' });
         }
 
-        // Logic for "Accepting" (Owner says Yes)
-        if (status === 'accepted') {
-            if (decodedToken.uid !== dealData.adOwnerId) {
-                return res.status(403).json({ error: "Only channel owner can accept" });
-            }
-            await dealRef.update({ status: 'accepted' });
+        if (result.action === 'approve_post') {
+            const { dealData } = result;
+            const dealRef = db.collection('offers').doc(dealId); // Fix ref scope
 
-            // Notify Advertiser
-            await admin.firestore().collection('users').doc(dealData.requesterId).collection('notifications').add({
+            console.log(`[Deal ${dealId}] Status updated to APPROVED. Initiating Auto-Post...`);
+
+            // Re-fetch logic or reuse dealData
+            let contentText, entities, media, buttons;
+
+            if (dealData.modifiedContent) {
+                contentText = dealData.modifiedContent.postText || '';
+                entities = dealData.modifiedContent.entities || [];
+                media = dealData.modifiedContent.mediaPreview;
+                buttons = dealData.modifiedContent.buttonText
+                    ? [[{ text: dealData.modifiedContent.buttonText, url: dealData.modifiedContent.link }]]
+                    : [];
+            } else {
+                const adDoc = await db.collection('ads').doc(dealData.adId).get();
+                const ad = adDoc.data();
+                contentText = ad.postText || ad.description || '';
+                entities = ad.entities || [];
+                media = ad.mediaPreview;
+                buttons = ad.buttonText ? [[{ text: ad.buttonText, url: ad.link }]] : [];
+            }
+
+            const { sendPhoto, sendMessage } = require('../services/botService');
+            const options = {};
+            if (buttons.length) options.reply_markup = JSON.stringify({ inline_keyboard: buttons });
+
+            let sent;
+            if (media) {
+                try {
+                    options.caption = contentText;
+                    if (entities) options.caption_entities = JSON.stringify(entities);
+                    sent = await sendPhoto(dealData.channelId, media, options);
+                } catch (imgErr) {
+                    console.warn("Image post failed, fallback text", imgErr.message);
+                    delete options.caption;
+                    delete options.caption_entities;
+                    if (entities) options.entities = JSON.stringify(entities);
+                    sent = await sendMessage(dealData.channelId, contentText, options);
+                }
+            } else {
+                if (entities) options.entities = JSON.stringify(entities);
+                sent = await sendMessage(dealData.channelId, contentText, options);
+            }
+
+            let finalMessageId = (typeof sent === 'object' && sent.message_id) ? sent.message_id : sent;
+
+            await dealRef.update({
+                status: 'posted',
+                message_id: finalMessageId,
+                postedAt: admin.firestore.FieldValue.serverTimestamp(),
+                verificationDueAt: admin.firestore.Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000)
+            });
+
+            await db.collection('users').doc(dealData.adOwnerId).collection('notifications').add({
+                type: 'offer_posted',
+                message: `Deal Approved! Your channel has successfully posted "${dealData.adTitle}".`,
+                offerId: dealId,
+                adId: dealData.adId,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            await db.collection('ads').doc(dealData.adId).update({
+                approvedOffers: admin.firestore.FieldValue.arrayUnion({
+                    dealId: dealId,
+                    price: dealData.amount,
+                    channelId: dealData.channelId,
+                    channelTitle: dealData.channelTitle,
+                    timestamp: new Date().toISOString()
+                }),
+                spentBudget: admin.firestore.FieldValue.increment(dealData.amount)
+            });
+
+            return res.status(200).json({ success: true, status: 'posted', messageId: finalMessageId });
+        }
+
+        if (result.action === 'accepted') {
+            const { dealData, offersToCancel } = result;
+
+            await db.collection('users').doc(dealData.requesterId).collection('notifications').add({
                 type: 'offer_accepted',
-                message: `Channel Owner accepted your offer for "${dealData.adTitle}". Please approve to post.`,
+                message: `Advertiser accepted your offer for "${dealData.adTitle}". Please approve to post.`,
                 offerId: dealId,
                 read: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
-            return res.status(200).json({ success: true, status: 'accepted' });
-        }
+            if (offersToCancel && offersToCancel.length > 0) {
+                const { sendMessage } = require('../services/botService');
+                for (const cancelledDeal of offersToCancel) {
+                    const msg = `⚠️ Your offer for "${dealData.adTitle}" was cancelled because the ad budget is exhausted.`;
 
-        // 3. Logic for "Rejecting" a deal or counter
-        if (status === 'rejected' || status === 'reject_counter') {
-            if (decodedToken.uid !== dealData.adOwnerId && decodedToken.uid !== dealData.requesterId) {
-                return res.status(403).json({ error: "Unauthorized" });
-            }
-
-            // Smart Rejection Logic: Revert to previous price if negotiating
-            if ((dealData.status === 'negotiating' || status === 'reject_counter') && dealData.negotiationHistory && dealData.negotiationHistory.length > 0) {
-                // Find the last offer made by the REJECTOR (Current User)
-                const myHistory = dealData.negotiationHistory.filter(h => h.by === decodedToken.uid);
-
-                // If I haven't made an offer yet (e.g. I am Owner rejecting the very first counter), 
-                // fallback to original ad budget? Or original request amount?
-                // Actually, if I am Owner, I asked for nothing initially (Advertiser initiated).
-                // If Advertiser initiated 100, Owner countered 120, Adv countered 110.
-                // Owner rejects 110. Reverts to 120.
-
-                const lastMyOffer = myHistory.length > 0 ? myHistory[myHistory.length - 1] : null;
-
-                if (lastMyOffer) {
-                    const fallbackPrice = lastMyOffer.price;
-
-                    // Message Logic
-                    // If Owner Rejects: They revert to their price. They are technically "Waiting for Approval" on that price.
-                    // If Advertiser Rejects: They revert to their price. Failure to agree? Back to negotiating.
-
-                    let newStatus = 'negotiating';
-                    let newLastNegotiator = decodedToken.uid;
-                    let notificationMsg = `Counter-offer rejected. Price reverted to ${fallbackPrice} TON.`;
-
-                    if (decodedToken.uid === dealData.adOwnerId) {
-                        // Owner rejected the counter. Owner stands by their last price.
-                        // Technically this is "Accepted" state for Owner, waiting for Adv to Approve.
-                        newStatus = 'accepted';
-                        notificationMsg = `Channel Owner rejected your counter. Reverted to ${fallbackPrice} TON. Waiting for your approval.`;
-                    } else {
-                        // Advertiser rejected Owner's counter.
-                        // Advertiser stands by their last price.
-                        // Status is negotiating (Owner needs to accept/counter).
-                        notificationMsg = `Advertiser rejected your counter. Reverted to ${fallbackPrice} TON.`;
-                    }
-
-                    await dealRef.update({
-                        amount: fallbackPrice,
-                        status: newStatus,
-                        lastNegotiatorId: newLastNegotiator,
-                    });
-
-                    // Notify
-                    const targetId = decodedToken.uid === dealData.adOwnerId ? dealData.requesterId : dealData.adOwnerId;
-                    await admin.firestore().collection('users').doc(targetId).collection('notifications').add({
-                        type: 'negotiation',
-                        message: notificationMsg,
-                        offerId: dealId,
+                    // In-App
+                    await db.collection('users').doc(cancelledDeal.requesterId).collection('notifications').add({
+                        type: 'offer_cancelled',
+                        message: msg,
+                        offerId: cancelledDeal.id,
                         read: false,
                         createdAt: admin.firestore.FieldValue.serverTimestamp()
                     });
 
-                    return res.status(200).json({ success: true, status: newStatus, message: "Reverted to previous price" });
+                    // Bot
+                    try {
+                        let targetTgId = cancelledDeal.requesterId;
+                        const userDoc = await db.collection('users').doc(cancelledDeal.requesterId).get();
+                        if (userDoc.exists && userDoc.data().telegramId) targetTgId = userDoc.data().telegramId;
+                        await sendMessage(targetTgId, msg);
+                    } catch (e) {
+                        console.warn("Notify cancel failed", e.message);
+                    }
                 }
             }
+            return res.status(200).json({ success: true, status: 'accepted' });
+        }
 
-            // Standard Rejection (Dead Deal)
-            await dealRef.update({
+        if (result.action === 'reject_negotiation') {
+            const { dealData, status } = result;
+            const myHistory = dealData.negotiationHistory.filter(h => h.by === decodedToken.uid);
+            const lastMyOffer = myHistory.length > 0 ? myHistory[myHistory.length - 1] : null;
+
+            if (lastMyOffer) {
+                const fallbackPrice = lastMyOffer.price;
+                let newStatus = 'negotiating';
+                let newLastNegotiator = decodedToken.uid;
+                let notificationMsg = `Counter-offer rejected. Price reverted to ${fallbackPrice} TON.`;
+
+                if (decodedToken.uid === dealData.adOwnerId) {
+                    newStatus = 'accepted';
+                    notificationMsg = `Channel Owner rejected your counter. Reverted to ${fallbackPrice} TON. Waiting for your approval.`;
+                } else {
+                    notificationMsg = `Advertiser rejected your counter. Reverted to ${fallbackPrice} TON.`;
+                }
+
+                await db.collection('offers').doc(dealId).update({
+                    amount: fallbackPrice,
+                    status: newStatus,
+                    lastNegotiatorId: newLastNegotiator,
+                });
+
+                const targetId = decodedToken.uid === dealData.adOwnerId ? dealData.requesterId : dealData.adOwnerId;
+                await db.collection('users').doc(targetId).collection('notifications').add({
+                    type: 'negotiation',
+                    message: notificationMsg,
+                    offerId: dealId,
+                    read: false,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                return res.status(200).json({ success: true, status: newStatus, message: "Reverted to previous price" });
+            }
+        }
+
+        if (result.action === 'reject') {
+            const { dealData } = result;
+            await db.collection('offers').doc(dealId).update({
                 status: 'rejected',
                 rejectedAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
             const targetId = decodedToken.uid === dealData.adOwnerId ? dealData.requesterId : dealData.adOwnerId;
-            await admin.firestore().collection('users').doc(targetId).collection('notifications').add({
+            await db.collection('users').doc(targetId).collection('notifications').add({
                 type: 'offer_rejected',
                 message: `Offer for "${dealData.adTitle}" was rejected.`,
                 offerId: dealId,
@@ -243,11 +296,10 @@ router.post('/update', async (req, res) => {
                 read: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
-
             return res.status(200).json({ success: true, status: 'rejected' });
         }
 
-        return res.status(400).json({ error: "Invalid status transition" });
+        return res.status(400).json({ error: "Invalid status transition logic" });
 
     } catch (error) {
         console.error("Deal Update Error:", error);
@@ -326,38 +378,15 @@ router.post('/request', async (req, res) => {
 
         if (ad.status !== 'active') return res.status(400).json({ error: "Ad is not active" });
 
-        // --- BUDGET CHECK (Strict: Total - Committed) ---
-        // Fetch ALL offers for this ad to calculate committed funds
-        const allOffers = await admin.firestore().collection('offers')
-            .where('adId', '==', adId)
-            .where('status', 'in', ['accepted', 'approved', 'posted', 'completed', 'negotiating'])
-            // Note: 'pending' offers usually don't block budget until accepted? 
-            // User: "calculate the left budget by calculating the approved and accepted offers".
-            // So 'pending' and 'negotiating' do NOT block funds yet?
-            // Risk: If 10 people request 10 TON on a 10 TON budget, all are pending.
-            // If Owner accepts one, others might validly exist but can't be accepted.
-            // User said: "create offer equal or lower than the left budget".
-            // If I request, I am not "taking" it yet.
-            // BUT, if the budget is 10, and 6 is already "Accepted/Posted", only 4 is left.
-            // So new requests must be <= 4.
-            // Correct statuses to sum as "Committed/Used": 'accepted', 'approved', 'posted', 'completed'.
-            // 'negotiating' is gray area, but usually not committed until agreement.
-            .get();
+        // --- BUDGET CHECK (Strict: Total - Locked - Unlocked) ---
+        // We now use the 'lockedBudget' field on the Ad for accuracy.
 
-        let committedFunds = 0;
-        allOffers.forEach(doc => {
-            const o = doc.data();
-            // Double check status just in case
-            if (['accepted', 'approved', 'posted', 'completed'].includes(o.status)) {
-                committedFunds += (parseFloat(o.amount) || 0);
-            }
-        });
-
-        // Add Unlocked Amount (Manually withdrawn by advertiser)
+        const totalBudget = parseFloat(ad.budget || 0);
+        const lockedBudget = parseFloat(ad.lockedBudget || 0);
         const unlockedAmount = parseFloat(ad.unlockedAmount || 0);
-        committedFunds += unlockedAmount;
+        const committedFunds = lockedBudget + unlockedAmount;
 
-        const remainingBudget = (parseFloat(ad.budget) || 0) - committedFunds;
+        const remainingBudget = totalBudget - committedFunds;
 
         if (parseFloat(amount) > remainingBudget) {
             return res.status(400).json({
@@ -490,34 +519,14 @@ router.post('/negotiate', async (req, res) => {
 
         // --- BUDGET CHECK (Negotiation) ---
         // We must ensure the NEW price fits in the remaining budget.
-        // Remaining = Budget - (Committed - CurrentOfferOldAmount).
-        // Since we are UPDATING this offer, its old amount is part of "Committed" (if it was accepted/approved/posted).
-        // BUT, if status is 'negotiating', it is NOT committed yet?
-        // Wait, negotiation happens usually when status is 'negotiating' or 'pending'.
-        // If 'accepted', negotiation is usually done unless reverting.
-        // If status is 'negotiating' or 'pending', the funds are NOT committed.
-        // So Committed = Sum(OTHER accepted/approved/posted offers) + Unlocked.
-        // Current offer is NOT committed.
+        // Remaining = Budget - Locked - Unlocked.
+        // Note: 'lockedBudget' includes accepted offers. If this offer is 'negotiating', it is NOT in lockedBudget yet.
 
-        const allOffers = await admin.firestore().collection('offers')
-            .where('adId', '==', deal.adId)
-            .where('status', 'in', ['accepted', 'approved', 'posted', 'completed'])
-            .get();
-
-        let committedFunds = 0;
-        allOffers.forEach(doc => {
-            // Exclude CURRENT deal from committed sum even if it was somewhat accepted?
-            // If we are negotiating, we are changing the price.
-            if (doc.id !== dealId) {
-                const o = doc.data();
-                committedFunds += (parseFloat(o.amount) || 0);
-            }
-        });
-
+        const totalBudget = parseFloat(ad.budget || 0);
+        const lockedBudget = parseFloat(ad.lockedBudget || 0);
         const unlockedAmount = parseFloat(ad.unlockedAmount || 0);
-        committedFunds += unlockedAmount;
 
-        const remainingBudget = (parseFloat(ad.budget) || 0) - committedFunds;
+        const remainingBudget = totalBudget - lockedBudget - unlockedAmount;
 
         if (parseFloat(price) > remainingBudget) {
             return res.status(400).json({
@@ -748,26 +757,39 @@ router.post('/suspend', async (req, res) => {
         const uid = decodedToken.uid;
         const { dealId } = req.body;
 
-        const dealRef = admin.firestore().collection('offers').doc(dealId);
-        const dealDoc = await dealRef.get();
-        if (!dealDoc.exists) return res.status(404).json({ error: "Deal not found" });
-        const deal = dealDoc.data();
+        const db = admin.firestore();
 
-        // Only Advertiser
-        const adDoc = await admin.firestore().collection('ads').doc(deal.adId).get();
-        const ad = adDoc.data();
-        if (ad.userId !== uid) return res.status(403).json({ error: "Unauthorized" });
+        await db.runTransaction(async (transaction) => {
+            const dealRef = db.collection('offers').doc(dealId);
+            const dealDoc = await transaction.get(dealRef);
 
-        // Must be failed verification
-        if (deal.verificationStatus === 'ok' || !deal.verificationStatus) {
-            return res.status(400).json({ error: "Cannot suspend valid post. Verify first." });
-        }
+            if (!dealDoc.exists) throw new Error("Deal not found");
+            const deal = dealDoc.data();
 
-        await dealRef.update({ status: 'suspended' });
+            // Only Advertiser
+            const adRef = db.collection('ads').doc(deal.adId);
+            const adDoc = await transaction.get(adRef);
+            if (!adDoc.exists) throw new Error("Ad not found");
+            const ad = adDoc.data();
 
-        // Refund logic is implicit (budget is calculated dynamically based on ACTIVE deals)
-        // If status is 'suspended', it is NOT in ['accepted', 'approved', 'posted', 'completed'].
-        // So funds are automatically available.
+            if (ad.userId !== uid) throw new Error("Unauthorized");
+
+            // Must be failed verification
+            if (deal.verificationStatus === 'ok' || !deal.verificationStatus) {
+                throw new Error("Cannot suspend valid post. Verify first.");
+            }
+
+            // Update Status
+            transaction.update(dealRef, { status: 'suspended' });
+
+            // Unlock Budget
+            // Decrement lockedBudget by offer amount
+            const currentLocked = parseFloat(ad.lockedBudget || 0);
+            const offerAmount = parseFloat(deal.amount || 0);
+            const newLocked = Math.max(0, currentLocked - offerAmount);
+
+            transaction.update(adRef, { lockedBudget: newLocked });
+        });
 
         return res.json({ success: true, status: 'suspended' });
     } catch (e) {
@@ -832,12 +854,12 @@ router.post('/claim', async (req, res) => {
         if (!userWallet) return res.status(400).json({ error: "Your wallet not linked" });
 
         const amount = parseFloat(deal.amount);
-        const payout = amount - 0.01; // Gas deduction
+        const payout = amount - 0.05; // Gas deduction (0.05 TON)
 
         if (payout <= 0) return res.status(400).json({ error: "Amount too small for gas" });
 
         console.log(`[Claim] Sending ${payout} TON to ${userWallet} for deal ${dealId}`);
-        await transferTon(escrowMnemonic, userWallet, payout.toString(), `Pay: ${dealId}`);
+        await transferTon(escrowMnemonic, userWallet, payout.toString(), "Claim Credant offer");
 
         await dealRef.update({ status: 'completed', payoutTx: 'sent', completedAt: admin.firestore.FieldValue.serverTimestamp() });
 

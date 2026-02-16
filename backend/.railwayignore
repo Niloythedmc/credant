@@ -1,0 +1,9 @@
+# Ignore these
+node_modules
+.env
+.git
+
+# Whitelist (ensure these are NOT ignored even if in gitignore)
+!server.js
+!config.js
+!serviceAccountKey.json
