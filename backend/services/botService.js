@@ -78,24 +78,33 @@ const getBotId = () => {
 }
 
 // Listen for Drafts
-bot.on('message', async (msg) => {
+// Listen for Drafts
+const handleMessage = async (msg) => {
     // Basic Draft Storage for User
     // We store the draft keyed by Telegram User ID
     // Frontend will poll based on linked Telegram ID
 
     // Ignore commands like /start
-    if (msg.text && msg.text.startsWith('/')) return;
+    if (msg.text && msg.text.startsWith('/')) {
+        console.log(`[Bot] Ignoring command: ${msg.text}`);
+        return;
+    }
 
     try {
+        if (!msg.from) {
+            console.warn("[Bot] Received message without 'from' field:", msg);
+            return;
+        }
+
         const userId = msg.from.id.toString();
         const admin = require('firebase-admin');
         const db = admin.firestore();
 
-        console.log(`[Bot] Received draft from ${userId}`);
+        console.log(`[Bot] Received draft from ${userId}: ${msg.text || '[Media]'}`);
 
         let text = msg.text || msg.caption || '';
         let photo = null;
-        if (msg.photo) {
+        if (msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
             // Get largest photo
             photo = msg.photo[msg.photo.length - 1].file_id;
         }
@@ -127,6 +136,13 @@ bot.on('message', async (msg) => {
     } catch (error) {
         console.error("[Bot] Draft Error:", error);
     }
+};
+
+bot.on('message', handleMessage);
+// Also listen for channel posts if the bot is admin in a channel and user wants to save that? 
+// Usually acts as 'message' in private chats, but let's just be safe.
+bot.on('channel_post', (msg) => {
+    console.log("[Bot] Received channel post, ignoring for drafts");
 });
 
 /**

@@ -7,7 +7,6 @@ import Profile from './pages/Profile';
 import Channels from './pages/Channels';
 import Ads from './pages/Ads';
 
-
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import NotificationContainer from './components/Notification/NotificationContainer';
 import Inbox from './pages/Inbox';
@@ -20,8 +19,9 @@ import OfferDetails from './pages/OfferDetails';
 import WebApp from '@twa-dev/sdk';
 import { useAuth } from './auth/AuthProvider';
 import { useApi } from './auth/useApi';
+import { TelegramProvider, useTelegram } from './context/TelegramContext';
 
-function App() {
+const AppContent = () => {
   const [activeNavPage, setActiveNavPage] = useState('feed'); // Tracks the bottom nav
   const [overlayPage, setOverlayPage] = useState(null);       // Tracks secondary pages (inbox, setting, etc)
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
@@ -29,6 +29,14 @@ function App() {
   const { post } = useApi();
   const { addNotification } = useNotification();
   const [purityChecked, setPurityChecked] = useState(false);
+
+  // TELEGRAM BACK BUTTON LOGIC (App Level Overlay - Layer 20)
+  const { registerBackHandler } = useTelegram();
+  useEffect(() => {
+    if (overlayPage) {
+      return registerBackHandler(20, () => setOverlayPage(null));
+    }
+  }, [overlayPage, registerBackHandler]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -53,23 +61,6 @@ function App() {
       setOverlayPage(page);
     }
   };
-
-  // TELEGRAM BACK BUTTON LOGIC
-  useEffect(() => {
-    if (overlayPage) {
-      WebApp.BackButton.show();
-      const handleBack = () => {
-        setOverlayPage(null); // Close overlay
-      };
-      WebApp.BackButton.onClick(handleBack);
-
-      return () => {
-        WebApp.BackButton.offClick(handleBack);
-      };
-    } else {
-      WebApp.BackButton.hide();
-    }
-  }, [overlayPage]);
 
   // FULLSCREEN LOGIC
   useEffect(() => {
@@ -169,18 +160,6 @@ function App() {
       });
     };
 
-    // Also check time interval purely? 
-    // The user wants "stay... 20s AND clicks...". 
-    // So we check on every click, but what if they click 10 times in 5s then wait 20s?
-    // We need a timer to check after 20s if clicks are satisfied?
-    // Or check on click if time satisfied.
-    // Let's check on click. If they click active, they are active.
-    // If they click 5 times quickly, they have clicks. Wait for 20s.
-    // Better: when clicks >= 5, set a timeout to check time?
-    // Simplest: Check on every click. If time not passed, wait for next click?
-    // Risk: User clicks 5 times then stops clicking. 20s passes. No event triggers.
-    // Fix: Set an interval to check actively if clicks met.
-
     const interval = setInterval(() => {
       if (clickCount >= 5) {
         const duration = Date.now() - trackingStart.time;
@@ -209,41 +188,15 @@ function App() {
     };
   }, [trackingStart, clickCount, user, post, addNotification]);
 
-  // PURITY CHECK LOGIC
-  // We need access to API and User, but App.jsx is outside AuthProvider?
-  // Wait, AuthProvider wraps children in index.js usually. 
-  // App.jsx is the child of AuthProvider (based on typical usage, let me verify).
-  // Checking imports... Requesting view of index.js/main.jsx to be sure.
-  // Assuming App component is inside AuthProvider for now.
-  // But wait, App definition above imports 'useAuth' ? No, it doesn't.
-  // I must check where AuthProvider is. 
-  // Only 'useNotification' is imported.
-  // I need 'useApi' and 'useAuth'.
-  // I will add them to imports and usage.
-
-  // Actually, let's implement the logic safely assuming hooks exist if I import them.
-  // But strictly, let's add `useAuth, useApi` to imports first.
-
   const renderPage = (id) => {
-    // Determine which "active" state this page cares about
-    // Nav pages display if they equal activeNavPage
-    // Secondary pages display if they equal overlayPage
-
-    // PageContainer uses `activePage` prop to determine visibility/position.
-    // For a Nav Page, we pass `activeNavPage` so it can position itself relative to other nav pages.
-    // For a Secondary Page, we pass `overlayPage` so it shows if it matches.
     const relevantActivePage = navPages.includes(id) ? activeNavPage : overlayPage;
 
     if (id === 'feed') return <Feed key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
-
-
     if (id === 'ads') return <Ads key={id} activePage={relevantActivePage} onNavigate={handleNavigate} isOverlayOpen={!!overlayPage} />;
-
     if (id === 'profile') return <Profile key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'channels') return <Channels key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'inbox') return <Inbox key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'setting') return <Setting key={id} activePage={relevantActivePage} onNavigate={handleNavigate} theme={theme} toggleTheme={toggleTheme} />;
-
     if (id === 'listChannel') return <ListChannel key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'postAds') return <PostAds key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
     if (id === 'requestDeal') return <RequestDeal key={id} activePage={relevantActivePage} onNavigate={handleNavigate} />;
@@ -263,15 +216,20 @@ function App() {
   return (
     <div className="app-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
       <NotificationContainer />
-
       {/* Render all pages */}
       {allPages.map(pageId => renderPage(pageId))}
-
       {/* Navigation Layer - Always reflects activeNavPage */}
       <Navigation activePage={activeNavPage} onNavigate={handleNavigate} />
-
     </div>
   );
-}
+};
+
+const App = () => {
+  return (
+    <TelegramProvider>
+      <AppContent />
+    </TelegramProvider>
+  );
+};
 
 export default App;

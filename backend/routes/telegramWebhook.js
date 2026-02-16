@@ -6,6 +6,7 @@ const { botToken } = require('../config');
 // POST /api/telegram-webhook
 // Telegram sends updates here
 router.post(`/${botToken}`, (req, res) => {
+    console.log(`[Webhook] Received update on /${botToken}`);
     try {
         botInstance.processUpdate(req.body);
         res.sendStatus(200);
@@ -18,6 +19,7 @@ router.post(`/${botToken}`, (req, res) => {
 // For easier setup, we might want a generic path too, but usually it includes the token for security.
 // Let's also support a generic path if they set the webhook to just /api/telegram-webhook
 router.post('/', (req, res) => {
+    console.log("[Webhook] Received update on /");
     try {
         botInstance.processUpdate(req.body);
         res.sendStatus(200);

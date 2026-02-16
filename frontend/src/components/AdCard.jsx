@@ -5,9 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '../auth/useApi';
 import { useUserCache } from '../context/UserCacheContext';
 
+import { useTranslation } from 'react-i18next';
+
+console.log('AdCard module evaluated');
+
 const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) => {
+    const { t } = useTranslation();
     const { post } = useApi();
-    const { resolveUser, getCachedUser } = useUserCache();
+    // const { resolveUser, getCachedUser } = useUserCache(); // Removed as owner info not needed
 
     // Channel Data State
     const [channelData, setChannelData] = React.useState(null);
@@ -37,7 +42,12 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
     const hoursLeft = Math.floor((msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
 
     const budgetTon = parseFloat(ad.budget) || 0;
-    const dailySpend = durationDays > 0 ? (budgetTon / durationDays).toFixed(2) : 0;
+
+    // Calculate Available Budget
+    // Assuming linear spend over duration
+    const spentApprox = durationMs > 0 && !isNaN(elapsedMs) ? (elapsedMs / durationMs) * budgetTon : 0;
+    const availableBudgetVal = Math.max(0, budgetTon - spentApprox);
+    const availableBudget = isNaN(availableBudgetVal) ? budgetTon.toFixed(2) : availableBudgetVal.toFixed(2);
 
     // Styles config based on subject/status
     const getSubjectConfig = (subject) => {
@@ -57,29 +67,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
     const statusColor = isActive ? '#4ade80' : (isCompleted ? '#9ca3af' : '#facc15');
     const statusLabel = isActive ? 'Active' : (isCompleted ? 'Completed' : 'Pending');
 
-    // Fetch Channel Identity
-    React.useEffect(() => {
-        const fetchChannel = async () => {
-            // Prioritize fetching if we have an ID (userId or channelId)
-            const targetId = ad.channelId || ad.userId;
-            if (targetId) {
-                try {
-                    const res = await resolveUser(targetId);
-                    setChannelData(res);
-                } catch (e) {
-                    const cached = getCachedUser(targetId);
-                    if (cached) setChannelData(cached);
-                }
-            } else if (ad.username) {
-                // Try resolve by username if ID missing
-                try {
-                    const res = await resolveUser(ad.username);
-                    setChannelData(res);
-                } catch (e) { }
-            }
-        };
-        fetchChannel();
-    }, [ad.channelId, ad.userId, ad.username, resolveUser, getCachedUser]);
+    // Channel fetching removed per request
 
     // Image Logic: 
     // Main Card Image: Prefer Ad Media Preview -> Channel Photo -> Fallback
@@ -111,8 +99,8 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
     }, [channelData, ad.mediaPreview]);
 
     // Resolve Display Info
-    const displayTitle = channelData?.title || channelData?.name || ad.title;
-    const displaySubjectLabel = channelData?.type === 'channel' ? 'Channel' : (channelData?.type === 'bot' ? 'Bot' : subjectConfig.label);
+    const displayTitle = ad.title;
+    const displaySubjectLabel = subjectConfig.label; // Just use subject label, no channel/bot type override
 
     const isValid = (src) => src && typeof src === 'string' && src.length > 5;
 
@@ -122,8 +110,8 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--card-bg-gradient)',
+                border: '1px solid var(--glass-border)',
                 borderRadius: '20px',
                 padding: '20px',
                 position: 'relative',
@@ -145,7 +133,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
 
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', gap: '14px' }}>
+                <div style={{ display: 'flex', gap: '14px', width: '100%' }}>
                     <div style={{
                         width: '48px', height: '48px',
                         borderRadius: '14px',
@@ -154,22 +142,20 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '22px',
                         boxShadow: `0 4px 12px ${subjectConfig.color}20`,
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        flexShrink: 0
                     }}>
                         {/* MAIN AD IMAGE */}
-                        {isValid(cardImageSrc) ? (
-                            <img src={cardImageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {isValid(ad.mediaPreview) ? (
+                            <img src={ad.mediaPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                             <SubjectIcon />
                         )}
                     </div>
-                    <div>
-                        {/* TITLE ROW with Channel Icon */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* TITLE ROW */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                            {isValid(iconImageSrc) && (
-                                <img src={iconImageSrc} alt="" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
-                            )}
-                            <h4 style={{ margin: 0, color: 'white', fontSize: '16px', fontWeight: '700' }}>
+                            <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '16px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {displayTitle}
                             </h4>
                         </div>
@@ -182,26 +168,14 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                                 padding: '2px 8px',
                                 borderRadius: '6px'
                             }}>
-                                {displaySubjectLabel}
+                                {t(`ad.subject.${displaySubjectLabel.toLowerCase()}`, displaySubjectLabel)}
                             </span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {durationDays} Days</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {durationDays} {t('ad.days', 'Days')}</span>
                         </div>
                     </div>
                 </div>
 
-                <div style={{
-                    padding: '6px 12px',
-                    borderRadius: '20px',
-                    background: `${statusColor}15`,
-                    border: `1px solid ${statusColor}30`,
-                    color: statusColor,
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    display: 'flex', alignItems: 'center', gap: '4px'
-                }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColor, boxShadow: `0 0 6px ${statusColor}` }}></span>
-                    {statusLabel}
-                </div>
+                {/* Status Chip REMOVED as per request */}
             </div>
 
             {/* Red Dot Alert */}
@@ -237,20 +211,20 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
 
             {/* Main Stats Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '12px' }}>
+                <div style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                        <FiDollarSign size={12} /> Total Budget
+                        <FiDollarSign size={12} /> {t('ad.totalBudget', 'Total Budget')}
                     </div>
-                    <div style={{ color: 'white', fontWeight: '700', fontSize: '15px' }}>
+                    <div style={{ color: 'var(--text-main)', fontWeight: '700', fontSize: '15px' }}>
                         {budgetTon} <span style={{ fontSize: '11px', fontWeight: '400', color: 'var(--text-muted)' }}>TON</span>
                     </div>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '12px' }}>
+                <div style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                        <FiActivity size={12} /> Daily Budget
+                        <FiActivity size={12} /> {t('ad.availableBudget', 'Available')}
                     </div>
-                    <div style={{ color: 'white', fontWeight: '700', fontSize: '15px' }}>
-                        ~{dailySpend} <span style={{ fontSize: '11px', fontWeight: '400', color: 'var(--text-muted)' }}>TON</span>
+                    <div style={{ color: 'var(--text-main)', fontWeight: '700', fontSize: '15px' }}>
+                        {availableBudget} <span style={{ fontSize: '11px', fontWeight: '400', color: 'var(--text-muted)' }}>TON</span>
                     </div>
                 </div>
             </div>
@@ -273,7 +247,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                         <div style={{
                             paddingTop: '16px',
                             marginTop: '4px',
-                            borderTop: '1px solid rgba(255,255,255,0.05)',
+                            borderTop: '1px solid var(--glass-border)',
                             display: 'flex',
                             gap: '10px'
                         }}>
@@ -281,10 +255,10 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                                 <>
                                     <button style={{
                                         flex: 1, height: '40px', borderRadius: '12px', border: 'none',
-                                        background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', fontWeight: '500', cursor: 'not-allowed',
+                                        background: 'var(--glass-highlight)', color: 'var(--text-main)', fontSize: '13px', fontWeight: '500', cursor: 'not-allowed',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                     }}>
-                                        <FiBarChart2 /> Stats
+                                        <FiBarChart2 /> {t('ad.stats', 'Stats')}
                                     </button>
                                     {/* See Offers Button */}
                                     {/* This button appears ONLY if onShowOffers is passed (which happens in MyAds) */}
@@ -302,15 +276,15 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                                                 background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                             }}>
-                                            <FiActivity /> Offers
+                                            <FiActivity /> {t('ad.offers', 'Offers')}
                                         </button>
                                     ) : (
                                         <button style={{
                                             flex: 1, height: '40px', borderRadius: '12px', border: 'none',
-                                            background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', fontWeight: '500', cursor: 'not-allowed',
+                                            background: 'var(--glass-highlight)', color: 'var(--text-main)', fontSize: '13px', fontWeight: '500', cursor: 'not-allowed',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                         }}>
-                                            <FiActivity /> Results
+                                            <FiActivity /> {t('ad.results', 'Results')}
                                         </button>
                                     )}
                                 </>
@@ -320,7 +294,7 @@ const AdCard = ({ ad, isExpanded, onToggle, variant = 'owner', onShowOffers }) =
                                     background: 'linear-gradient(90deg, #3b82f6, #9333ea)', color: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                 }}>
-                                    View Details
+                                    {t('ad.viewDetails', 'View Details')}
                                 </button>
                             )}
                         </div>

@@ -19,6 +19,43 @@ const addToQuickData = async (id, title, username) => {
     }
 };
 
+// Helper: Calculate Channel Stats (Avg Views)
+const calculateChannelStats = async (username) => {
+    if (!username) return { avgViews: 0 };
+    try {
+        const cleanUsername = username.replace('@', '');
+        const scrapeUrl = `https://t.me/s/${cleanUsername}`;
+        const { data: html } = await require('axios').get(scrapeUrl);
+
+        const messages = html.split('tgme_widget_message_wrap');
+        // Get last 15 posts as requested (user said 10-15)
+        const lastPosts = messages.slice(-16, -1);
+
+        let totalViews = 0;
+        let count = 0;
+
+        for (const msgHtml of lastPosts) {
+            const viewsMatch = msgHtml.match(/class="tgme_widget_message_views"[^>]*>([^<]+)/);
+            if (viewsMatch) {
+                let v = viewsMatch[1].trim();
+                if (v.includes('K')) v = parseFloat(v) * 1000;
+                else if (v.includes('M')) v = parseFloat(v) * 1000000;
+                else v = parseFloat(v);
+
+                if (!isNaN(v)) {
+                    totalViews += v;
+                    count++;
+                }
+            }
+        }
+        const avgViews = count > 0 ? Math.round(totalViews / count) : 0;
+        return { avgViews, activeUsers: avgViews }; // User said activeUsers = avgViews
+    } catch (e) {
+        console.error("Stats Calculation Failed:", e);
+        return { avgViews: 0, activeUsers: 0 };
+    }
+};
+
 // GET /api/channels
 // Public marketplace listing
 router.get('/', async (req, res) => {
@@ -194,7 +231,9 @@ router.post('/verify-post', async (req, res) => {
             verificationStartTime: admin.firestore.FieldValue.serverTimestamp(),
             // Store template used?
             templateId: templateId,
-            memberCount: memberCount || 0
+            memberCount: memberCount || 0,
+            avgViews: req.body.avgViews || 0,
+            activeUsers: req.body.activeUsers || 0
             // Store initial memberCount if we have it? 
             // We don't have it in req.body. 
             // Optimistically we will fetch it on calculation.
@@ -297,7 +336,9 @@ router.post('/preview', async (req, res) => {
             memberCount: memberCount,
             type: chat.type,
             checks: checks,
-            isListed: isListed // Flag for frontend
+            checks: checks,
+            isListed: isListed, // Flag for frontend
+            stats: await calculateChannelStats(chat.username) // Add stats
         };
 
         return res.status(200).json(previewData);
@@ -543,7 +584,10 @@ router.post('/list-later', async (req, res) => {
             startPrice: req.body.startPrice ? parseFloat(req.body.startPrice) : null, // Ensure float
             memberCount: memberCount || 0,
             verificationStartTime: null, // Not started
-            verificationMessageId: null
+            verificationStartTime: null, // Not started
+            verificationMessageId: null,
+            avgViews: req.body.avgViews || 0,
+            activeUsers: req.body.activeUsers || 0
         };
 
         await channelRef.set(channelData, { merge: true });

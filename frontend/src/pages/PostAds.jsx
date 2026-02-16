@@ -686,13 +686,14 @@ const PostAds = ({ activePage, onNavigate }) => {
                     {/* Channel Preview Removed as requested */}
 
                     <div style={{
-                        background: '#212121',
+                        background: 'var(--bg-card)',
                         borderRadius: 16,
                         overflow: 'hidden',
                         maxWidth: 400,
                         margin: '0 auto',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                        fontFamily: 'Inter, sans-serif'
+                        boxShadow: 'var(--card-shadow)',
+                        fontFamily: 'Inter, sans-serif',
+                        border: '1px solid var(--glass-border)'
                     }}>
                         {formData.mediaPreview && (
                             <div style={{ width: '100%', cursor: 'pointer' }} onClick={() => window.open(formData.link, '_blank')}>
@@ -702,11 +703,11 @@ const PostAds = ({ activePage, onNavigate }) => {
 
                         <div style={{ padding: '5px' }}>
                             <div style={{
-                                color: '#ccc',
+                                color: 'var(--text-main)',
                                 fontSize: 15,
                                 display: 'block'
                             }}>
-                                {renderStyledText(formData.postText || "", formData.entities)}
+                                <TelegramPostRenderer text={formData.postText || ""} entities={formData.entities} style={{ color: 'var(--text-main)' }} />
                             </div>
                         </div>
 
@@ -718,7 +719,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                             gap: 6,
                             opacity: 0.6,
                             fontSize: 12,
-                            color: '#aaa'
+                            color: 'var(--text-muted)'
                         }}>
                             {formData.views && (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -734,13 +735,14 @@ const PostAds = ({ activePage, onNavigate }) => {
                 (formData.postText || formData.mediaPreview || formData.media) && (
                     <>
                         <div style={{
-                            background: '#212121',
+                            background: 'var(--bg-card)',
                             borderRadius: 16,
                             overflow: 'hidden',
                             maxWidth: 400,
                             margin: '0 auto',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                            fontFamily: 'Inter, sans-serif'
+                            boxShadow: 'var(--card-shadow)',
+                            fontFamily: 'Inter, sans-serif',
+                            border: '1px solid var(--glass-border)'
                         }}>
                             {formData.mediaPreview && (
                                 <div style={{ width: '100%' }}>
@@ -750,11 +752,11 @@ const PostAds = ({ activePage, onNavigate }) => {
 
                             <div style={{ padding: '5px' }}>
                                 <div style={{
-                                    color: '#ccc',
+                                    color: 'var(--text-main)',
                                     fontSize: 15,
                                     display: 'block'
                                 }}>
-                                    <TelegramPostRenderer text={formData.postText || ""} entities={formData.entities} />
+                                    <TelegramPostRenderer text={formData.postText || ""} entities={formData.entities} style={{ color: 'var(--text-main)' }} />
                                 </div>
                             </div>
 
@@ -766,7 +768,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                                 gap: 6,
                                 opacity: 0.6,
                                 fontSize: 12,
-                                color: '#aaa'
+                                color: 'var(--text-muted)'
                             }}>
                                 <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
@@ -815,7 +817,7 @@ const PostAds = ({ activePage, onNavigate }) => {
                 </div>
                 <div className={styles.previewContent}>
                     <div className={styles.previewText} style={{ padding: 0 }}>
-                        <TelegramPostRenderer text={formData.postText || 'No text content'} entities={formData.entities} />
+                        <TelegramPostRenderer text={formData.postText || 'No text content'} entities={formData.entities} style={{ color: 'var(--text-main)' }} />
                     </div>
                     {formData.link && <button className={styles.previewLinkBtn} onClick={() => window.open(formData.link, '_blank')}>{formData.buttonText || 'Open Link'}</button>}
                 </div>

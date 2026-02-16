@@ -219,11 +219,11 @@ const Setting = ({ activePage, theme, toggleTheme }) => {
                     </div>
                 </div>
 
-                {/* Language Selection Modal */}
                 <Modal
                     isOpen={showLanguageModal}
                     onClose={() => setShowLanguageModal(false)}
                     title={t('settings.language')}
+                    zIndex={2000} // Ensure it's above everything
                 >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {languages.map((lang) => {

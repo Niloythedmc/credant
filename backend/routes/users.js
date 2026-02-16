@@ -167,18 +167,59 @@ router.get('/resolve/:username', async (req, res) => {
         }
 
         // --- FALLBACK: FETCH FROM TELEGRAM ---
-        // DISABLED TO PREVENT CRASHES ON INVALID INPUTS (Railway Deployment Fix)
-        // If not found in DB, try fetching via Bot API
-        console.log(`[Resolve] Entity not found in DB: ${username}`);
-        return res.status(404).json({ error: "Entity not found" });
+        // --- FALLBACK: FETCH FROM TELEGRAM ---
+        // Only attempt if it looks reasonable (numeric ID or valid username format)
+        if (isNumericId || (username.length >= 4 && /^[a-zA-Z0-9_]+$/.test(username))) {
+            try {
+                let query = username;
+                if (!isNumericId && !username.startsWith('@')) {
+                    query = '@' + username;
+                }
 
-        /* 
-        try {
-            // ... (rest of the logic commented out)
-        } catch (tgFetchError) {
-             console.error(`[Resolve] Telegram fetch failed: ${tgFetchError.message}`);
+                console.log(`[Resolve] Attempting Telegram fetch for: ${query}`);
+                const chat = await getChat(query);
+
+                if (chat) {
+                    const isUser = chat.type === 'private';
+                    // If it's a private chat, it's a user. If channel/group, it's a channel.
+
+                    if (isUser) {
+                        const name = chat.first_name ? `${chat.first_name} ${chat.last_name || ''}`.trim() : (chat.username || 'User');
+
+                        dbResponse = {
+                            type: 'user',
+                            id: chat.id.toString(),
+                            name: name,
+                            username: chat.username,
+                            photoUrl: chat.photo ? await getFileLink(chat.photo.big_file_id) : null,
+                            bio: chat.bio || '',
+                            verified: false // API doesn't always return this easily for users, assume false
+                        };
+                    } else {
+                        // Channel or Group
+                        dbResponse = {
+                            type: 'channel',
+                            id: chat.id.toString(),
+                            name: chat.title,
+                            username: chat.username,
+                            photoUrl: chat.photo ? await getFileLink(chat.photo.big_file_id) : null,
+                            subscribers: 0, // resolving via getChat doesn't return member count usually, might need getChatMemberCount
+                            verified: false
+                        };
+
+                        // Try to get member count if possible (bot must be in chat to get accurate count usually)
+                        try {
+                            const count = await getChatMemberCount(chat.id);
+                            dbResponse.subscribers = count;
+                        } catch (e) { }
+                    }
+                }
+
+            } catch (tgFetchError) {
+                console.warn(`[Resolve] Telegram fetch failed for ${username}: ${tgFetchError.message}`);
+                // Do not return error, just fall through to 404
+            }
         }
-        */
 
         if (dbResponse) {
             console.log(`[Resolve] Telegram fetch failed or yielded no result. Returning DB fallback.`);

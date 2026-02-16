@@ -2,7 +2,9 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+console.log('Modal module evaluated');
+
+const Modal = ({ isOpen, onClose, title, children, zIndex }) => {
     // Lock body scroll when modal is open
     useEffect(() => {
         if (isOpen) {
@@ -38,7 +40,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             right: 0,
                             bottom: 0,
                             background: 'rgba(0,0,0,0.6)',
-                            zIndex: 101, // Above Nav (999), Below TonConnect (100000)
+                            zIndex: zIndex ? zIndex : 101, // Above Nav (999), Below TonConnect (100000)
                             backdropFilter: 'blur(4px)',
                             overscrollBehavior: 'contain' // Prevent scroll chaining
                         }}
@@ -63,13 +65,13 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                             bottom: 0,
                             left: 0,
                             right: 0,
-                            background: '#fff1',
+                            background: 'var(--modal-bg)',
                             backdropFilter: 'blur(30px)',
-                            border: '1px solid #fff2',
+                            border: '1px solid var(--glass-border)',
                             borderTopLeftRadius: '24px',
                             borderTopRightRadius: '24px',
                             padding: '24px',
-                            zIndex: 1101, // Above Nav (999)
+                            zIndex: zIndex ? zIndex + 1000 : 1101, // Above Nav (999)
                             maxHeight: '85vh',
                             overflowY: 'auto',
                             overscrollBehavior: 'contain',

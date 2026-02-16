@@ -93,7 +93,9 @@ const ListChannel = ({ activePage, onNavigate }) => {
                 channelId: channelData.id,
                 userId: user.uid || user.id,
                 memberCount: channelData.memberCount,
-                startPrice: parseFloat(startPrice) // Send Start Price
+                startPrice: parseFloat(startPrice), // Send Start Price
+                avgViews: channelData.stats?.avgViews || 0,
+                activeUsers: channelData.stats?.activeUsers || 0
             });
 
             // Refresh Profile to get new channel list
@@ -134,7 +136,9 @@ const ListChannel = ({ activePage, onNavigate }) => {
                 userId: user.uid || user.id,
                 templateId: selectedTemplate,
                 memberCount: channelData.memberCount,
-                startPrice: parseFloat(startPrice) // Send Start Price
+                startPrice: parseFloat(startPrice), // Send Start Price
+                avgViews: channelData.stats?.avgViews || 0,
+                activeUsers: channelData.stats?.activeUsers || 0
             });
 
             // Refresh Profile to get new channel list
@@ -215,6 +219,11 @@ const ListChannel = ({ activePage, onNavigate }) => {
                                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
                                         {channelData.memberCount} {t('channels.subs')} • {channelData.type}
                                     </div>
+                                    {channelData.stats && (
+                                        <div style={{ fontSize: '12px', color: '#10b981', marginTop: '2px', fontWeight: '600' }}>
+                                            👁️ {channelData.stats.avgViews.toLocaleString()} {t('channels.avgViews', 'Avg. Views')} (Active Users)
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

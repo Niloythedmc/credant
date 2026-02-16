@@ -32,6 +32,10 @@
   /* Clean shadow */
   --icon-verified: #3b82f6;
   --notif-bg: #334155;
+  --card-bg-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --modal-bg: var(--bg-card);
+  /* Default dark mode modal */
 }
 
 [data-theme="light"] {
@@ -49,9 +53,13 @@
   /* Feed UI Light Mode Overrides */
   --badge-yellow-bg: #fef9c3;
   --badge-yellow-text: #854d0e;
-  --badge-blue-bg: #dbeafe;
   --badge-blue-text: #1e40af;
   --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --card-bg-gradient: linear-gradient(145deg, #ffffff 0%, #f3f4f6 100%);
+  --input-bg: rgba(0, 0, 0, 0.05);
+  --glass-highlight: rgba(255, 255, 255, 0.8);
+  --modal-bg: rgba(255, 255, 255, 0.066);
+  /* #fff1 equivalent request */
 }
 
 * {

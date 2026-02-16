@@ -134,26 +134,28 @@ const TelegramPostRenderer = ({
                             rel="noopener noreferrer"
                             style={{
                                 display: 'block',
-                                width: '90%',
-                                margin: '0 auto',
-                                padding: '10px',
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid rgba(255, 255, 255, 0.2)',
-                                color: 'white',
-                                borderRadius: '8px',
+                                width: '100%',
+                                padding: '10px 0',
                                 textAlign: 'center',
+                                background: 'rgba(0, 0, 0, 0.2)', // #0002 representation
+                                borderRadius: '8px', // Different border radius
+                                color: '#fff',
                                 textDecoration: 'none',
-                                fontWeight: 500,
-                                fontSize: '14px'
+                                fontWeight: '600',
+                                marginTop: '12px',
+                                fontSize: '14px',
+                                transition: 'background 0.2s'
                             }}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Add hover effect manually or via CSS? Inline is safer for now given instructions.
+                            }}
                         >
-                            {buttonText || 'Open Link'}
+                            {buttonText || 'View'}
                         </a>
                     )}
                 </div>
-            </div>
+            </div >
         );
     }
 

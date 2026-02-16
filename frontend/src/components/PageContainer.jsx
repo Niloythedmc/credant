@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import styles from './PageContainer.module.css';
 
+console.log('PageContainer module evaluated');
+
 /**
  * PageContainer
  * Handles the "Side by Side" positioning logic.
